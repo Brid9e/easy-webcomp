@@ -1,0 +1,217 @@
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { gzipSync } from 'node:zlib'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import react from '@vitejs/plugin-react'
+import vue from '@vitejs/plugin-vue'
+import { build } from 'vite'
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const componentsDir = join(root, 'src/components')
+const generatedDir = join(root, 'src/.generated')
+
+interface ComponentInfo {
+  name: string
+  dir: string
+  framework: 'vue' | 'react'
+}
+
+function discoverComponents(): ComponentInfo[] {
+  return readdirSync(componentsDir)
+    .filter((name) => statSync(join(componentsDir, name)).isDirectory())
+    .map((name): ComponentInfo => {
+      const dir = join(componentsDir, name)
+      const hasVue = existsSync(join(dir, 'Component.vue'))
+      const hasReact = existsSync(join(dir, 'Component.tsx'))
+      if (hasVue === hasReact) {
+        throw new Error(
+          `[build] ${name} 必须且只能有一个 Component.vue 或 Component.tsx（当前 vue=${hasVue} react=${hasReact}）`,
+        )
+      }
+      for (const required of ['meta.ts', 'index.ts', 'define.ts']) {
+        if (!existsSync(join(dir, required))) {
+          throw new Error(`[build] ${name} 缺少 ${required}`)
+        }
+      }
+      return { name, dir, framework: hasVue ? 'vue' : 'react' }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function toIdentifier(name: string): string {
+  return name
+    .split(/[-_]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
+}
+
+function writeGeneratedEntries(components: ComponentInfo[]): void {
+  rmSync(generatedDir, { recursive: true, force: true })
+  mkdirSync(generatedDir, { recursive: true })
+
+  const allLines = components.map(
+    (c) => `export * as ${toIdentifier(c.name)} from '../components/${c.name}/index'`,
+  )
+  writeFileSync(join(generatedDir, 'all.ts'), `${allLines.join('\n')}\n`)
+
+  const defineLines = components.map(
+    (c, i) => `import { register as r${i} } from '../components/${c.name}/index'`,
+  )
+  defineLines.push('', components.map((_, i) => `r${i}()`).join('\n'), '')
+  writeFileSync(join(generatedDir, 'all-define.ts'), `${defineLines.join('\n')}\n`)
+}
+
+const sharedPlugins = () => [vue(), react()]
+
+const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
+
+async function buildEsm(components: ComponentInfo[]): Promise<void> {
+  const entry: Record<string, string> = {
+    index: join(generatedDir, 'all.ts'),
+  }
+  for (const c of components) {
+    entry[c.name] = join(c.dir, 'index.ts')
+    entry[`${c.name}/define`] = join(c.dir, 'define.ts')
+  }
+
+  await build({
+    root,
+    configFile: false,
+    resolve: { alias: vueAlias },
+    plugins: sharedPlugins(),
+    build: {
+      target: 'es2020',
+      outDir: 'dist/esm',
+      emptyOutDir: true,
+      minify: 'esbuild',
+      lib: {
+        entry,
+        formats: ['es'],
+        fileName: (_format, entryName) => `${entryName}.js`,
+      },
+    },
+  })
+}
+
+async function buildCdn(components: ComponentInfo[]): Promise<void> {
+  for (const c of components) {
+    await build({
+      root,
+      configFile: false,
+      resolve: { alias: vueAlias },
+      plugins: sharedPlugins(),
+      build: {
+        target: 'es2020',
+        outDir: 'dist/cdn',
+        emptyOutDir: false,
+        minify: 'esbuild',
+        lib: {
+          entry: join(c.dir, 'define.ts'),
+          formats: ['iife'],
+          name: toIdentifier(c.name),
+          fileName: () => `${c.name}.js`,
+        },
+      },
+    })
+  }
+
+  await build({
+    root,
+    configFile: false,
+    resolve: { alias: vueAlias },
+    plugins: sharedPlugins(),
+    build: {
+      target: 'es2020',
+      outDir: 'dist/cdn',
+      emptyOutDir: false,
+      minify: 'esbuild',
+      lib: {
+        entry: join(generatedDir, 'all-define.ts'),
+        formats: ['iife'],
+        name: 'CtcAll',
+        fileName: () => 'ctc-all.js',
+      },
+    },
+  })
+}
+
+function writeExportsField(components: ComponentInfo[]): void {
+  const pkgPath = join(root, 'package.json')
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+
+  const exports: Record<string, unknown> = {
+    './tokens.css': './src/tokens/tokens.css',
+    '.': './dist/esm/index.js',
+  }
+  for (const c of components) {
+    exports[`./${c.name}`] = `./dist/esm/${c.name}.js`
+    exports[`./${c.name}/define`] = `./dist/esm/${c.name}/define.js`
+    exports[`./cdn/${c.name}`] = `./dist/cdn/${c.name}.js`
+  }
+  exports['./cdn/ctc-all'] = './dist/cdn/ctc-all.js'
+
+  pkg.exports = exports
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+}
+
+function reportSizes(): void {
+  const files: string[] = []
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (name.endsWith('.js')) files.push(full)
+    }
+  }
+  walk(join(root, 'dist'))
+
+  console.log('\n产物体积（gzip）：')
+  for (const file of files.sort()) {
+    const gz = gzipSync(readFileSync(file)).length
+    console.log(`  ${file.replace(`${root}/`, '')}  ${(gz / 1024).toFixed(1)} KB`)
+  }
+  console.log('')
+}
+
+async function main(): Promise<void> {
+  const only = process.argv.find((a) => a.startsWith('--only='))?.split('=')[1]
+  if (only && only !== 'esm' && only !== 'cdn') {
+    throw new Error(`[build] --only 只接受 esm 或 cdn，收到 "${only}"`)
+  }
+
+  const components = discoverComponents()
+  if (components.length === 0) throw new Error('[build] 未发现任何组件')
+
+  console.log(`[build] 发现 ${components.length} 个组件：${components.map((c) => c.name).join(', ')}`)
+
+  if (!only) rmSync(join(root, 'dist'), { recursive: true, force: true })
+  writeGeneratedEntries(components)
+
+  if (!only || only === 'esm') {
+    console.log('[build] 构建 ESM 产物...')
+    await buildEsm(components)
+  }
+
+  if (!only || only === 'cdn') {
+    console.log('[build] 构建 CDN（IIFE）产物...')
+    await buildCdn(components)
+  }
+
+  writeExportsField(components)
+  reportSizes()
+
+  console.log('[build] 完成')
+}
+
+main().catch((error: unknown) => {
+  console.error(error)
+  process.exit(1)
+})

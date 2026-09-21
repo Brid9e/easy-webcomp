@@ -3,13 +3,26 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "files": ["dist", "src/tokens/tokens.css"],
+  "files": [
+    "dist",
+    "src/tokens/tokens.css"
+  ],
   "exports": {
-    "./tokens.css": "./src/tokens/tokens.css"
+    "./tokens.css": "./src/tokens/tokens.css",
+    ".": "./dist/esm/index.js",
+    "./hello-react": "./dist/esm/hello-react.js",
+    "./hello-react/define": "./dist/esm/hello-react/define.js",
+    "./cdn/hello-react": "./dist/cdn/hello-react.js",
+    "./hello-vue": "./dist/esm/hello-vue.js",
+    "./hello-vue/define": "./dist/esm/hello-vue/define.js",
+    "./cdn/hello-vue": "./dist/cdn/hello-vue.js",
+    "./cdn/ctc-all": "./dist/cdn/ctc-all.js"
   },
   "scripts": {
     "dev": "vite --config vite.playground.config.ts",
     "build": "tsx scripts/build.ts",
+    "build:esm": "tsx scripts/build.ts --only=esm",
+    "build:cdn": "tsx scripts/build.ts --only=cdn",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,6 +35,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
