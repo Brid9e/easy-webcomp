@@ -101,11 +101,20 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
   })
 }
 
+/**
+ * Vite 在 lib 模式下**不替换** `process.env.NODE_ENV`，因为库可能被各种宿主加载、
+ * 由宿主的打包器负责替换。但 IIFE 是给 `<script>` 直接用的，没有宿主打包器 ——
+ * react-dom 里的 `process.env.NODE_ENV` 会原样留下，浏览器一执行就抛
+ * `process is not defined`，Custom Element 根本注册不上。所以 CDN 产物必须自己替换掉。
+ */
+const cdnDefine = { 'process.env.NODE_ENV': JSON.stringify('production') }
+
 async function buildCdn(components: ComponentInfo[]): Promise<void> {
   for (const c of components) {
     await build({
       root,
       configFile: false,
+      define: cdnDefine,
       resolve: { alias: vueAlias },
       plugins: sharedPlugins(),
       build: {
@@ -126,6 +135,7 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
   await build({
     root,
     configFile: false,
+    define: cdnDefine,
     resolve: { alias: vueAlias },
     plugins: sharedPlugins(),
     build: {
