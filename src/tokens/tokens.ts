@@ -1,0 +1,20 @@
+export const colorPrimary = 'var(--ctc-color-primary)'
+export const colorText = 'var(--ctc-color-text)'
+export const colorTextSecondary = 'var(--ctc-color-text-secondary)'
+export const colorBg = 'var(--ctc-color-bg)'
+export const colorBorder = 'var(--ctc-color-border)'
+export const colorDanger = 'var(--ctc-color-danger)'
+
+export const radiusSm = 'var(--ctc-radius-sm)'
+export const radiusMd = 'var(--ctc-radius-md)'
+export const radiusLg = 'var(--ctc-radius-lg)'
+
+export const spaceXs = 'var(--ctc-space-xs)'
+export const spaceSm = 'var(--ctc-space-sm)'
+export const spaceMd = 'var(--ctc-space-md)'
+export const spaceLg = 'var(--ctc-space-lg)'
+
+export const fontFamily = 'var(--ctc-font-family)'
+export const fontSizeSm = 'var(--ctc-font-size-sm)'
+export const fontSizeMd = 'var(--ctc-font-size-md)'
+export const fontSizeLg = 'var(--ctc-font-size-lg)'

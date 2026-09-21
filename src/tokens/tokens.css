@@ -1,0 +1,23 @@
+:root {
+  --ctc-color-primary: #1677ff;
+  --ctc-color-text: #1f2329;
+  --ctc-color-text-secondary: #646a73;
+  --ctc-color-bg: #ffffff;
+  --ctc-color-border: #d9d9d9;
+  --ctc-color-danger: #f5222d;
+
+  --ctc-radius-sm: 4px;
+  --ctc-radius-md: 6px;
+  --ctc-radius-lg: 12px;
+
+  --ctc-space-xs: 2px;
+  --ctc-space-sm: 4px;
+  --ctc-space-md: 8px;
+  --ctc-space-lg: 16px;
+
+  --ctc-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --ctc-font-size-sm: 12px;
+  --ctc-font-size-md: 14px;
+  --ctc-font-size-lg: 16px;
+}
