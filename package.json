@@ -26,7 +26,8 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run test:e2e"
   },
   "dependencies": {
     "react": "^19.0.0",
