@@ -38,8 +38,11 @@
 
 ```
 ctc-web-components/
-├── package.json                 # 单包，多个 exports 子路径
-├── vite.config.ts               # 一份配置，两种产物模式
+├── package.json                 # 单包，多个 exports 子路径（由构建脚本生成）
+├── vite.config.ts               # 库构建配置，读 mode 参数
+├── vite.playground.config.ts    # playground dev 配置（含 WC 模式虚拟模块插件）
+├── vitest.config.ts
+├── playwright.config.ts
 ├── tsconfig.json
 ├── src/
 │   ├── tokens/                  # 设计 token → CSS 变量 + TS 常量
@@ -47,13 +50,19 @@ ctc-web-components/
 │   ├── runtime/                 # Vue/React → Web Component 桥接层
 │   └── components/
 │       └── <biz-name>/
-│           ├── index.vue        # 或 index.tsx，作者自选
+│           ├── Component.vue    # 或 Component.tsx，作者自选，只写一个
 │           ├── meta.ts          # 契约，必填
-│           └── style.css        # 就近样式，可选
+│           ├── style.css        # 就近样式，可选
+│           ├── index.ts         # 入口：绑定 meta + 实现，导出构造器与 register()
+│           └── define.ts        # 副作用入口：import 即注册（CDN 产物用）
 ├── playground/                  # 双模式预览站
-├── scripts/build.ts             # 扫描组件、生成 entries、编排两种模式
+├── scripts/build.ts             # 扫描组件目录、生成 entries、编排产物
 └── docs/superpowers/specs/      # 本设计文档
 ```
+
+**组件目录内的 import 一律使用相对路径，不使用 `@/` 别名** —— 保证脚本与工具链在任何时机都能解析。
+
+**样式的唯一来源是 `style.css`，经 `?inline` 作为字符串传给桥接层。** 组件内**禁止**写 `<style>` 块 / `import './x.css'` —— 那会走框架自己的样式注入路径，与第 7.2 节的投递规则冲突。
 
 **为什么单包**：`tokens` / `shared` / `runtime` 必须与组件**版本严格同步**（token 改了组件就得跟着发），拆包只会带来版本对齐成本。宿主若想单独使用 token，通过 exports 子路径提供 `ctc-web-components/tokens.css` 即可，无需真的拆包。
 
@@ -88,11 +97,33 @@ export default defineComponentMeta({
 
 统一入口 `defineElement(meta, impl)`，返回 CustomElement 构造器。集中处理五件易错的事：
 
-### 7.1 框架适配
-- Vue 走内置 `defineCustomElement`（自带属性映射与样式投递）
-- React 走 `@r2wc/react-to-web-component`
-- 两者在 `defineElement` 之后抹平，组件作者感知不到差异
-- **不手写 mount 逻辑**
+### 7.1 框架适配（自写适配器，不用现成桥接库）
+
+**决策：自己写 Vue / React 适配器，不使用 `defineCustomElement` 或 `@r2wc`。**
+
+原因是规划期发现的技术冲突：
+
+- Vue 的 `defineCustomElement` 在**构造函数内**就创建了 shadow root，而 attribute 要等到 `connectedCallback` 才能读取。这个时序意味着**第 7.2 节的 per-instance `disable-shadow` 降级无法实现** —— shadow root 已经建好了，无法撤销。
+- Vue 的 `emit` 不会自动变成 DOM CustomEvent。要套用 `defineCustomElement` 就得再包一层 hack 才能拿到宿主元素去 `dispatchEvent`。
+- `@r2wc` 内部同样自己管 shadow root，存在同样的冲突。
+
+既然第 7.2 / 7.3 两条规则都要求桥接层完全掌控 shadow root 创建时机与事件派发，那正确做法就是**自写适配器**。
+
+适配器统一接口（`ElementAdapter`）：
+
+```ts
+interface ElementAdapter {
+  mount(host, props, emit): unknown
+  update(instance, props): void
+  unmount(instance): void
+}
+```
+
+- Vue 适配器：`createApp` + `shallowRef` 装 props + render 函数内调 `getComponent()`；事件经 `provide(CTC_EMIT_KEY, emit)` 注入，组件侧用 `useEmit()` 取出。
+- React 适配器：`createRoot` 挂载 + `Context.Provider` 注入 emit，组件侧用 `useEmit()` 取出。
+- 两者都用**函数Getter 取组件**（而非快照），使第 7.5 节的 HMR 只需重渲染即可换掉实现。
+
+作者侧写法完全一致：组件里调 `useEmit()('select', detail)` 即可，不需要知道桥接层怎么派发。
 
 ### 7.2 样式投递
 统一为「一个 CSS 字符串 + 一个注入点」，按 `meta.shadow` 决定去处：
@@ -200,9 +231,13 @@ ctc-web-components/button/define   → 引入即注册（有副作用）
 ### 10.1 构建实现要点
 
 1. **Rollup 的 IIFE 格式不支持多入口、也不支持代码分割** → 每个组件的 CDN 产物**必须单独跑一次构建**，由 `scripts/build.ts` 循环并发执行。这是构建耗时的主要来源，组件数量增长后构建会明显变慢，属于可接受代价。
-2. **shared 模式**：external `vue` / `react` / `react-dom`，并用 `output.globals` 映射到 `Vue` / `React` / `ReactDOM`。
-3. **self-contained 模式下 Vue 会内联整个 runtime**（约 60KB gzip）。把 `vue` 别名指向 `vue/dist/vue.runtime.esm-bundler.js`（runtime-only，不含模板编译器）。组件都是 SFC 预编译产物，运行时不需要编译器，这个别名是安全的。
-4. **构建结束打印每个产物 gzip 体积**并与上次对比，防止某次引入大依赖无人察觉。（低成本高收益）
+
+   与之对应，**ESM 列允许代码分割**：一次 Vite 构建产出全部 ESM 入口，公共代码抽成 chunk。ESM 消费方是打包器/构建工具，整目录解析没有部署耦合问题。「单文件可拷走」这个诉求由 IIFE 列承担 —— 它才是客户老系统真正需要的形式。
+
+2. **`package.json` 的 `exports` 字段由构建脚本生成**（扫描 `src/components/*/` 后覆写）。这样加组件依然零配置，不需要手改 exports 映射。
+3. **shared 模式**：external `vue` / `react` / `react-dom`，并用 `output.globals` 映射到 `Vue` / `React` / `ReactDOM`。（二期）
+4. **self-contained 模式下 Vue 会内联整个 runtime**（约 60KB gzip）。把 `vue` 别名指向 `vue/dist/vue.runtime.esm-bundler.js`（runtime-only，不含模板编译器）。组件都是 SFC 预编译产物，运行时不需要编译器，这个别名是安全的。
+5. **构建结束打印每个产物 gzip 体积**并与上次对比，防止某次引入大依赖无人察觉。（低成本高收益）
 
 ## 11. Playground（双模式 + HMR）
 
@@ -259,7 +294,7 @@ WC 模式的 HMR 依赖第 7.5 节的引用替换机制。
 
 本设计的实施范围限定在**一期**。二期、三期单独走各自的 spec → plan → 实施循环。
 
-- **一期（骨架跑通）**：仓库结构 + tokens + runtime 桥接层 + 构建脚本 + playground 双模式 + 1 个 Vue 组件 + 1 个 React 组件端到端跑通。此期结束时，产物矩阵应可完整产出并通过冒烟测试。
+- **一期（骨架跑通）**：仓库结构 + tokens + runtime 桥接层 + 构建脚本 + playground 双模式 + 1 个 Vue 组件 + 1 个 React 组件端到端跑通。此期结束时，**self-contained 列**的产物（单组件 ESM / 单组件 IIFE / 全量 ESM / 全量 IIFE）应可完整产出并通过冒烟测试；构建脚本的 `mode` 参数已就位但只启用 `self-contained`。
 - **二期（依赖共用，本期不做）**：`window.__CTC_SHARED__` 注册表、宿主注入协议三级兜底、shared 模式产物、token 换肤能力。
 - **三期（工程完备，本期不做）**：测试三层补齐、体积哨兵、ESLint/Prettier、CI。
 
