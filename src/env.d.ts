@@ -5,3 +5,8 @@ declare module '*.vue' {
   const component: DefineComponent<Record<string, unknown>, Record<string, unknown>, unknown>
   export default component
 }
+
+declare module 'virtual:ctc-wc-index' {
+  const modules: Record<string, { Element: CustomElementConstructor }>
+  export default modules
+}

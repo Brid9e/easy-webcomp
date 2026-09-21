@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+import { wcModePlugin } from './playground/plugins/wc-mode'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 
@@ -14,6 +15,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    wcModePlugin(resolve(rootDir, 'src/components')),
     vue({
       template: {
         compilerOptions: {

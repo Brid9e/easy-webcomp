@@ -61,6 +61,40 @@ function handleEvent(name: string, detail: unknown): void {
   events.value.unshift({ name, detail, at: new Date().toLocaleTimeString() })
   events.value = events.value.slice(0, 20)
 }
+
+const mode = ref<'source' | 'wc'>('source')
+
+const wcAttributes = computed<Record<string, unknown>>(() => {
+  const result: Record<string, unknown> = {}
+  for (const [name, def] of propDefs.value) {
+    const attr = name.replace(/([A-Z])/g, '-$1').toLowerCase()
+    if (def.type === 'boolean') {
+      if (booleanValues[name]) result[attr] = ''
+    } else if (def.type === 'string' || def.type === 'number') {
+      result[attr] = values[name]
+    }
+  }
+  return result
+})
+
+async function enableWc(): Promise<void> {
+  const modules = (await import('virtual:ctc-wc-index')) as {
+    default: Record<string, { Element: CustomElementConstructor }>
+  }
+  const mod = modules.default[props.entry.name]
+  if (!mod) {
+    console.warn(`[playground] 未找到 ${props.entry.name} 的虚拟模块`)
+    return
+  }
+  const tag = props.entry.tag
+  if (!customElements.get(tag)) {
+    customElements.define(tag, mod.Element)
+  }
+}
+
+watch(mode, (next) => {
+  if (next === 'wc') void enableWc()
+})
 </script>
 
 <template>
@@ -95,21 +129,47 @@ function handleEvent(name: string, detail: unknown): void {
     </div>
 
     <div class="panel">
-      <h3>预览</h3>
-      <VueMount
-        v-if="entry.framework === 'vue'"
-        :name="entry.name"
-        :component="entry.sourceComponent as never"
-        :props-data="propsData"
-        :on-event="handleEvent"
-      />
-      <ReactMount
-        v-else
-        :name="entry.name"
-        :component="entry.sourceComponent as never"
-        :props-data="propsData"
-        :on-event="handleEvent"
-      />
+      <div class="panel-head">
+        <h3>预览</h3>
+        <div class="mode-switch">
+          <button
+            type="button"
+            :class="{ active: mode === 'source' }"
+            @click="mode = 'source'"
+          >
+            源码模式
+          </button>
+          <button type="button" :class="{ active: mode === 'wc' }" @click="mode = 'wc'">
+            WC 模式
+          </button>
+        </div>
+      </div>
+
+      <div :key="mode">
+        <template v-if="mode === 'source'">
+          <VueMount
+            v-if="entry.framework === 'vue'"
+            :name="entry.name"
+            :component="entry.sourceComponent as never"
+            :props-data="propsData"
+            :on-event="handleEvent"
+          />
+          <ReactMount
+            v-else
+            :name="entry.name"
+            :component="entry.sourceComponent as never"
+            :props-data="propsData"
+            :on-event="handleEvent"
+          />
+        </template>
+
+        <component
+          :is="entry.tag"
+          v-else
+          v-bind="wcAttributes"
+          @ctc-select="handleEvent('select', ($event as CustomEvent).detail)"
+        />
+      </div>
     </div>
 
     <div class="panel">
@@ -138,6 +198,34 @@ function handleEvent(name: string, detail: unknown): void {
 .panel h3 {
   margin: 0 0 12px;
   font-size: var(--ctc-font-size-md);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-head h3 {
+  margin: 0;
+}
+.mode-switch button {
+  padding: 4px 10px;
+  border: 1px solid var(--ctc-color-border);
+  background: #fff;
+  font: inherit;
+  font-size: var(--ctc-font-size-sm);
+  cursor: pointer;
+}
+.mode-switch button:first-child {
+  border-radius: var(--ctc-radius-sm) 0 0 var(--ctc-radius-sm);
+}
+.mode-switch button:last-child {
+  border-left: none;
+  border-radius: 0 var(--ctc-radius-sm) var(--ctc-radius-sm) 0;
+}
+.mode-switch button.active {
+  background: var(--ctc-color-primary);
+  border-color: var(--ctc-color-primary);
+  color: #fff;
 }
 .field {
   display: flex;
