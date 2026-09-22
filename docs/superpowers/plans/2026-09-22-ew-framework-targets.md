@@ -129,9 +129,13 @@ pnpm run test -- style
  * 只认裸 `:host`。`:host(...)` 是有意留着的 —— 它在 light DOM 里匹配不到任何元素，
  * 是一条无害的空规则；而改成 `.h(.card)` 会拼出非法选择器，整条规则连同块一起被丢弃。
  * 当前没有组件用这个形态，真要用再单独设计。
+ *
+ * 前瞻里那个 `(` 不能少。只挡 `[\w-]` 的话 `:host(.card)` 会因为 `(` 不在集合里而被替换成
+ * `.h(.card)`；`-` 那半边挡的是 `:host-context()`。写成 `[\w-]|\(` 而不是 `[\w-(]`，
+ * 是因为字符类里让 `-` 紧跟在 `\w` 后面要走 Annex B 的宽容规则才当字面量，太隐晦。
  */
 export function rewriteHost(css: string, selector: string): string {
-  return css.replace(/:host(?![\w-])/g, selector)
+  return css.replace(/:host(?![\w-]|\()/g, selector)
 }
 
 /**
