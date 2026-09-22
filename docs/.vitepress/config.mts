@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
+import tailwind from '@tailwindcss/vite'
 import { defineConfig } from 'vitepress'
 import { wcModePlugin } from './plugins/wc-mode'
 import { listWorkspaces, readWorkspaceMeta } from './workspaces'
@@ -50,7 +51,7 @@ export default defineConfig(async () => ({
     resolve: {
       alias: { '@src': resolve(rootDir, 'src') },
     },
-    plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react()],
+    plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react(), tailwind()],
   },
   themeConfig: {
     nav: [

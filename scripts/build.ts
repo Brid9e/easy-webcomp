@@ -11,6 +11,7 @@ import { gzipSync } from 'node:zlib'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
+import tailwind from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { build } from 'vite'
 
@@ -97,7 +98,8 @@ function writeGeneratedEntries(components: ComponentInfo[]): void {
   writeFileSync(join(generatedDir, 'all-define.ts'), `${defineLines.join('\n')}\n`)
 }
 
-const sharedPlugins = () => [vue(), react()]
+// tailwind 对不含 @import "tailwindcss" 的 CSS 是直通，没用它的组件不受影响
+const sharedPlugins = () => [vue(), react(), tailwind()]
 
 const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
 
