@@ -279,10 +279,13 @@ git commit -m "feat: 工作空间清单类型与 new:workspace 脚手架"
 - [ ] **Step 1: 移动源码**
 
 ```bash
+mkdir -p src/workspaces/demo/components
 git mv src/components/hello-vue src/workspaces/demo/components/hello-vue
 git mv src/components/hello-react src/workspaces/demo/components/hello-react
 rmdir src/components
 ```
+
+`git mv` 不会创建中间目录，`mkdir -p` 那行是必需的。
 
 - [ ] **Step 2: 修组件内的相对导入层级**
 
