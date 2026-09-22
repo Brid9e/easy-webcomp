@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import type { Plugin } from 'vite'
+import { toIdentifier } from '../../../src/runtime/naming'
 
 const COMPONENTS_PREFIX = 'virtual:ew-wc/'
 const INDEX_ID = 'virtual:ew-wc-index'
@@ -46,8 +47,6 @@ function locateComponents(workspacesDir: string): Located[] {
  * 会被解析成 `docs/src/...`，找不到文件。
  */
 export function wcModePlugin(workspacesDir: string): Plugin {
-  const srcDir = resolve(workspacesDir, '..')
-
   return {
     name: 'ew-wc-mode',
 
@@ -77,31 +76,24 @@ export function wcModePlugin(workspacesDir: string): Plugin {
         const dir = located.dir
         const isVue = located.framework === 'vue'
         const componentPath = join(dir, isVue ? 'Component.vue' : 'Component.tsx')
-        const adapterCall = isVue ? 'vueAdapter' : 'reactAdapter'
+        const indexPath = join(dir, 'index.ts')
+        const elementExport = `${toIdentifier(name)}Element`
 
-        const refs = {
-          element: join(srcDir, 'runtime', 'element.ts'),
-          adapter: join(srcDir, 'runtime', isVue ? 'vue.ts' : 'react.ts'),
-          meta: join(dir, 'meta.ts'),
-          css: `${join(dir, 'style.css')}?inline`,
-          component: componentPath,
-        }
-
+        // 直接复用组件自己的 index.ts，**不要**在这里再 createElementClass 一遍。
+        // 预览必须等于消费者拿到的东西：选 Element Plus / antd 的组件要在 light DOM 里内联库样式，
+        // 选 Pinia 的组件要按实例装插件 —— 这些都在 index.ts 里。早先这里手搓元素只传了
+        // meta + style.css，于是 UI 库组件在文档站里永远是裸的，而构建产物是好的。
         return `
-import { createElementClass } from ${JSON.stringify(refs.element)}
-import { ${adapterCall} } from ${JSON.stringify(refs.adapter)}
-import meta from ${JSON.stringify(refs.meta)}
-import css from ${JSON.stringify(refs.css)}
-import * as ComponentModule from ${JSON.stringify(refs.component)}
+import { meta, ${elementExport} as Element } from ${JSON.stringify(indexPath)}
+import * as ComponentModule from ${JSON.stringify(componentPath)}
 
-const componentRef = { current: ComponentModule.default }
-export { meta }
-export const Element = createElementClass(meta, ${adapterCall}(() => componentRef.current), css)
+export { meta, Element }
 
 if (import.meta.hot) {
-  import.meta.hot.accept(${JSON.stringify(refs.component)}, (updated) => {
-    if (!updated) return
-    componentRef.current = updated[0].default
+  import.meta.hot.accept(${JSON.stringify(componentPath)}, () => {
+    // 保留 ComponentModule 的引用，让上面那条 import 真正成为本模块的依赖边 ——
+    // hot.accept(path, cb) 只对已 import 的路径生效。之后强制已挂载实例重渲染。
+    void ComponentModule
     Element.refresh()
   })
 }

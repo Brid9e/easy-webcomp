@@ -14,6 +14,7 @@ import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { build } from 'vite'
+import { toIdentifier } from '../src/runtime/naming'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const workspacesDir = join(root, 'src/workspaces')
@@ -69,13 +70,6 @@ function discoverComponents(): ComponentInfo[] {
   }
 
   return components.sort((a, b) => a.name.localeCompare(b.name))
-}
-
-function toIdentifier(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('')
 }
 
 function writeGeneratedEntries(components: ComponentInfo[]): void {

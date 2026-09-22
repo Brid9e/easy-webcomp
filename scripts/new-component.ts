@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'nod
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Option } from '@clack/prompts'
+import { toIdentifier } from '../src/runtime/naming'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -98,14 +99,6 @@ export const ADDONS: Record<AddonKey, AddonDef> = {
     dependencies: [],
     devDependencies: ['tailwindcss', '@tailwindcss/vite'],
   },
-}
-
-/** `my-card` → `MyCard` */
-export function toIdentifier(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('')
 }
 
 function assertName(name: string): void {
