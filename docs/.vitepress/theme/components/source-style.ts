@@ -1,4 +1,4 @@
-const styleModules = import.meta.glob('@src/components/*/style.css', {
+const styleModules = import.meta.glob('@src/workspaces/*/components/*/style.css', {
   eager: true,
   query: '?inline',
   import: 'default',

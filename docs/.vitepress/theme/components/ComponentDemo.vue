@@ -10,11 +10,10 @@ interface MetaShape {
 
 const props = defineProps<{ name: string }>()
 
-const metaModules = import.meta.glob('@src/components/*/meta.ts', { eager: true }) as Record<
-  string,
-  { default: MetaShape }
->
-const sourceModules = import.meta.glob('@src/components/*/Component.{vue,tsx}', {
+const metaModules = import.meta.glob('@src/workspaces/*/components/*/meta.ts', {
+  eager: true,
+}) as Record<string, { default: MetaShape }>
+const sourceModules = import.meta.glob('@src/workspaces/*/components/*/Component.{vue,tsx}', {
   eager: true,
 }) as Record<string, { default: unknown }>
 

@@ -3,20 +3,25 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitepress'
 import { wcModePlugin } from './plugins/wc-mode'
-import { listWorkspaces } from './workspaces'
+import { listWorkspaces, readWorkspaceMeta } from './workspaces'
 
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 
-function buildComponentSidebar() {
-  return listWorkspaces().flatMap((ws) =>
-    ws.components.map((c) => ({
-      text: c.name,
-      link: c.documented ? `/components/${c.name}` : `/components/#${c.name}`,
+// 空间名取清单里的 title，读不到就回落目录名
+async function buildWorkspaceSidebar() {
+  return Promise.all(
+    listWorkspaces().map(async (ws) => ({
+      text: (await readWorkspaceMeta(ws.id)).title ?? ws.id,
+      collapsed: false,
+      items: ws.components.map((c) => ({
+        text: c.name,
+        link: `/workspaces/${ws.id}/${c.name}`,
+      })),
     })),
   )
 }
 
-export default defineConfig({
+export default defineConfig(async () => ({
   title: 'easy-webcomp',
   description: '用 Vue 3 或 React 写业务组件，构建管线输出统一形态的 Web Component',
   srcExclude: ['superpowers/**'],
@@ -40,12 +45,12 @@ export default defineConfig({
     resolve: {
       alias: { '@src': resolve(rootDir, 'src') },
     },
-    plugins: [wcModePlugin(resolve(rootDir, 'src/components')), react()],
+    plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react()],
   },
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/' },
-      { text: '组件', link: '/components/' },
+      { text: '组件', link: '/workspaces/' },
     ],
     sidebar: {
       '/guide/': [
@@ -59,7 +64,7 @@ export default defineConfig({
           ],
         },
       ],
-      '/components/': [{ text: '组件', items: buildComponentSidebar() }],
+      '/workspaces/': [{ text: '组件', items: await buildWorkspaceSidebar() }],
     },
   },
-})
+}))
