@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createApp, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type App } from 'vue'
 import { EW_EMIT_KEY } from '@ew/runtime'
-import { componentStyle } from './source-style'
+import { componentStyle } from '../source-style'
 
 const props = defineProps<{
   name: string

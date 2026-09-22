@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import ReactMount from './ReactMount.vue'
-import VueMount from './VueMount.vue'
+import ReactMount from '@devtools/mount/ReactMount.vue'
+import VueMount from '@devtools/mount/VueMount.vue'
 
 interface MetaShape {
   tag: string

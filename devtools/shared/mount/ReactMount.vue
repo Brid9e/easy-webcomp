@@ -3,7 +3,7 @@ import { createElement, type ComponentType } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { EwEmitContext } from '@ew/runtime'
-import { componentStyle } from './source-style'
+import { componentStyle } from '../source-style'
 
 const props = defineProps<{
   name: string

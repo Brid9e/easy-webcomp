@@ -18,8 +18,8 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "useDefineForClassFields": true,
-    "paths": { "@src/*": ["./src/*"] },
+    "paths": { "@src/*": ["./src/*"], "@devtools/*": ["./devtools/shared/*"] },
     "types": ["vite/client", "node"]
   },
-  "include": ["*.config.ts", "src", "docs", "tests", "scripts", "packages"]
+  "include": ["*.config.ts", "src", "docs", "tests", "scripts", "packages", "devtools"]
 }

@@ -3,7 +3,11 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
 import { defineConfig } from 'vitepress'
-import { wcModePlugin } from './plugins/wc-mode'
+// 相对路径，不能用 @devtools 别名：VitePress 把本文件单独打成 esbuild 临时模块，
+// 裸说明符一律 external 交给 Node 从 node_modules 解析 —— 既不认 tsconfig paths 也不认
+// vite.resolve.alias（别名只作用于配置加载之后的内容构建），会 ERR_MODULE_NOT_FOUND。
+// 下一行的 ./workspaces 同理。别名本身仍然要有，它服务内容构建期的 glob 与 @devtools/mount/*。
+import { wcModePlugin } from '../../devtools/shared/wc-mode'
 import { listWorkspaces, readWorkspaceMeta } from './workspaces'
 
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
@@ -49,7 +53,10 @@ export default defineConfig(async () => ({
   },
   vite: {
     resolve: {
-      alias: { '@src': resolve(rootDir, 'src') },
+      alias: {
+        '@src': resolve(rootDir, 'src'),
+        '@devtools': resolve(rootDir, 'devtools/shared'),
+      },
     },
     // 组件样式里的 `@use '<空间>/styles'` 靠它解析，与 scripts/build.ts 的 cssConfig 是同一份约定。
     // 这里必须写 includePaths：VitePress 1.6 内嵌 Vite 5，走的是只认这个名字的旧 Sass API。
