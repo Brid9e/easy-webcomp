@@ -27,7 +27,7 @@ export interface ElementAdapter {
   unmount(instance: unknown): void
 }
 
-/** 构造器上额外挂了 refresh()，供 HMR 与 playground 强制重渲染 */
+/** 构造器上额外挂了 refresh()，供 HMR 与文档站交互面板强制重渲染 */
 export interface CtcElementConstructor extends CustomElementConstructor {
   refresh: () => void
 }

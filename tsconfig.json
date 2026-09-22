@@ -20,5 +20,5 @@
     "paths": { "@src/*": ["./src/*"] },
     "types": ["vite/client", "node"]
   },
-  "include": ["*.config.ts", "src", "docs", "playground", "tests", "scripts"]
+  "include": ["*.config.ts", "src", "docs", "tests", "scripts"]
 }

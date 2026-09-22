@@ -8,10 +8,12 @@
 
 ```bash
 pnpm install
-pnpm run dev        # 启动 playground：http://localhost:5273
+pnpm run dev        # 文档站：http://localhost:5173
 ```
 
-playground 里每个组件都有两种模式：
+文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会出现在[组件总览](/components/)里。
+
+组件页的交互面板有两种模式：
 
 - **源码模式** —— 组件源码直接挂载，获得原生 HMR 与框架 devtools。
 - **WC 模式** —— 走真实的 `createElementClass` 路径，验证属性传递、事件冒泡、Shadow 隔离。改源码同样热更新，不重新 `customElements.define`。
@@ -133,16 +135,17 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hell
 ## 验证
 
 ```bash
-pnpm run verify   # typecheck + 单测 + 构建 + 冒烟测试
+pnpm run verify   # typecheck + 单测 + 构建 + 文档站构建 + 冒烟测试
 ```
 
-四项依次为：
+五项依次为：
 
 | 阶段 | 内容 |
 |---|---|
 | `typecheck` | `vue-tsc --noEmit`，根目录 `*.config.ts` 也在检查范围内 |
-| `test` | Vitest + jsdom，6 个文件 41 个用例，覆盖桥接层全部易错点 |
+| `test` | Vitest + jsdom，7 个文件 46 个用例，覆盖桥接层全部易错点与组件扫描 |
 | `build` | ESM + CDN 全量产物 |
+| `docs:build` | VitePress 构建文档站，同时是 SSR 问题的唯一防线 |
 | `test:e2e` | Playwright 冒烟测试，8 个用例加载 `dist/cdn/*.js` 真实产物 |
 
 e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chromium 的下载源在本机只有约 2.5 MB/min，182 MB 装不上。若要改用自带 chromium：`pnpm exec playwright install chromium`，然后删掉 `playwright.config.ts` 里的 `channel`。

@@ -25,8 +25,8 @@ function listComponents(componentsDir: string): ComponentInfo[] {
 }
 
 /**
- * 生成的代码一律用绝对路径引用源码。playground 的 Vite root 是 `playground/`，
- * 写 `/src/...` 会被解析成 `playground/src/...`，找不到文件。
+ * 生成的代码一律用绝对路径引用源码。Vite root 是 `docs/`，写 `/src/...`
+ * 会被解析成 `docs/src/...`，找不到文件。
  */
 export function wcModePlugin(componentsDir: string): Plugin {
   const srcDir = resolve(componentsDir, '..')
