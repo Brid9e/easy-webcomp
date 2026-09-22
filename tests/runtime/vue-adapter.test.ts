@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, inject, type Plugin } from 'vue'
 import { createElementClass } from '../../src/runtime/element'
 import { resetRegistry } from '../../src/runtime/registry'
 import { resetStyleCache } from '../../src/runtime/style'
@@ -107,5 +107,40 @@ describe('vueAdapter', () => {
     ;(el as unknown as { payload: unknown }).payload = { a: 1 }
     await tick()
     expect(el.shadowRoot?.querySelector('.obj')?.textContent).toBe('{"a":1}')
+  })
+
+  it('插件工厂按元素实例装一次，provide 的值互相隔离', async () => {
+    const probeKey = Symbol('probe')
+    let seq = 0
+
+    // 每次调用返回一份新的插件 —— 这正是 Pinia 的用法：一个元素一份状态
+    const factory = (): Plugin[] => {
+      seq += 1
+      const mine = seq
+      return [{ install: (app) => app.provide(probeKey, mine) }]
+    }
+
+    const ProbeComp = defineComponent({
+      setup() {
+        return () => h('span', { class: 'probe-value' }, String(inject(probeKey, 0)))
+      },
+    })
+
+    const adapter = vueAdapter(() => ProbeComp, { plugins: factory })
+    const hostA = document.createElement('div')
+    const hostB = document.createElement('div')
+    adapter.mount(hostA, {}, () => {})
+    adapter.mount(hostB, {}, () => {})
+    await tick()
+
+    expect(seq).toBe(2)
+    expect(hostA.querySelector('.probe-value')?.textContent).toBe('1')
+    expect(hostB.querySelector('.probe-value')?.textContent).toBe('2')
+  })
+
+  it('不传 options 时行为不变', async () => {
+    const el = mountVue(uniqueTag())
+    await tick()
+    expect(el.shadowRoot?.querySelector('.probe')?.textContent).toBe('Hello, World')
   })
 })
