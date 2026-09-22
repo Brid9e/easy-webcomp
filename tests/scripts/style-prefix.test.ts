@@ -60,6 +60,23 @@ describe('findPrefixViolations', () => {
     expect(findPrefixViolations('.ew-my-list::after { content: "{.fake{" }', 'my-list')).toEqual([])
   })
 
+  // 引号里的 \" 是转义，不是字符串收尾。状态机不认转义就会在第二个引号处提前出栈，
+  // 之后的整个文件全被当成「还在字符串里」跳过 —— 守卫于是静默漏报后面所有选择器。
+  it('字符串里的转义双引号不会让后续选择器被跳过', () => {
+    const css = '.ew-ok { content: "\\"" }\n.bad-class { a: 1 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
+  it('字符串里的转义单引号不会让后续选择器被跳过', () => {
+    const css = ".ew-ok::after { content: 'it\\'s' }\n.bad-class { a: 1 }"
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
+  it('属性选择器值里的转义引号同样不吞掉后续选择器', () => {
+    const css = '[data-y="a\\"b"] .bad-class { a: 1 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
   it('ant- 前缀与 el- 一样放行', () => {
     expect(findPrefixViolations('.ant-form-item { max-width: 100%; }', 'my-table')).toEqual([])
   })

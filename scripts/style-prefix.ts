@@ -40,10 +40,19 @@ function selectorsOf(css: string): string[] {
   let buffer = ''
   let quote: string | null = null
   let inAttribute = false
+  // 引号内要认 `\` 转义。不认的话 `content: "\""` 会把第二个引号当成收尾，状态机
+  // 从此一直以为「还在字符串里」，文件剩下的选择器全部被跳过 —— 静默的全量漏报。
+  let escaped = false
 
   for (const char of stripComments(css)) {
     if (quote !== null) {
-      if (char === quote) quote = null
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === quote) {
+        quote = null
+      }
       continue
     }
     if (char === '"' || char === "'") {
