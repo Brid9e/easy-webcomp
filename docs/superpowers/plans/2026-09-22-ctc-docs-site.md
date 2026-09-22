@@ -943,7 +943,9 @@ git commit -m "docs: 交互面板 ComponentDemo"
 <script setup lang="ts">
 import ComponentDemo from './ComponentDemo.vue'
 
-const names = Object.keys(import.meta.glob('@src/components/*/meta.ts'))
+// 用 eager：meta 模块已经被 ComponentDemo 静态引了，这里再走动态 import 只会让 Rollup
+// 同时产出两条路径并警告，没有收益
+const names = Object.keys(import.meta.glob('@src/components/*/meta.ts', { eager: true }))
   .map((path) => path.split('/').at(-2) ?? '')
   .sort((a, b) => a.localeCompare(b))
 </script>
@@ -978,7 +980,7 @@ const names = Object.keys(import.meta.glob('@src/components/*/meta.ts'))
 </style>
 ```
 
-不用 `eager`：这里只要目录名，不需要把组件模块全部加载进来。`:id="name"` 是给侧边栏的兜底链接 `#<name>` 用的锚点。
+`:id="name"` 是给侧边栏的兜底链接 `#<name>` 用的锚点。
 
 - [ ] **Step 2: 注册到主题**
 
