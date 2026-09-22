@@ -15,20 +15,41 @@ import vue from '@vitejs/plugin-vue'
 import { build } from 'vite'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const componentsDir = join(root, 'src/components')
+const workspacesDir = join(root, 'src/workspaces')
 const generatedDir = join(root, 'src/.generated')
 
 interface ComponentInfo {
   name: string
+  workspace: string
   dir: string
   framework: 'vue' | 'react'
 }
 
 function discoverComponents(): ComponentInfo[] {
-  return readdirSync(componentsDir)
-    .filter((name) => statSync(join(componentsDir, name)).isDirectory())
-    .map((name): ComponentInfo => {
+  const seen = new Map<string, string>()
+  const components: ComponentInfo[] = []
+
+  for (const workspace of readdirSync(workspacesDir)) {
+    const wsDir = join(workspacesDir, workspace)
+    if (!statSync(wsDir).isDirectory()) continue
+
+    const componentsDir = join(wsDir, 'components')
+    if (!existsSync(componentsDir)) continue
+
+    for (const name of readdirSync(componentsDir)) {
       const dir = join(componentsDir, name)
+      if (!statSync(dir).isDirectory()) continue
+
+      // tag 与 package exports 都不带空间前缀，重名会静默覆盖 exports 键
+      const owner = seen.get(name)
+      if (owner) {
+        throw new Error(
+          `[build] 组件名 "${name}" 在 "${owner}" 与 "${workspace}" 下重复。` +
+            'tag 与 package exports 都不带空间前缀，组件名必须全局唯一',
+        )
+      }
+      seen.set(name, workspace)
+
       const hasVue = existsSync(join(dir, 'Component.vue'))
       const hasReact = existsSync(join(dir, 'Component.tsx'))
       if (hasVue === hasReact) {
@@ -41,9 +62,12 @@ function discoverComponents(): ComponentInfo[] {
           throw new Error(`[build] ${name} 缺少 ${required}`)
         }
       }
-      return { name, dir, framework: hasVue ? 'vue' : 'react' }
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
+
+      components.push({ name, workspace, dir, framework: hasVue ? 'vue' : 'react' })
+    }
+  }
+
+  return components.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function toIdentifier(name: string): string {
@@ -57,13 +81,17 @@ function writeGeneratedEntries(components: ComponentInfo[]): void {
   rmSync(generatedDir, { recursive: true, force: true })
   mkdirSync(generatedDir, { recursive: true })
 
+  // 生成文件在 src/.generated/，故相对路径要从 src/ 往下写
+  const entryPath = (c: ComponentInfo) =>
+    `../workspaces/${c.workspace}/components/${c.name}/index`
+
   const allLines = components.map(
-    (c) => `export * as ${toIdentifier(c.name)} from '../components/${c.name}/index'`,
+    (c) => `export * as ${toIdentifier(c.name)} from '${entryPath(c)}'`,
   )
   writeFileSync(join(generatedDir, 'all.ts'), `${allLines.join('\n')}\n`)
 
   const defineLines = components.map(
-    (c, i) => `import { register as r${i} } from '../components/${c.name}/index'`,
+    (c, i) => `import { register as r${i} } from '${entryPath(c)}'`,
   )
   defineLines.push('', components.map((_, i) => `r${i}()`).join('\n'), '')
   writeFileSync(join(generatedDir, 'all-define.ts'), `${defineLines.join('\n')}\n`)
@@ -200,7 +228,10 @@ async function main(): Promise<void> {
   const components = discoverComponents()
   if (components.length === 0) throw new Error('[build] 未发现任何组件')
 
-  console.log(`[build] 发现 ${components.length} 个组件：${components.map((c) => c.name).join(', ')}`)
+  console.log(
+    `[build] 发现 ${components.length} 个组件：` +
+      components.map((c) => `${c.workspace}/${c.name}`).join(', '),
+  )
 
   if (!only) rmSync(join(root, 'dist'), { recursive: true, force: true })
   writeGeneratedEntries(components)

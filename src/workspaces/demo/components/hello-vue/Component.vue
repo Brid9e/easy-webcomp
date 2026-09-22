@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useEmit } from '../../runtime/vue'
+import { useEmit } from '../../../../runtime/vue'
 
 const props = defineProps<{
   name?: string

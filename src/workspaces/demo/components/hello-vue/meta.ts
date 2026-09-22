@@ -1,7 +1,7 @@
-import { defineComponentMeta } from '../../runtime/types'
+import { defineComponentMeta } from '../../../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ew-hello-react',
+  tag: 'ew-hello-vue',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
