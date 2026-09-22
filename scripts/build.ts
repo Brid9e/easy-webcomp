@@ -14,7 +14,7 @@ import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { build } from 'vite'
-import { toIdentifier } from '../src/runtime/naming'
+import { toIdentifier } from '@ew/utils'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const workspacesDir = join(root, 'src/workspaces')

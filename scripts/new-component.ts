@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'nod
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Option } from '@clack/prompts'
-import { toIdentifier } from '../src/runtime/naming'
+import { toIdentifier } from '@ew/utils'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 

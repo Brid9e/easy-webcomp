@@ -1,3 +1,6 @@
+packages:
+  - 'packages/*'
+
 # core-js 的 install 脚本只是打印捐赠提示，跳过它没有任何代价；
 # esbuild 必须放行，它要下载对应平台的二进制
 allowBuilds:

@@ -21,6 +21,9 @@ importers:
       '@clack/prompts':
         specifier: ^1.8.1
         version: 1.8.1
+      '@ew/utils':
+        specifier: workspace:*
+        version: link:packages/utils
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.63.0
@@ -66,6 +69,8 @@ importers:
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.12(typescript@5.9.3)
+
+  packages/utils: {}
 
 packages:
 

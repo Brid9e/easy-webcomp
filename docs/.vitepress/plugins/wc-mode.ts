@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Plugin } from 'vite'
-import { toIdentifier } from '../../../src/runtime/naming'
+import { toIdentifier } from '@ew/utils'
 
 const COMPONENTS_PREFIX = 'virtual:ew-wc/'
 const INDEX_ID = 'virtual:ew-wc-index'
