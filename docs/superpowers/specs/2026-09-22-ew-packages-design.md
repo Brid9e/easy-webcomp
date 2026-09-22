@@ -95,6 +95,7 @@ src/
 - `exports` 直接指向 `.ts`。tsx、Vite、vue-tsc（`moduleResolution: bundler`）都能直接吃 TS 源码，省掉每包一个构建步骤，也省掉「包必须先 build 才能被 `build:esm` 引用」的顺序耦合。
 - `sideEffects: false` 是**功能性**的，不是优化标记：桶文件同时 re-export `vueAdapter` 与 `reactAdapter`，Rollup 必须能摇掉用不到的那一支，否则 Vue 产物会被 react-dom 撑大（见第 10 节守卫）。
 - `peerDependencies` 声明 `vue: ^3.5.0`、`react: ^19.0.0`、`react-dom: ^19.0.0`，后两者 `optional`；同时在 `devDependencies` 声明同范围版本供本包自身类型检查。范围与根一致，pnpm 解析到同一 store 条目，不会出现两份 Vue 实例。
+- **包内相对 import 一律带 `.ts` 后缀**，tsconfig 开 `allowImportingTsExtensions`。实施 Task 1 时实测发现：Vite 加载配置文件会**外置**裸 import 交给 Node 原生 ESM，而 Node 对相对说明符要求显式扩展名 —— `@ew/utils` 经 `wc-mode.ts` 被这样解析，`'./naming'` 会直接 `Cannot find module`。`@ew/runtime` 今天只被 Vite 处理的代码消费，理论上不带后缀也能跑，但那样这条规则只对一半的包成立，且各模块内部的相对 import 同样会炸 —— 只给桶补后缀是假安全。所以两个包统一。
 
 ## 6. `@ew/runtime` 的公开面
 

@@ -116,8 +116,10 @@ Run: `mkdir -p packages/utils/src`
 创建 `packages/utils/src/index.ts`：
 
 ```ts
-export { toIdentifier } from './naming'
+export { toIdentifier } from './naming.ts'
 ```
+
+> **实测修正**：原计划写的是 `'./naming'`（无后缀），执行时证明它跑不通 —— Vite 加载配置文件会外置裸 import 交给 Node 原生 ESM，而 Node 对相对说明符要求显式扩展名，报 `Cannot find module`。已在 /tmp 用最小复现确认：无后缀必炸，补 `.ts` 即通。因此本步改为带后缀，并在 `tsconfig.json` 补 `"allowImportingTsExtensions": true`（`noEmit` 已在，满足该标志前提）。Task 3 沿用同一约定。
 
 - [ ] **Step 6: 建 workspace**
 
@@ -403,7 +405,13 @@ git mv src/runtime/element.ts src/runtime/props.ts src/runtime/react.ts \
 rmdir src/runtime
 ```
 
-模块之间的相对 import（`'./types'`、`'./props'`、`'./style'`）**不需要改** —— 它们一起搬的。
+搬完之后，**包内所有相对 import 都要补上 `.ts` 后缀**（`'./types'` → `'./types.ts'`）。这不是风格偏好，是 Task 1 实测出来的硬约束：
+
+> Vite 加载配置文件时会**外置**所有裸 import，交给 Node 原生 ESM 解析。Node 对相对说明符要求显式扩展名，于是 `packages/utils/src/index.ts` 里那句 `from './naming'` 直接炸在 `Cannot find module`。Task 1 的修复是补 `.ts` 后缀 + tsconfig 开 `allowImportingTsExtensions`（`noEmit` 已在，满足该标志的前提）。
+
+`@ew/runtime` 今天只被 Vite 处理的代码消费，**理论上**不带后缀也能跑。但那样这条规则就只对一半的包成立，下一个人得重新踩一遍才知道 —— 而 `element.ts` 内部那几条同样会炸，只给桶补后缀是**假安全**。所以两个包统一。
+
+涉及 6 个文件：`index.ts`（7 条）、`element.ts`（3 条）、`props.ts` / `vue.ts` / `react.ts` / `registry.ts`（各 1 条 `'./types.ts'`）。
 
 - [ ] **Step 2: 跑测试，确认全红**
 
@@ -464,11 +472,11 @@ Expected: `tests/runtime/*` 全部 FAIL，报找不到 `../../src/runtime/...`�
  * 测试专用的 resetRegistry / resetStyleCache / applyStyles 一并导出 —— 它们是纯函数，
  * 不用时会被摇掉，为它们单开一个子路径不划算。
  */
-export { createElementClass } from './element'
-export { registerElement, resetRegistry } from './registry'
-export { applyStyles, resetStyleCache } from './style'
-export { attrNameFor, coerceAttr, isAttributeChannel } from './props'
-export { defineComponentMeta } from './types'
+export { createElementClass } from './element.ts'
+export { registerElement, resetRegistry } from './registry.ts'
+export { applyStyles, resetStyleCache } from './style.ts'
+export { attrNameFor, coerceAttr, isAttributeChannel } from './props.ts'
+export { defineComponentMeta } from './types.ts'
 export type {
   ComponentMeta,
   ElementAdapter,
@@ -476,12 +484,28 @@ export type {
   EwElementConstructor,
   PropDefinition,
   PropType,
-} from './types'
+} from './types.ts'
 
-export { vueAdapter, useVueEmit, EW_EMIT_KEY } from './vue'
-export type { VueAdapterOptions } from './vue'
+export { vueAdapter, useVueEmit, EW_EMIT_KEY } from './vue.ts'
+export type { VueAdapterOptions } from './vue.ts'
 
-export { reactAdapter, useReactEmit, EwEmitContext } from './react'
+export { reactAdapter, useReactEmit, EwEmitContext } from './react.ts'
+```
+
+后缀的来由写在**注释里**（第 3 步那段），别让它变成一个没人知道为什么的怪写法：
+
+```ts
+/**
+ * 包对外的全部 API 面。手写具名 re-export 而不是 `export *`：这个文件就是公开契约，
+ * 写出来比通配可控；将来在模块里新增导出也不会意外变成公开 API。
+ *
+ * 相对 import 一律带 `.ts` 后缀：本包可能被 Node 原生 ESM 解析（Vite 加载配置文件时
+ * 会外置裸 import），而 Node 对相对说明符要求显式扩展名。tsconfig 里
+ * allowImportingTsExtensions 已开。
+ *
+ * 测试专用的 resetRegistry / resetStyleCache / applyStyles 一并导出 —— 它们是纯函数，
+ * 不用时会被摇掉，为它们单开一个子路径不划算。
+ */
 ```
 
 - [ ] **Step 5: 根包声明依赖**
