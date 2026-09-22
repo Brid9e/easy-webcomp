@@ -226,7 +226,7 @@ function main(): void {
   console.log('  下一步：')
   console.log(`    1. 编辑 src/workspaces/${name}/workspace.ts 的 title 与 description`)
   console.log(`    2. 在 src/workspaces/${name}/components/ 下新建组件目录（五个文件，零配置）`)
-  console.log('    3. 重启 dev（pnpm run dev）—— VitePress 的动态路由扫不出新目录')
+  console.log('    3. 重启 dev（pnpm run dev）—— 页面清单与侧边栏在启动时就定好了')
 }
 
 // 只有被当作脚本直接执行时才跑 CLI。被测试 import 时 process.argv[1] 是 vitest 的可执行文件。
@@ -1601,7 +1601,7 @@ src/workspaces/
 pnpm run new:workspace <空间名>
 ```
 
-目录名即工作空间 id，清单里不重复声明。**新建后要重启 dev** —— VitePress 的动态路由扫不出新目录。
+目录名即工作空间 id，清单里不重复声明。**新建后要重启 dev** —— 页面清单、侧边栏与 grid 都在启动时就定好了，运行时冒出来的新目录不会被收进去。
 
 工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，撞名时构建会直接报错。
 ```
@@ -1676,7 +1676,7 @@ src/workspaces/my-space/
 └── components/             # 组件都放这里
 ```
 
-目录名就是工作空间 id，清单里不重复声明。**新建后必须重启 dev** —— VitePress 的动态路由扫不出运行时新出现的目录。
+目录名就是工作空间 id，清单里不重复声明。**新建后必须重启 dev** —— 页面清单、侧边栏与 grid 都在启动时就定好了，运行时冒出来的新目录不会被收进去。
 
 工作空间不影响交付：tag、`npm` 子路径、CDN 文件名都不带空间前缀。代价是**组件名要全局唯一**，两个空间下同名会在构建时报错。
 
@@ -1704,7 +1704,7 @@ src/workspaces/<空间名>/components/<组件名>/
 ```md
 不用改导航。构建脚本扫目录生成入口与 `package.json` 的 `exports`；文档站同样扫目录 —— 组件会立刻出现在侧边栏与它所属空间的 grid 里，卡片上有框架图标。还没写散文的组件也点得进去，会看到一个只有交互面板的兜底页。想给它一页散文，新建 `docs/workspaces/<空间名>/<组件名>.md`，下次构建就自动改用那一页。
 
-加完组件不用重启 dev，改完保存即可；只有**新增工作空间**才需要重启。
+**新增组件目录后要重启 dev**，和工作空间同理：页面清单、侧边栏、grid 的 glob 都是在启动时定下的，运行时新建的目录不会被收进去。改已有组件的文件则不用重启，保存即热更新。
 ```
 
 - [ ] **Step 6: 改首页的按钮指向**

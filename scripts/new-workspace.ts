@@ -46,7 +46,7 @@ function main(): void {
   console.log('  下一步：')
   console.log(`    1. 编辑 src/workspaces/${name}/workspace.ts 的 title 与 description`)
   console.log(`    2. 在 src/workspaces/${name}/components/ 下新建组件目录（五个文件，零配置）`)
-  console.log('    3. 重启 dev（pnpm run dev）—— VitePress 的动态路由扫不出新目录')
+  console.log('    3. 重启 dev（pnpm run dev）—— 页面清单与侧边栏在启动时就定好了')
 }
 
 // 只有被当作脚本直接执行时才跑 CLI。被测试 import 时 process.argv[1] 是 vitest 的可执行文件。
