@@ -14,7 +14,7 @@
     "./*": "./dist/esm/*.js"
   },
   "scripts": {
-    "dev": "vitepress dev docs",
+    "dev": "vite devtools",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",

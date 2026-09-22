@@ -52,6 +52,9 @@ export default defineConfig(async () => ({
     },
   },
   vite: {
+    // 5173 被占时 vitepress dev 会静默顺延到 5174/5175，探默认端口就打到别人的旧服务上 ——
+    // 已经因此把「配置改了没生效」误判过一次。strictPort 把它变成启动即报错。
+    server: { port: 5173, strictPort: true },
     resolve: {
       alias: {
         '@src': resolve(rootDir, 'src'),

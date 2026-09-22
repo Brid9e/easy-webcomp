@@ -1,0 +1,24 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--ew-font-family);
+  font-size: var(--ew-font-size-md);
+  color: var(--ew-color-text);
+  /* 外壳底色写死中性灰：tokens.css 里没有「应用底色」这一档 —— 它服务组件，不服务宿主页面。
+     这里只需要与舞台的 --ew-color-bg 拉开层次。 */
+  background: #f5f6f7;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
