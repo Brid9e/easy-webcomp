@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { applyStyles, resetStyleCache } from '@ew/runtime'
+import { applyGlobalStyles, applyStyles, resetStyleCache, rewriteHost } from '@ew/runtime'
 
 describe('applyStyles', () => {
   beforeEach(() => {
@@ -92,5 +92,49 @@ describe('applyStyles', () => {
     applyStyles(shadow, '')
 
     expect(shadow.querySelector('style')).toBeNull()
+  })
+})
+
+describe('rewriteHost', () => {
+  it('把裸 :host 换成宿主选择器', () => {
+    expect(rewriteHost(':host { display: block; }', '.ew-x-host')).toBe(
+      '.ew-x-host { display: block; }',
+    )
+  })
+
+  it('出现多次时全部替换', () => {
+    expect(rewriteHost(':host { a: 1 }\n:host:hover { b: 2 }', '.h')).toBe(
+      '.h { a: 1 }\n.h:hover { b: 2 }',
+    )
+  })
+
+  it('不碰 :host(...) —— 它在 light DOM 里匹配不到任何元素，留着是无害的空规则', () => {
+    expect(rewriteHost(':host(.card) { a: 1 }', '.h')).toBe(':host(.card) { a: 1 }')
+  })
+
+  // 负向先行断言挡的是「:host 后面还接着标识符字符」的情形
+  it('不碰 :hostname 这类同前缀的属性选择器', () => {
+    expect(rewriteHost('a:hostname { a: 1 }', '.h')).toBe('a:hostname { a: 1 }')
+  })
+})
+
+describe('applyGlobalStyles', () => {
+  // 文件里那个 beforeEach 写在 describe('applyStyles') 内部，作用域不到这里，必须自己来一份。
+  // 少了它会串味：前一个 describe 留下的 style 元素与去重表会让这里的断言飘。
+  beforeEach(() => {
+    document.head.innerHTML = ''
+    document.body.innerHTML = ''
+    resetStyleCache()
+  })
+
+  it('同一份 CSS 只注入一次', () => {
+    applyGlobalStyles('.g { color: red; }')
+    applyGlobalStyles('.g { color: red; }')
+    expect(document.head.querySelectorAll('style[data-ew-style]')).toHaveLength(1)
+  })
+
+  it('空 CSS 不做任何事', () => {
+    applyGlobalStyles('')
+    expect(document.head.querySelectorAll('style[data-ew-style]')).toHaveLength(0)
   })
 })

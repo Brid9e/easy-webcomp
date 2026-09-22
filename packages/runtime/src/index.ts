@@ -11,7 +11,7 @@
  */
 export { createElementClass } from './element.ts'
 export { registerElement, resetRegistry } from './registry.ts'
-export { applyStyles, resetStyleCache } from './style.ts'
+export { applyGlobalStyles, applyStyles, resetStyleCache, rewriteHost } from './style.ts'
 export { attrNameFor, coerceAttr, isAttributeChannel } from './props.ts'
 export { defineComponentMeta } from './types.ts'
 export type {

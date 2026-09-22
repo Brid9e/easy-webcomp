@@ -49,6 +49,28 @@ export function applyStyles(root: ShadowRoot | HTMLElement, css: string): void {
   injectLightStyle(root.ownerDocument, css)
 }
 
+/**
+ * 把 shadow 专用的 `:host` 改写成 light DOM 里的宿主选择器。
+ *
+ * 只认裸 `:host`。`:host(...)` 是有意留着的 —— 它在 light DOM 里匹配不到任何元素，
+ * 是一条无害的空规则；而改成 `.h(.card)` 会拼出非法选择器，整条规则连同块一起被丢弃。
+ * 当前没有组件用这个形态，真要用再单独设计。
+ */
+export function rewriteHost(css: string, selector: string): string {
+  return css.replace(/:host(?![\w-(])/g, selector)
+}
+
+/**
+ * 把一份 CSS 作为**全局**样式注入 `document.head`，同一份只注入一次。
+ *
+ * 框架产物用它：那条路径下没有自定义元素，也就没有 `applyStyles` 的 shadow / light
+ * 分流，组件样式直接落整页。与 `applyStyles` 的 light DOM 分支共用同一份去重表。
+ */
+export function applyGlobalStyles(css: string, doc: Document = document): void {
+  if (!css) return
+  injectLightStyle(doc, css)
+}
+
 /** 仅供测试使用 */
 export function resetStyleCache(): void {
   injectedLightStyles.clear()
