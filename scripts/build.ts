@@ -97,6 +97,14 @@ const sharedPlugins = () => [vue(), react(), tailwind()]
 
 const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
 
+/**
+ * 空间共享样式在 src/workspaces/<空间>/styles/index.scss，组件里以 `@use '<空间>/styles'` 取用。
+ * 有了 loadPaths 才不必写 `../../` —— 相对路径的层数跟组件所在位置绑死，挪目录就断。
+ */
+const cssConfig = {
+  preprocessorOptions: { scss: { loadPaths: [join(root, 'src/workspaces')] } },
+}
+
 async function buildEsm(components: ComponentInfo[]): Promise<void> {
   const entry: Record<string, string> = {
     index: join(generatedDir, 'all.ts'),
@@ -110,6 +118,7 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
     root,
     configFile: false,
     resolve: { alias: vueAlias },
+    css: cssConfig,
     plugins: sharedPlugins(),
     build: {
       target: 'es2020',
@@ -140,6 +149,7 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
       configFile: false,
       define: cdnDefine,
       resolve: { alias: vueAlias },
+      css: cssConfig,
       plugins: sharedPlugins(),
       build: {
         target: 'es2020',
@@ -161,6 +171,7 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
     configFile: false,
     define: cdnDefine,
     resolve: { alias: vueAlias },
+    css: cssConfig,
     plugins: sharedPlugins(),
     build: {
       target: 'es2020',

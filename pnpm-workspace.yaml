@@ -2,7 +2,9 @@ packages:
   - 'packages/*'
 
 # core-js 的 install 脚本只是打印捐赠提示，跳过它没有任何代价；
-# esbuild 必须放行，它要下载对应平台的二进制
+# esbuild 必须放行，它要下载对应平台的二进制。
+# @parcel/watcher 是 sass 的可选依赖，只服务它的 CLI --watch；热更新是 Vite 在做，用不上
 allowBuilds:
+  '@parcel/watcher': false
   core-js: false
   esbuild: true

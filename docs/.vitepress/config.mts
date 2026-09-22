@@ -51,6 +51,10 @@ export default defineConfig(async () => ({
     resolve: {
       alias: { '@src': resolve(rootDir, 'src') },
     },
+    // 组件样式里的 `@use '<空间>/styles'` 靠它解析，与 scripts/build.ts 的 cssConfig 是同一份约定
+    css: {
+      preprocessorOptions: { scss: { loadPaths: [resolve(rootDir, 'src/workspaces')] } },
+    },
     plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react(), tailwind()],
   },
   themeConfig: {
