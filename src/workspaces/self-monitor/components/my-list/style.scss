@@ -1,0 +1,88 @@
+// 本组件 shadow: false（见 meta.ts），这份样式注入 document.head —— 所以**不要写 `:host`**：
+// 那是 shadow tree 专属的选择器，在 light DOM 里不匹配任何东西，写了等于白写。
+// 直接写标签名。自定义元素默认 display: inline，不改成 block 的话表格拿不到容器宽度。
+//
+// height: 100% 是给「撑满高度区域」用的：容器有确定高度时列表铺满，容器没高度时
+// 百分比退化成 auto，等于按内容撑开 —— 两种容器都不会坏。
+ew-my-list {
+  display: block;
+  height: 100%;
+}
+
+// 每个 var() 都带兜底值，这是必须的，不是保险起见：
+// tokens.css 是**宿主页面**提供的（见 docs/guide/build.md），产物里不含 --ew-* 的定义。
+// 页面忘了引 tokens.css 时，`var(--ew-space-lg)` 是「语法合法但取值无效」——它会**赢下
+// 层叠**把值算成 initial（padding 变 0、gap 变 normal），而不是退回去用别的声明。
+// 兜底值让「没引 tokens.css」退化成设计默认值；引了的话 var() 照常取宿主的值，换肤不受影响。
+/* 作用域全靠这个前缀：shadow 关掉了，样式会落到整页 */
+.ew-my-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: var(--ew-space-lg, 16px);
+  box-sizing: border-box;
+  padding: var(--ew-space-lg, 16px);
+  background: var(--ew-color-bg, #fff);
+  color: var(--ew-color-text, #1f2329);
+  font-family: var(--ew-font-family, system-ui, -apple-system, sans-serif);
+  font-size: var(--ew-font-size-md, 14px);
+}
+
+// 标题单独一行，筛选铺满下一行。并排放是试过的：筛选一换行，居中对其的标题就悬在
+// 两行中间，看着像谁都不属于。竖排在任何宽度下都成立，窄屏本来也只能这么排。
+.ew-my-list__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ew-space-md, 8px);
+}
+
+.ew-my-list__title {
+  margin: 0;
+  font-size: var(--ew-font-size-lg, 16px);
+  font-weight: 600;
+}
+
+// min-width: 0：横向排列时 flex 子项的 min-width 默认是 auto，会被内容（日期区间那
+// 300px）顶住不缩，整个筛选区横向溢出容器，窄屏下右半边直接被裁掉。
+.ew-my-list__filters {
+  min-width: 0;
+}
+
+// 控件之间的间隔交给 Element Plus 自己的 `.el-form--inline .el-form-item`
+// （margin-right: 32px）—— 那是库的默认行为，不依赖 --ew-*，产物里也一定在。
+// 这里只补两件它不管的事：窄容器下不许顶出边界。
+.ew-my-list__filters .el-form-item {
+  max-width: 100%;
+}
+.ew-my-list__filters .el-form-item__content {
+  min-width: 0;
+}
+
+.ew-my-list__keyword {
+  width: 200px;
+}
+.ew-my-list__status {
+  width: 130px;
+}
+.ew-my-list__range {
+  width: 300px;
+}
+
+.ew-my-list__keyword,
+.ew-my-list__status,
+.ew-my-list__range {
+  max-width: 100%;
+}
+
+// 表格吃掉表头与分页之外的全部高度；min-height: 0 是关键 —— flex 子项的默认
+// min-height: auto 会让表格把容器顶高，撑满就失效了，溢出也就轮不到这里滚动。
+.ew-my-list__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ew-my-list__foot {
+  display: flex;
+  justify-content: center;
+}
