@@ -100,16 +100,16 @@ src/
 
 桶文件手写具名 re-export（不用 `export *`）：它就是这个包对外的 API 面，写清楚比通配更可控，也避免将来新增导出意外变成公开 API。
 
-**唯一一处改名，是硬约束逼的。** `vue.ts` 与 `react.ts` **都导出 `useEmit`，也都有 `EmitFn` 类型**。ESM 语义下两个同名 `export *` 会让该名字被静默排除 —— 即 `import { useEmit } from '@ew/runtime'` 直接报「没有这个导出」，而不是报冲突。桶里必须区分：
+**唯一一处改名，是硬约束逼的。** `vue.ts` 与 `react.ts` 都导出 `useEmit`，而这个函数在两边的**实现不同**（`inject` vs `useContext`），没法合并成一件事。ESM 语义下两个同名 `export *` 会让该名字被静默排除 —— 即 `import { useEmit } from '@ew/runtime'` 报「没有这个导出」，而不是报冲突。所以：
 
 | 现在 | 之后 |
 |---|---|
 | `useEmit`（vue.ts） | `useVueEmit` |
 | `useEmit`（react.ts） | `useReactEmit` |
-| `EmitFn`（vue.ts） | `VueEmitFn` |
-| `EmitFn`（react.ts） | `ReactEmitFn` |
 
 在**源码里**改名（而非桶里 `as` 别名），保证一个概念只有一个可 grep 的名字。
+
+`EmitFn` **不改名**：它在两个文件里的定义逐字相同（`(name: string, detail?: unknown) => void`），是**同一个类型写了两遍**，不是两个类型 —— 收进 `types.ts` 一份即可。顺带把 `ElementAdapter.mount` 的 `emit` 形参也换成它（那里原本是第三遍内联展开）。
 
 ```ts
 // packages/runtime/src/index.ts
@@ -118,16 +118,15 @@ export { registerElement, resetRegistry } from './registry'
 export { applyStyles, resetStyleCache } from './style'
 export { attrNameFor, coerceAttr, isAttributeChannel } from './props'
 export { defineComponentMeta } from './types'
-export type { ComponentMeta, ElementAdapter, EwElementConstructor, PropDefinition, PropType } from './types'
+export type {
+  ComponentMeta, ElementAdapter, EmitFn, EwElementConstructor, PropDefinition, PropType,
+} from './types'
 
 export { vueAdapter, useVueEmit, EW_EMIT_KEY } from './vue'
-export type { VueEmitFn, VueAdapterOptions } from './vue'
+export type { VueAdapterOptions } from './vue'
 
 export { reactAdapter, useReactEmit, EwEmitContext } from './react'
-export type { ReactEmitFn } from './react'
 ```
-
-上表左列是**源码里的现名**，改名发生在 `vue.ts` / `react.ts` 内部，所以桶里不出现 `as` —— 桶里再写一遍别名等于同一个概念有两个名字。
 
 测试专用的 `resetRegistry` / `resetStyleCache` / `applyStyles` 一并导出。它们是纯函数、无副作用，不用时被摇掉；为它们单开 `./internal` 子路径不划算。
 
@@ -146,7 +145,8 @@ export type { ReactEmitFn } from './react'
 | 位置 | 改动 |
 |---|---|
 | `packages/utils/**` | 新建；`naming.ts` 自 `src/runtime/naming.ts` 迁入 |
-| `packages/runtime/**` | 新建；7 个模块自 `src/runtime/` 迁入 + 新增桶 |
+| `packages/runtime/**` | 新建；7 个模块自 `src/runtime/` 迁入 + 新增桶；`types.ts` 增收 `EmitFn` |
+| `src/runtime/{vue,react}.ts` | 各自删掉本地 `EmitFn`，改从 `./types` 引入；`useEmit` 改名 |
 | `src/runtime/` | 整个删除 |
 | `src/workspaces/demo/components/hello-{vue,react}/` | 6 个文件：`meta.ts`/`index.ts`/`Component.*` 改 import |
 | `scripts/build.ts` | `'../src/runtime/naming'` → `'@ew/utils'` |
