@@ -23,6 +23,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "new:workspace": "tsx scripts/new-workspace.ts",
     "build": "tsx scripts/build.ts",
     "build:esm": "tsx scripts/build.ts --only=esm",
     "build:cdn": "tsx scripts/build.ts --only=cdn",
