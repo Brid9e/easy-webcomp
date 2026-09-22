@@ -10,13 +10,8 @@
   "exports": {
     "./tokens.css": "./src/tokens/tokens.css",
     ".": "./dist/esm/index.js",
-    "./hello-react": "./dist/esm/hello-react.js",
-    "./hello-react/define": "./dist/esm/hello-react/define.js",
-    "./cdn/hello-react": "./dist/cdn/hello-react.js",
-    "./hello-vue": "./dist/esm/hello-vue.js",
-    "./hello-vue/define": "./dist/esm/hello-vue/define.js",
-    "./cdn/hello-vue": "./dist/cdn/hello-vue.js",
-    "./cdn/ew-all": "./dist/cdn/ew-all.js"
+    "./cdn/*": "./dist/cdn/*.js",
+    "./*": "./dist/esm/*.js"
   },
   "scripts": {
     "dev": "vitepress dev docs",

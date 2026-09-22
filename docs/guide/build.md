@@ -15,7 +15,7 @@ pnpm run build:cdn  # 只出 CDN
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
 
-构建结束会打印每个产物的 gzip 体积。`package.json` 的 `exports` 字段由构建脚本扫描组件目录自动生成，加组件后重新构建即自动多出对应子路径，不用手改。
+构建结束会打印每个产物的 gzip 体积。`package.json` 的 `exports` 用 pattern 覆盖全部组件（`./*` → `dist/esm/*.js`、`./cdn/*` → `dist/cdn/*.js`），**不随组件增减而变动** —— 加组件只要重新构建，`package.json` 不会因此产生 diff。子路径是否真能解析到文件，由 `pnpm run check:artifacts` 兜底。
 
 ## 引入方式
 

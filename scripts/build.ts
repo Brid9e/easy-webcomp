@@ -177,22 +177,31 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
   })
 }
 
-function writeExportsField(components: ComponentInfo[]): void {
+/**
+ * 用 pattern 而不是逐条列举组件：枚举的代价是每个组件往 package.json 里塞三行，而这份
+ * package.json 是构建生成却又提交进 git 的 —— 两个人各加一个组件就会在这里撞冲突。
+ * 交付契约本身没变（`./<name>` 取类、`./<name>/define` 引入即注册、`./cdn/<name>` 单文件），
+ * 只是不再依赖构建期知道有哪些组件。
+ *
+ * 各键由 Node 的 exports 解析规则兜底，不需要额外顺序：精确键（`.`、`./tokens.css`）
+ * 优先于 pattern，pattern 之间比 `*` 之前那段 base 的长短 —— `./cdn/*` 的 base 是 `./cdn/`，
+ * 长过 `./*` 的 `./`，所以 `./cdn/hello-vue` 稳定落到 dist/cdn 而不是 dist/esm/cdn。
+ * `*` 能跨 `/`，故 `./hello-vue/define` 也由 `./*` 覆盖。
+ *
+ * 已知代价：`./*` 把 dist/esm 里那些哈希 chunk（如 index-BZwKHW0M.js）也暴露成了可导入的
+ * 子路径。不打算为它收紧 —— 这些文件是构建内部件，消费方没有理由去 import，而收紧要靠
+ * 枚举组件，就又回到上面那个冲突问题。
+ */
+function writeExportsField(): void {
   const pkgPath = join(root, 'package.json')
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
 
-  const exports: Record<string, unknown> = {
+  pkg.exports = {
     './tokens.css': './src/tokens/tokens.css',
     '.': './dist/esm/index.js',
+    './cdn/*': './dist/cdn/*.js',
+    './*': './dist/esm/*.js',
   }
-  for (const c of components) {
-    exports[`./${c.name}`] = `./dist/esm/${c.name}.js`
-    exports[`./${c.name}/define`] = `./dist/esm/${c.name}/define.js`
-    exports[`./cdn/${c.name}`] = `./dist/cdn/${c.name}.js`
-  }
-  exports['./cdn/ew-all'] = './dist/cdn/ew-all.js'
-
-  pkg.exports = exports
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
 }
 
@@ -242,7 +251,7 @@ async function main(): Promise<void> {
     await buildCdn(components)
   }
 
-  writeExportsField(components)
+  writeExportsField()
   reportSizes()
 
   console.log('[build] 完成')
