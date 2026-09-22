@@ -116,6 +116,20 @@ describe('rewriteHost', () => {
   it('不碰 :hostname 这类同前缀的属性选择器', () => {
     expect(rewriteHost('a:hostname { a: 1 }', '.h')).toBe('a:hostname { a: 1 }')
   })
+
+  // 「-」那半边前瞻挡的是这个：它是 shadow 里的又一个伪类，改写成 `.h-context(.x)` 是非法选择器
+  it('不碰 :host-context()', () => {
+    expect(rewriteHost(':host-context(.dark) { a: 1 }', '.h')).toBe(':host-context(.dark) { a: 1 }')
+  })
+
+  // 已知行为，不是 bug：改写是朴素字符串替换，不做 CSS 解析，所以注释里的 :host 同样会被换掉。
+  // 注释里被换成什么都不影响渲染，而为此上真正的 CSS parser 不划算。这条用例把这个行为钉住，
+  // 免得将来有人当成 bug 去「修」。
+  it('注释里的 :host 也会被替换 —— 朴素替换的已知代价，无害', () => {
+    expect(rewriteHost('/* :host was here */ :host { a: 1 }', '.h')).toBe(
+      '/* .h was here */ .h { a: 1 }',
+    )
+  })
 })
 
 describe('applyGlobalStyles', () => {
@@ -136,5 +150,12 @@ describe('applyGlobalStyles', () => {
   it('空 CSS 不做任何事', () => {
     applyGlobalStyles('')
     expect(document.head.querySelectorAll('style[data-ew-style]')).toHaveLength(0)
+  })
+
+  it('注入的是裸 CSS，不裹 @layer —— 组件自身样式理应参与正常层叠', () => {
+    applyGlobalStyles('.g { color: red; }')
+    expect(document.head.querySelector('style[data-ew-style]')?.textContent).toBe(
+      '.g { color: red; }',
+    )
   })
 })

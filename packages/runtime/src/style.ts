@@ -69,6 +69,9 @@ export function rewriteHost(css: string, selector: string): string {
  *
  * 框架产物用它：那条路径下没有自定义元素，也就没有 `applyStyles` 的 shadow / light
  * 分流，组件样式直接落整页。与 `applyStyles` 的 light DOM 分支共用同一份去重表。
+ *
+ * 注意这里**不裹 `@layer`**，与上面 `applyStyles` 的 head 副本不同：那份是 shadow 里同一份
+ * CSS 的重复副本，是默认值；这份是组件样式的唯一来源，宿主的高权重规则理应能覆盖它。
  */
 export function applyGlobalStyles(css: string, doc: Document = document): void {
   if (!css) return
