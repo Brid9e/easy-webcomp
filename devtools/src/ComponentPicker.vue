@@ -17,6 +17,7 @@ const groups = groupByWorkspace()
         :key="item.name"
         type="button"
         :class="{ active: item.name === selected }"
+        :aria-current="item.name === selected ? 'true' : undefined"
         @click="selected = item.name"
       >
         <span class="dot" :class="item.framework" />

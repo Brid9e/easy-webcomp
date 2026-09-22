@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { components } from '@devtools/component-index'
+import { componentByName, components } from '@devtools/component-index'
 import ComponentPicker from './ComponentPicker.vue'
 import { usePersisted } from './use-persisted'
 
 const selected = usePersisted('component', components[0]?.name ?? '')
 // 存下来的组件名可能已经被删掉，落回第一个 —— 否则打开就是一片空白
-if (!components.some((c) => c.name === selected.value)) selected.value = components[0]?.name ?? ''
+if (!componentByName(selected.value)) selected.value = components[0]?.name ?? ''
 
-const entry = computed(() => components.find((c) => c.name === selected.value))
+const entry = computed(() => componentByName(selected.value))
 </script>
 
 <template>
