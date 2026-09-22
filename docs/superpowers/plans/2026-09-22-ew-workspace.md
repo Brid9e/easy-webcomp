@@ -166,8 +166,10 @@ describe('createWorkspace', () => {
 
 - [ ] **Step 4: 跑测试确认失败**
 
-Run: `pnpm run test -- tests/scripts/new-workspace.test.ts`
+Run: `pnpm exec vitest run tests/scripts/new-workspace.test.ts`
 Expected: FAIL —— `Failed to resolve import "../../scripts/new-workspace"`
+
+> 不要写成 `pnpm run test -- <file>`：pnpm 会吞掉那个位置参数，实际跑的是全部 8 个测试文件。要只跑一个文件必须用 `pnpm exec vitest run <file>`。
 
 - [ ] **Step 5: 实现脚手架**
 
@@ -248,8 +250,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 - [ ] **Step 7: 跑测试确认通过**
 
-Run: `pnpm run test -- tests/scripts/new-workspace.test.ts`
-Expected: PASS，5 个用例全绿
+Run: `pnpm exec vitest run tests/scripts/new-workspace.test.ts`
+Expected: PASS，4 个用例全绿
 
 - [ ] **Step 8: 类型检查**
 
@@ -601,7 +603,7 @@ describe('readWorkspaceMeta', () => {
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `pnpm run test -- tests/docs/workspaces.test.ts`
+Run: `pnpm exec vitest run tests/docs/workspaces.test.ts`
 Expected: FAIL —— `Failed to resolve import "../../docs/.vitepress/workspaces"`
 
 - [ ] **Step 3: 实现扫描器**
@@ -710,7 +712,7 @@ export async function readWorkspaceMeta(
 
 - [ ] **Step 4: 跑测试确认通过**
 
-Run: `pnpm run test -- tests/docs/workspaces.test.ts`
+Run: `pnpm exec vitest run tests/docs/workspaces.test.ts`
 Expected: PASS，11 个用例全绿。若 `readWorkspaceMeta` 两例失败，见 Task 3 的备注。
 
 > **若 `tsImport` 在 vitest 下不可用**：改用 Node 22.18+ 的原生类型剥离 —— 把 `workspace.ts` 的模板改成 `import type { WorkspaceMeta } from '../define'` + `export default { ... } satisfies WorkspaceMeta`（类型导入会被剥掉，不产生运行时相对导入），`readWorkspaceMeta` 里换成 `await import(file)`。改完必须同步更新 Task 1 的 `template()` 与它那条断言，并重跑 Task 1 的测试。
@@ -1612,7 +1614,7 @@ pnpm run new:workspace <空间名>
 
 - [ ] **Step 3: 改 README 的测试计数**
 
-「验证」那张表里写着 `Vitest + jsdom，7 个文件 46 个用例`。本次删掉 `tests/docs/components.test.ts`（5 例），新增 `tests/docs/workspaces.test.ts`（11 例）与 `tests/scripts/new-workspace.test.ts`（5 例），应为 **8 个文件 57 个用例**。先跑一遍确认：
+「验证」那张表里写着 `Vitest + jsdom，7 个文件 46 个用例`。变化的账是：Task 1 加了 `tests/scripts/new-workspace.test.ts`（4 例），Task 3 删掉 `tests/docs/components.test.ts`（5 例）、加上 `tests/docs/workspaces.test.ts`（11 例）。46 + 4 − 5 + 11 = **56 个用例、8 个文件**。先跑一遍确认：
 
 ```bash
 pnpm run test
@@ -1621,7 +1623,7 @@ pnpm run test
 把那一行改成：
 
 ```
-| `test` | Vitest + jsdom，8 个文件 57 个用例，覆盖桥接层全部易错点与组件扫描 |
+| `test` | Vitest + jsdom，8 个文件 56 个用例，覆盖桥接层全部易错点与组件扫描 |
 ```
 
 **以实际输出为准** —— 若数字与此不符，照实际情况改，并回头确认 Task 1、Task 3 的用例是否都真的加上了。
