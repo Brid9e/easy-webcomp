@@ -8,10 +8,15 @@ import { listWorkspaces, readWorkspaceMeta } from './workspaces'
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 
 // 空间名取清单里的 title，读不到就回落目录名
+//
+// 每个空间带上 link 指向自己的 grid 页 —— 侧边栏因此是三层：总览 / 空间 / 组件，
+// 三层都点得动。空间页是 index 路由（产物 workspaces/<id>/index.html），**结尾的斜杠不能省**：
+// normalizeLink 只对以 `/` 结尾的链接不加 .html，少了它会拼成 workspaces/<id>.html，静态托管上 404。
 async function buildWorkspaceSidebar() {
   return Promise.all(
     listWorkspaces().map(async (ws) => ({
       text: (await readWorkspaceMeta(ws.id)).title ?? ws.id,
+      link: `/workspaces/${ws.id}/`,
       collapsed: false,
       items: ws.components.map((c) => ({
         text: c.name,
@@ -64,7 +69,10 @@ export default defineConfig(async () => ({
           ],
         },
       ],
-      '/workspaces/': [{ text: '组件', items: await buildWorkspaceSidebar() }],
+      // 顶层「组件」也带 link，指向空间总览页 /workspaces/（同一层级的指南侧边栏即此写法）
+      '/workspaces/': [
+        { text: '组件', link: '/workspaces/', items: await buildWorkspaceSidebar() },
+      ],
     },
   },
 }))
