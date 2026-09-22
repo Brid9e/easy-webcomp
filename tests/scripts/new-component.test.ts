@@ -26,7 +26,7 @@ function spec(overrides: Partial<ComponentSpec> = {}): ComponentSpec {
 describe('createComponent · 基础骨架', () => {
   it('Vue：生成五件套，没有 Component.tsx', () => {
     createComponent(root, spec())
-    for (const f of ['Component.vue', 'meta.ts', 'style.css', 'index.ts', 'define.ts']) {
+    for (const f of ['Component.vue', 'meta.ts', 'style.scss', 'index.ts', 'define.ts']) {
       expect(existsSync(join(dirOf('my-card'), f)), f).toBe(true)
     }
     expect(existsSync(join(dirOf('my-card'), 'Component.tsx'))).toBe(false)
@@ -69,6 +69,27 @@ describe('createComponent · 基础骨架', () => {
     expect(result.devDependencies).toEqual([])
     expect(existsSync(join(dirOf('my-card'), 'store.ts'))).toBe(false)
     expect(existsSync(join(dirOf('my-card'), 'api.ts'))).toBe(false)
+  })
+
+  it('index.ts 以 ?inline 引 .scss', () => {
+    createComponent(root, spec())
+    expect(read('my-card', 'index.ts')).toContain("from './style.scss?inline'")
+  })
+
+  it('空间没有 styles/index.scss 时不写 @use —— self-monitor 这类空间要能建组件', () => {
+    createComponent(root, spec())
+    expect(read('my-card', 'style.scss')).not.toContain('@use')
+  })
+
+  it('空间有 styles/index.scss 时，@use 排在所有规则之前', () => {
+    mkdirSync(join(root, 'src/workspaces/demo/styles'), { recursive: true })
+    writeFileSync(join(root, 'src/workspaces/demo/styles/index.scss'), '$gutter: 8px;\n')
+
+    createComponent(root, spec())
+    const scss = read('my-card', 'style.scss')
+    expect(scss.indexOf("@use 'demo/styles' as styles;")).toBe(0)
+    // @use 必须在任何规则之前，排在 :host 后面 Sass 会直接报错
+    expect(scss.indexOf(':host')).toBeGreaterThan(0)
   })
 })
 
@@ -172,6 +193,23 @@ describe('createComponent · 配套设施', () => {
     expect(read('my-card', 'meta.ts')).toContain('shadow: true')
     expect(result.dependencies).toEqual([])
     expect(result.devDependencies).toEqual(['@tailwindcss/vite', 'tailwindcss'])
+    // Tailwind 走 .css，不能同时留一个 .scss 出来
+    expect(existsSync(join(dirOf('my-card'), 'style.scss'))).toBe(false)
+  })
+
+  it('Tailwind 组件保持 .css —— @tailwindcss/vite 不处理 .scss', () => {
+    createComponent(root, spec({ addons: ['tailwind'] }))
+    expect(read('my-card', 'index.ts')).toContain("from './style.css?inline'")
+  })
+
+  it('空间有共享样式时 Tailwind 也不加 @use —— @import 必须排在最前，两者会打架', () => {
+    mkdirSync(join(root, 'src/workspaces/demo/styles'), { recursive: true })
+    writeFileSync(join(root, 'src/workspaces/demo/styles/index.scss'), '$gutter: 8px;\n')
+
+    createComponent(root, spec({ addons: ['tailwind'] }))
+    const css = read('my-card', 'style.css')
+    expect(css).not.toContain('@use')
+    expect(css.indexOf('@import "tailwindcss"')).toBe(0)
   })
 
   it('React 的 @source 指向 Component.tsx', () => {

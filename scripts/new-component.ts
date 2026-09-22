@@ -179,6 +179,12 @@ export function createComponent(targetRoot: string, spec: ComponentSpec): Create
   const shadow = uiAddon === undefined
 
   const dir = join(targetRoot, 'src/workspaces', spec.workspace, 'components', spec.name)
+  const ext = styleExtOf(spec)
+  // 空间没建 styles/ 就不写 @use。这是给 self-monitor 这类还没跟上的空间留的降级，
+  // 写进去只会得到一行解析不了的 @use，把构建打红。
+  const hasSharedStyles = existsSync(
+    join(targetRoot, 'src/workspaces', spec.workspace, 'styles/index.scss'),
+  )
   mkdirSync(dir, { recursive: true })
 
   const files: Record<string, string> = {
@@ -188,8 +194,8 @@ export function createComponent(targetRoot: string, spec: ComponentSpec): Create
       uiAddon?.label,
     ),
     'meta.ts': metaTemplate(spec, tag, shadow),
-    'style.css': styleTemplate(spec, spec.addons.includes('tailwind')),
-    'index.ts': indexTemplate(spec, id, uiAddon),
+    [`style.${ext}`]: styleTemplate(spec, ext, hasSharedStyles),
+    'index.ts': indexTemplate(spec, id, uiAddon, ext),
     'define.ts': defineTemplate(),
   }
 
@@ -228,15 +234,32 @@ export default defineComponentMeta({
 `
 }
 
-function styleTemplate(spec: ComponentSpec, usesTailwind: boolean): string {
-  // Tailwind 的 @import 必须排在文件最前，所以拼在自有样式之前
-  const tailwind = usesTailwind
-    ? `@import "tailwindcss";
+/**
+ * 样式默认 `.scss`，只有 Tailwind 例外 —— `@tailwindcss/vite` 不处理 `.scss` 文件，
+ * 写进去的 `@import "tailwindcss"` 会被 Sass 当成待解析的 partial 而报错。
+ * 文件命名与 index.ts 里的 `?inline` 都取自这里，分头判断迟早会漂。
+ */
+function styleExtOf(spec: ComponentSpec): 'css' | 'scss' {
+  return spec.addons.includes('tailwind') ? 'css' : 'scss'
+}
+
+function styleTemplate(
+  spec: ComponentSpec,
+  ext: 'css' | 'scss',
+  hasSharedStyles: boolean,
+): string {
+  // Tailwind 的 @import 必须排在文件最前，@use 必须排在所有规则之前。
+  // 两者不会同现（选了 Tailwind 就是 .css），所以顺序不必再调和。
+  const tailwind =
+    ext === 'css'
+      ? `@import "tailwindcss";
 @source "./Component.${spec.framework === 'vue' ? 'vue' : 'tsx'}";
 
 `
-    : ''
-  return `${tailwind}:host {
+      : ''
+  const use =
+    ext === 'scss' && hasSharedStyles ? `@use '${spec.workspace}/styles' as styles;\n\n` : ''
+  return `${tailwind}${use}:host {
   display: inline-block;
 }
 `
@@ -253,6 +276,7 @@ function indexTemplate(
   spec: ComponentSpec,
   id: string,
   uiAddon: AddonDef | undefined,
+  ext: 'css' | 'scss',
 ): string {
   const isVue = spec.framework === 'vue'
   const adapter = isVue ? 'vueAdapter' : 'reactAdapter'
@@ -269,7 +293,7 @@ function indexTemplate(
   return `import { createElementClass, registerElement, ${adapter} } from '${RUNTIME_PKG}'
 ${piniaImport}import Component from './Component${isVue ? '.vue' : ''}'
 import meta from './meta'
-${libImport}import css from './style.css?inline'
+${libImport}import css from './style.${ext}?inline'
 
 export { meta }
 export const ${id}Element = createElementClass(meta, ${adapter}(${adapterArgs}), ${cssArg})
