@@ -21,10 +21,11 @@ describe('createWorkspace', () => {
     expect(existsSync(join(root, 'src/workspaces/demo/components/.gitkeep'))).toBe(true)
   })
 
-  it('title 预填目录名，description 留空，并 import defineWorkspace', () => {
+  it('title 预填目录名，description 留空，并用 satisfies 校验类型', () => {
     createWorkspace(root, 'demo')
     const source = readFileSync(join(root, 'src/workspaces/demo/workspace.ts'), 'utf8')
-    expect(source).toContain("import { defineWorkspace } from '../define'")
+    expect(source).toContain("import type { WorkspaceMeta } from '../define'")
+    expect(source).toContain('satisfies WorkspaceMeta')
     expect(source).toContain("title: 'demo'")
     expect(source).toContain("description: ''")
   })

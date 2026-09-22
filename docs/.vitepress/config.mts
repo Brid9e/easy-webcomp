@@ -2,16 +2,18 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitepress'
-import { listComponents } from './components'
 import { wcModePlugin } from './plugins/wc-mode'
+import { listWorkspaces } from './workspaces'
 
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 
 function buildComponentSidebar() {
-  return listComponents().map((c) => ({
-    text: c.name,
-    link: c.documented ? `/components/${c.name}` : `/components/#${c.name}`,
-  }))
+  return listWorkspaces().flatMap((ws) =>
+    ws.components.map((c) => ({
+      text: c.name,
+      link: c.documented ? `/components/${c.name}` : `/components/#${c.name}`,
+    })),
+  )
 }
 
 export default defineConfig({
