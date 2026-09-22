@@ -4,6 +4,7 @@ import { componentByName } from '@devtools/component-index'
 import { useEventLog, usePropControls } from '@devtools/preview-state'
 import ReactMount from '@devtools/mount/ReactMount.vue'
 import VueMount from '@devtools/mount/VueMount.vue'
+import { loadWcModule, registerWcElement } from '@devtools/wc-registry'
 
 const props = defineProps<{ name: string }>()
 
@@ -20,12 +21,19 @@ const { entries: events, log, wcHandlers } = useEventLog(computed(() => meta.val
 const mode = ref<'source' | 'wc'>('wc')
 
 async function enableWc(): Promise<void> {
-  const modules = (await import('virtual:ew-wc-index')) as {
-    default: Record<string, { Element: CustomElementConstructor }>
-  }
-  const mod = modules.default[props.name]
-  if (!mod || !tag.value) return
-  if (!customElements.get(tag.value)) customElements.define(tag.value, mod.Element)
+  if (!tag.value) return
+  await registerWcElement(props.name, tag.value)
+}
+
+// 源码模式不 import index.ts，组件引的 UI 库样式只能从 element 上补回来 —— 所以两种模式都要取
+const styles = ref('')
+
+function loadStyles(): void {
+  void loadWcModule(props.name)
+    .then((mod) => {
+      styles.value = mod?.styles ?? ''
+    })
+    .catch((err) => console.error('[ew] 加载 WC 模块失败：', err))
 }
 
 watch(mode, (next) => {
@@ -36,6 +44,7 @@ watch(mode, (next) => {
 // 本组件的 setup 在 SSR 期照样执行，immediate 会在 Node 里 import 到顶层就 `extends HTMLElement`
 // 的运行时模块，直接 `HTMLElement is not defined` 炸掉构建。
 onMounted(() => {
+  loadStyles()
   if (mode.value === 'wc') void enableWc()
 })
 </script>
@@ -87,6 +96,7 @@ onMounted(() => {
             <VueMount
               v-if="framework === 'vue'"
               :name="name"
+              :styles="styles"
               :component="sourceComponent as never"
               :props-data="model"
               :on-event="log"
@@ -94,6 +104,7 @@ onMounted(() => {
             <ReactMount
               v-else
               :name="name"
+              :styles="styles"
               :component="sourceComponent as never"
               :props-data="model"
               :on-event="log"

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ComponentEntry } from '@devtools/component-index'
 import ReactMount from '@devtools/mount/ReactMount.vue'
 import VueMount from '@devtools/mount/VueMount.vue'
+import { loadWcModule, registerWcElement } from '@devtools/wc-registry'
 import ResizeHandle from './ResizeHandle.vue'
 import { usePersisted } from './use-persisted'
 
@@ -62,23 +63,26 @@ async function enableWc(): Promise<void> {
   const name = props.entry?.name ?? ''
   if (!wanted || !name) return
 
-  if (!customElements.get(wanted)) {
-    const modules = (await import('virtual:ew-wc-index')) as {
-      default: Record<string, { Element: CustomElementConstructor }>
-    }
-    const mod = modules.default[name]
-    if (!mod) return
-    // 同 tag 重复 define 会直接抛错；customElements.get 是跨 bundle 场景下唯一有效的防线
-    if (!customElements.get(wanted)) customElements.define(wanted, mod.Element)
-  }
+  if (!customElements.get(wanted)) await registerWcElement(name, wanted)
 
   // import 是异步的，这中间用户可能已经切走了 —— 只有当前 tag 仍是我们要的那个才算就绪
   if (tag.value === wanted) defined.value = true
 }
 
+const styles = ref('')
+
 watch(
   [() => props.entry?.name, mode],
   () => {
+    const name = props.entry?.name ?? ''
+
+    // 两种模式都要这份：源码模式不 import index.ts，组件引的 UI 库样式只能从这里补
+    void loadWcModule(name)
+      .then((mod) => {
+        if (props.entry?.name === name) styles.value = mod?.styles ?? ''
+      })
+      .catch((err) => console.error('[ew] 加载 WC 模块失败：', err))
+
     if (mode.value !== 'wc') return
     // 换组件时先把标签收起来：新 tag 还没 define，直接渲染会落一个未升级的空元素
     defined.value = Boolean(tag.value && customElements.get(tag.value))
@@ -153,6 +157,7 @@ function applyPreset(value: number): void {
             v-else-if="mode === 'source' && framework === 'vue'"
             :key="entry.name"
             :name="entry.name"
+            :styles="styles"
             :component="entry.source as never"
             :props-data="model"
             :on-event="onEvent"
@@ -161,6 +166,7 @@ function applyPreset(value: number): void {
             v-else-if="mode === 'source'"
             :key="entry.name"
             :name="entry.name"
+            :styles="styles"
             :component="entry.source as never"
             :props-data="model"
             :on-event="onEvent"

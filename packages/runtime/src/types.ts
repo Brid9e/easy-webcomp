@@ -29,9 +29,16 @@ export interface ElementAdapter {
   unmount(instance: unknown): void
 }
 
-/** 构造器上额外挂了 refresh()，供 HMR 与文档站交互面板强制重渲染 */
+/** 构造器上额外挂了 refresh() 与 styles */
 export interface EwElementConstructor extends CustomElementConstructor {
+  /** 供 HMR 与文档站交互面板强制重渲染 */
   refresh: () => void
+  /**
+   * 建这个元素时传进来的整份 CSS（含 index.ts 里内联的 UI 库样式）。
+   * 交给预览的源码模式取用 —— 那一路不经过 index.ts，否则拿不到库样式，
+   * 组件在自己目录的 style.scss 之外就没有别的样式来源了。
+   */
+  styles: string
 }
 
 export function defineComponentMeta(meta: ComponentMeta): ComponentMeta {

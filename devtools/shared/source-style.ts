@@ -8,8 +8,11 @@ const styleModules = import.meta.glob('@src/workspaces/*/components/*/style.{css
 }) as Record<string, string>
 
 /**
- * 源码模式下组件也不带样式 —— 组件把 CSS 交给 index.ts 以 ?inline 传给桥接层，
- * 直接渲染组件源码不会加载它。这里补上，否则两种模式外观差得太多，对照就失去意义。
+ * 组件目录里那份 style.{css,scss}。
+ *
+ * 这是**回落**，不是主路径：预览平时用的是 element 构造器上带回来的整份 CSS
+ * （见 wc-registry），那份还含 index.ts 内联的 UI 库样式。这里只覆盖
+ * 「没走到虚拟模块」的情形 —— 组件不在工具能扫到的范围内时，至少还有目录里的样式。
  */
 export function componentStyle(name: string): string {
   const hit = Object.entries(styleModules).find(([path]) => path.split('/').at(-2) === name)

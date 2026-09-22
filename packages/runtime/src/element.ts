@@ -97,5 +97,7 @@ export function createElementClass(
   ctor.refresh = () => {
     for (const el of liveInstances) el.refresh()
   }
+  // 留着这份 css 只为可读：源码模式不经过 index.ts，只能从这里取回库样式
+  ctor.styles = css
   return ctor
 }

@@ -85,6 +85,12 @@ describe('createElementClass', () => {
     expect(log[0]?.host).toBe(el.shadowRoot)
   })
 
+  // 预览的源码模式不 import index.ts，只能从构造器上取回库样式
+  it('构造器上留着建它时那份 CSS', () => {
+    const ctor = defineComponent({ tag: uniqueTag() }, 'body { color: red }')
+    expect(ctor.styles).toBe('body { color: red }')
+  })
+
   it('disable-shadow 属性降级到 light DOM', () => {
     const tag = uniqueTag()
     defineComponent({ tag })
