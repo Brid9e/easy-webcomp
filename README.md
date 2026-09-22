@@ -28,6 +28,8 @@ pnpm run dev        # 文档站：http://localhost:5173
 src/workspaces/
 └── demo/
     ├── workspace.ts            # 展示名与描述，供文档站用
+    ├── styles/
+    │   └── index.scss          # 空间共享的变量与 mixin，组件按需 @use
     └── components/
         ├── hello-vue/
         └── hello-react/
@@ -51,10 +53,12 @@ pnpm run new:workspace <空间名>
 src/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
-├── style.css         # 唯一样式来源，禁止用 <style> 块
+├── style.scss        # 唯一样式来源，禁止用 <style> 块（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
 └── define.ts         # 副作用入口，CDN 产物用
 ```
+
+样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里 `@use '<空间>/styles' as styles;` 取用 —— 写空间名而非相对路径，是因为构建与文档站都把 SCSS 的解析路径指向了 `src/workspaces`，这样组件挪层级不会断。**例外是 Tailwind**：`@tailwindcss/vite` 不处理 `.scss`，选了它的组件仍是 `style.css`。
 
 `meta.ts` 示例：
 

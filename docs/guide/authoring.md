@@ -11,6 +11,8 @@ pnpm run new:workspace my-space
 ```
 src/workspaces/my-space/
 ├── workspace.ts            # 展示名与描述，供文档站用
+├── styles/
+│   └── index.scss          # 空间共享的变量与 mixin，组件按需 @use
 └── components/             # 组件都放这里
 ```
 
@@ -26,12 +28,31 @@ src/workspaces/my-space/
 src/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
-├── style.css         # 唯一样式来源，禁止用 <style> 块
+├── style.scss        # 唯一样式来源，禁止用 <style> 块（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
 └── define.ts         # 副作用入口，CDN 产物用
 ```
 
 `Component.vue` 与 `Component.tsx` **必须且只能有一个**。两个都有或都没有，构建脚本与文档站扫描都会直接抛错。
+
+## 样式：SCSS 与空间共享
+
+组件样式默认写 `style.scss`；`.css` 也照收，构建管线对两者一视同仁，只是拿不到预处理器能力。
+
+空间级共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里按需取用：
+
+```scss
+@use 'my-space/styles' as styles;
+
+.ew-card {
+  padding: styles.$gutter;
+  @include styles.focus-ring;
+}
+```
+
+写空间名而不是 `../../styles` 是有意的：构建与文档站都把 `scss` 的解析路径指向了 `src/workspaces`，路径因此与组件所在层级解耦，组件目录挪到更深一层也不用改这行。
+
+**例外：选了 Tailwind 的组件生成的是 `style.css`。** `@tailwindcss/vite` 不处理 `.scss` —— 写进 `.scss` 的 `@import "tailwindcss"` 会被 Sass 当成待解析的 partial 而报错。这是工具链的硬约束，不是风格选择；Tailwind 组件也因此用不上 `@use`。
 
 ## meta.ts
 
@@ -52,7 +73,7 @@ export default defineComponentMeta({
 
 `props` 的 `type` 目前支持 `string` / `number` / `boolean`，交互面板按它渲染 text / number / checkbox 三种控件。布尔属性的 attribute 名用 `attr` 显式指定（不指定的话 `autoLoad` 会推导成 `auto-load`，结果一样，写出来更明确）。
 
-`shadow: true` 是默认值。`style.css` 交给桥接层按 Shadow DOM 投递，因此组件里不要写 `<style scoped>`，否则样式只存在于源码模式。
+`shadow: true` 是默认值。`style.scss` 交给桥接层按 Shadow DOM 投递，因此组件里不要写 `<style scoped>`，否则样式只存在于源码模式。
 
 ## 派发事件
 
