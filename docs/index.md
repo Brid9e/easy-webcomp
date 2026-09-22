@@ -10,8 +10,8 @@ hero:
       text: 快速开始
       link: /guide/
     - theme: alt
-      text: 组件总览
-      link: /components/
+      text: 浏览组件
+      link: /workspaces/
 
 features:
   - title: Vue 或 React 任选
@@ -28,6 +28,6 @@ features:
     linkText: 构建与产物
   - title: meta.ts 驱动零配置
     details: tag、props、events 写在 meta.ts 里；构建入口、package exports、文档站导航全部自动生成。
-    link: /components/
-    linkText: 看组件总览
+    link: /workspaces/
+    linkText: 浏览组件
 ---

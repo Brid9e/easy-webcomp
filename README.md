@@ -11,7 +11,7 @@ pnpm install
 pnpm run dev        # 文档站：http://localhost:5173
 ```
 
-文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会出现在[组件总览](/components/)里。
+文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会在空间页里给出兜底详情页。
 
 组件页的交互面板有两种模式：
 
@@ -20,12 +20,35 @@ pnpm run dev        # 文档站：http://localhost:5173
 
 两种模式下属性面板与事件日志都由 `meta.ts` 驱动，不用手写。
 
-## 新增一个组件
+## 工作空间
 
-在 `src/components/` 下新建目录，放入五个文件即可，**不需要修改任何构建配置或路由**：
+组件必须住在工作空间里，没有隐式的默认空间。一个工作空间是一个目录，加一份清单：
 
 ```
-src/components/<组件名>/
+src/workspaces/
+└── demo/
+    ├── workspace.ts            # 展示名与描述，供文档站用
+    └── components/
+        ├── hello-vue/
+        └── hello-react/
+```
+
+新建一个工作空间：
+
+```bash
+pnpm run new:workspace <空间名>
+```
+
+目录名即工作空间 id，清单里不重复声明。**新建后要重启 dev** —— VitePress 的动态路由扫不出新目录。
+
+工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，撞名时构建会直接报错。
+
+## 新增一个组件
+
+先在某个工作空间下新建目录，放入五个文件即可，**不需要修改任何构建配置或路由**：
+
+```
+src/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
 ├── style.css         # 唯一样式来源，禁止用 <style> 块
@@ -36,7 +59,7 @@ src/components/<组件名>/
 `meta.ts` 示例：
 
 ```ts
-import { defineComponentMeta } from '../../runtime/types'
+import { defineComponentMeta } from '../../../../runtime/types'
 
 export default defineComponentMeta({
   tag: 'ew-hello-vue',
@@ -53,7 +76,7 @@ export default defineComponentMeta({
 组件内派发事件用 `useEmit()`：
 
 ```ts
-import { useEmit } from '../../runtime/vue'   // React 组件改为 '../../runtime/react'
+import { useEmit } from '../../../../runtime/vue'   // React 组件改为 '../../../../runtime/react'
 const emit = useEmit()
 emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
@@ -143,7 +166,7 @@ pnpm run verify   # typecheck + 单测 + 构建 + 文档站构建 + 冒烟测试
 | 阶段 | 内容 |
 |---|---|
 | `typecheck` | `vue-tsc --noEmit`，根目录 `*.config.ts` 也在检查范围内 |
-| `test` | Vitest + jsdom，7 个文件 46 个用例，覆盖桥接层全部易错点与组件扫描 |
+| `test` | Vitest + jsdom，8 个文件 56 个用例，覆盖桥接层全部易错点与组件扫描 |
 | `build` | ESM + CDN 全量产物 |
 | `docs:build` | VitePress 构建文档站，同时是 SSR 问题的唯一防线 |
 | `test:e2e` | Playwright 冒烟测试，8 个用例加载 `dist/cdn/*.js` 真实产物 |
