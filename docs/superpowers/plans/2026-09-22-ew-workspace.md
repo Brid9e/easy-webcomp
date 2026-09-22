@@ -14,7 +14,9 @@
 
 ## 全局约定
 
-**红窗期（已知且预期）**：Task 2 删掉 `src/components/` 之后，`docs:build` 会失败，直到 Task 6 结束。**`pnpm run verify` 只在 Task 8 要求全绿**。中间任务的红是设计使然，不要为此临时保留旧路径。
+**红窗期（已知且预期）**：Task 2 删掉 `src/components/` 之后的短暂窗口里，`docs:build` 会失败。**`pnpm run verify` 只在 Task 8 要求全绿**。中间任务的红是设计使然，不要为此临时保留旧路径。
+
+> 实测修订（Task 4 执行后回填）：Task 3、Task 4 走完后 `docs:build` 已经能通过。计划原先预测 Task 4 结束时它仍会失败，理由是「`docs/components/*.md` 还引用着 `<ComponentOverview />`，而 `/components/` 的 sidebar 键已被移除」—— 但这两件事都不构成构建错误：`ComponentOverview` 仍是注册过的全局组件，它的旧 glob 只是匹配不到文件、渲染出空列表；sidebar 少一个键 VitePress 也只是回落到无侧边栏。因此 Task 4 Step 7 的「预期失败」不成立。Task 5 / Task 6 的红窗描述同理，以实际跑出来的结果为准，不要为了制造预期中的失败而改动代码。
 
 **交付契约不变**：自定义元素 tag（`ew-hello-vue`）、`package.json` 的 `exports` 键（`./hello-vue`）、`dist/cdn/` 文件名，全程不动。工作空间只出现在源码目录、文档 URL 与侧边栏里。
 
