@@ -54,16 +54,17 @@ const components = computed(() =>
 </template>
 
 <style scoped>
+/* 文档站外壳走 --vp-*：--ew-* 不响应站点明暗切换 */
 .desc {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
 }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
   margin-top: 24px;
 }
 .empty {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
 }
 </style>
