@@ -578,6 +578,21 @@ import { wcModePlugin } from './shared/wc-mode'
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const workspacesDir = resolve(root, 'src/workspaces')
 
+// 与 docs/.vitepress/config.mts、scripts/build.ts 是同一份约定：组件里的 `@use '<空间>/styles'` 靠它解析。
+// 两个键都写 —— 根构建跑 Vite 7（现代 Sass API 认 loadPaths），VitePress 内嵌 Vite 5（旧 API 只认
+// includePaths），旧 API 收到 loadPaths 会当没看见。少写一条，那类管线的 .scss 就构建失败。
+//
+// 提到 defineConfig 外面不是为了复用，是因为 Vite 7 的 SassPreprocessorOptions 不认识 includePaths：
+// 写在对象字面量里会被多余属性检查判死（TS2769），脱开上下文类型才放行。scripts/build.ts 同理。
+const cssConfig = {
+  preprocessorOptions: {
+    scss: {
+      loadPaths: [workspacesDir],
+      includePaths: [workspacesDir],
+    },
+  },
+}
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -585,17 +600,7 @@ export default defineConfig({
       '@devtools': resolve(root, 'devtools/shared'),
     },
   },
-  // 与 docs/.vitepress/config.mts、scripts/build.ts 是同一份约定：组件里的 `@use '<空间>/styles'` 靠它解析。
-  // 两个键都写 —— 根构建跑 Vite 7（现代 Sass API 认 loadPaths），VitePress 内嵌 Vite 5（旧 API 只认
-  // includePaths），旧 API 收到 loadPaths 会当没看见。少写一条，那类管线的 .scss 就构建失败。
-  css: {
-    preprocessorOptions: {
-      scss: {
-        loadPaths: [workspacesDir],
-        includePaths: [workspacesDir],
-      },
-    },
-  },
+  css: cssConfig,
   plugins: [
     // 少了它，Vue 会把 <ew-*> 当未知组件报警告，devtools 面板里的组件反而渲染不出来
     vue({
@@ -720,12 +725,24 @@ Expected: 绿。
 
 - [ ] **Step 10: 提交**
 
+**不能 `git add package.json`。** 它在工作区里还带着 `axios` / `element-plus` / `pinia` 三行 —— 那是 `self-monitor` 的在制品依赖，整文件暂存会把它们一起提交，还会与未暂存的 `pnpm-lock.yaml` 脱节。只把 `dev` 那一个 hunk 挑进索引：
+
 ```bash
-git add devtools/index.html devtools/vite.config.ts devtools/src/main.ts devtools/src/shell.css devtools/src/App.vue package.json docs/.vitepress/config.mts
+git add devtools/index.html devtools/vite.config.ts devtools/src/main.ts devtools/src/shell.css devtools/src/App.vue docs/.vitepress/config.mts
+
+# package.json 有两个 hunk：scripts 里的 dev 行、dependencies 里的三行在制品依赖。
+# 只把第一个 hunk 应用到索引，工作区不动。
+git diff package.json | awk '/^@@/{h++} h==0 || h==1' > /tmp/pkg-scripts.patch
+git apply --cached /tmp/pkg-scripts.patch
+
+# 两步都要核：暂存的只有 dev 一行，未暂存的仍是那三行依赖
+git diff --cached package.json
+git diff package.json
+
 git commit -m "feat(devtools): 独立调试页应用骨架，pnpm dev 指向它"
 ```
 
-> `package.json` 只加了脚本一行？确认 `git diff package.json` 里没有 `axios` / `element-plus` / `pinia` 那三行（那是在制品 `self-monitor` 的依赖）。若有，说明你 `git add` 的路径写错了，回退重来。
+> 这个做法依赖「`package.json` 的两个改动分别落在两个 hunk 里」。若日后 `dev` 行与依赖行相邻，hunk 会合并，这段就失效 —— 届时改用 `git apply --cached` 手写补丁，或让本人先提交在制品。
 
 ---
 
