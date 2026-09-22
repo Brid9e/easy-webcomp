@@ -49,4 +49,22 @@ describe('findPrefixViolations', () => {
     const css = '@charset "UTF-8";\n.bad { a: 1 }\n.ew-ok { b: 2 }'
     expect(findPrefixViolations(css, 'ok')).toEqual(['bad'])
   })
+
+  // 属性选择器里的点不是类名。不跳过 [...] 的话这里会报出一个根本不存在的类 ".pdf"。
+  it('属性选择器里的值不算类名', () => {
+    expect(findPrefixViolations('.ew-my-list [href$=".pdf"] { a: 1 }', 'my-list')).toEqual([])
+  })
+
+  // 声明值里带花括号时，值的内容会漏进 buffer 被当选择器 —— 引号内要跳过
+  it('声明值里带花括号不会漏出假的类名', () => {
+    expect(findPrefixViolations('.ew-my-list::after { content: "{.fake{" }', 'my-list')).toEqual([])
+  })
+
+  it('ant- 前缀与 el- 一样放行', () => {
+    expect(findPrefixViolations('.ant-form-item { max-width: 100%; }', 'my-table')).toEqual([])
+  })
+
+  it('用破折号分隔的同命名空间类名放行', () => {
+    expect(findPrefixViolations('.ew-my-list-filters { a: 1 }', 'my-list')).toEqual([])
+  })
 })

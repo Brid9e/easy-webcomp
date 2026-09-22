@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { gzipSync } from 'node:zlib'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
@@ -98,10 +98,12 @@ function checkStylePrefixes(components: ComponentInfo[]): void {
     // 冲突，它的类名也无法用前缀约束。跳过。
     if (source.includes('@import "tailwindcss"')) continue
 
+    // compile 是 sass 的现代 API，只认 loadPaths。上面 cssConfig 多写的 includePaths 是给
+    // VitePress 内嵌的 Vite 5（旧 API）用的，那条管线不跑这个检查，所以这里对齐根构建即可。
     const { css } = compile(path, { loadPaths: [workspacesDir] })
     for (const token of findPrefixViolations(css, c.name)) {
       failures.push(
-        `${c.workspace}/${c.name} 的样式里出现类名 ".${token}"，应以 ".ew-${c.name}" 为前缀`,
+        `${relative(root, path)} 里出现类名 ".${token}"，应以 ".ew-${c.name}" 为前缀`,
       )
     }
   }

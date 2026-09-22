@@ -7,8 +7,14 @@
  * 这种情形，构建必须拦住它，而不是靠人自觉。
  */
 
-/** 非本组件但允许出现的类名前缀：UI 库自己的类名 */
-const LIBRARY_PREFIXES = ['el-']
+/**
+ * 非本组件但允许出现的类名前缀：UI 库自己的类名。
+ *
+ * `el-` 是 Element Plus，`ant-` 覆盖 ant-design-vue 与 antd —— 脚手架支持的三个 UI 库全在这。
+ * 组件里写 `.el-form-item { ... }` 覆盖库样式是既有模式，三个库应当一视同仁。
+ * （antd 的 prefixCls 理论上可被 ConfigProvider 改写，那样仍然会报；真遇到再说，别为它放开规则。）
+ */
+const LIBRARY_PREFIXES = ['el-', 'ant-']
 
 /** 去掉注释，避免注释里的花括号干扰配对 */
 function stripComments(css: string): string {
@@ -24,11 +30,36 @@ function stripComments(css: string): string {
  * `{`，不清的话它会和紧随其后的第一条规则粘成一个以 `@` 开头的 buffer，把那条规则整条
  * 跳过。Sass 在产物含非 ASCII 时会自动补 `@charset`，所以这不是假想的情况。选择器里
  * 不可能出现 `;`，无条件清是安全的。
+ *
+ * `[...]` 与引号内的内容要跳过，理由不是洁癖而是误报：`[href$=".pdf"]` 里的 `.pdf` 会被
+ * 类名正则当成一个类名报出来，文案还会一本正经地说「出现类名 ".pdf"」——那个类根本不存在。
+ * 同一条规则也顺带挡住 `content: "{.fake{"` 这种值里带花括号、把声明内容漏进 buffer 的情况。
  */
 function selectorsOf(css: string): string[] {
   const out: string[] = []
   let buffer = ''
+  let quote: string | null = null
+  let inAttribute = false
+
   for (const char of stripComments(css)) {
+    if (quote !== null) {
+      if (char === quote) quote = null
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    if (char === '[') {
+      inAttribute = true
+      continue
+    }
+    if (char === ']') {
+      inAttribute = false
+      continue
+    }
+    if (inAttribute) continue
+
     if (char === '{') {
       const text = buffer.trim()
       if (text !== '' && !text.startsWith('@')) out.push(text)
