@@ -19,6 +19,11 @@ function stripComments(css: string): string {
  * 取出所有选择器文本：每个 `{` 之前那段就是它的选择器，`@` 开头的是 at 规则的条件
  * 而不是选择器。用这种括号配对而不是正则匹配 `{...}`，是为了让 `@media` 块里嵌套的
  * 选择器也能被扫到 —— 只按顶层切会把它们整段漏掉。
+ *
+ * `;` 也要清 buffer：无 block 的 at 规则（`@charset "UTF-8";`、`@import ...;`）不会走到
+ * `{`，不清的话它会和紧随其后的第一条规则粘成一个以 `@` 开头的 buffer，把那条规则整条
+ * 跳过。Sass 在产物含非 ASCII 时会自动补 `@charset`，所以这不是假想的情况。选择器里
+ * 不可能出现 `;`，无条件清是安全的。
  */
 function selectorsOf(css: string): string[] {
   const out: string[] = []
@@ -28,7 +33,7 @@ function selectorsOf(css: string): string[] {
       const text = buffer.trim()
       if (text !== '' && !text.startsWith('@')) out.push(text)
       buffer = ''
-    } else if (char === '}') {
+    } else if (char === '}' || char === ';') {
       buffer = ''
     } else {
       buffer += char

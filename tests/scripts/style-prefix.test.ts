@@ -42,4 +42,11 @@ describe('findPrefixViolations', () => {
     const css = '.b { a: 1 }\n.a { a: 1 }\n.b { c: 2 }'
     expect(findPrefixViolations(css, 'my-list')).toEqual(['b', 'a'])
   })
+
+  // Sass 产物含非 ASCII 时会在最前面补 @charset，它没有 block，不切成一条独立语句的话
+  // 会把紧随其后的第一条规则整条吞掉。my-list 编译出来就带这行。
+  it('@charset 开头时第一条规则照样被扫', () => {
+    const css = '@charset "UTF-8";\n.bad { a: 1 }\n.ew-ok { b: 2 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad'])
+  })
 })
