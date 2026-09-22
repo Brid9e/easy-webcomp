@@ -8,7 +8,7 @@ import { useEmit, vueAdapter } from '../../src/runtime/vue'
 let counter = 0
 function uniqueTag(): string {
   counter += 1
-  return `ctc-vue-adapter-${counter}`
+  return `ew-vue-adapter-${counter}`
 }
 
 const Probe = defineComponent({
@@ -79,7 +79,7 @@ describe('vueAdapter', () => {
     await tick()
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     el.shadowRoot?.querySelector<HTMLButtonElement>('.probe')?.click()
 

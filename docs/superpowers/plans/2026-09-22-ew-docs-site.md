@@ -1,4 +1,4 @@
-# ctc-web-components 文档站（VitePress）实施计划
+# easy-webcomp 文档站（VitePress）实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** VitePress 1.6.4（内部绑 Vite 5）、Vue 3.5、React 19（经 `@vitejs/plugin-react@4.7`）、TypeScript 严格模式、pnpm。
 
-**Spec:** `docs/superpowers/specs/2026-09-22-ctc-docs-site-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-22-ew-docs-site-design.md`
 
 **Scope:** 只做文档站。工作空间概念不在本计划内（spec 第 13 节只预留接缝）。
 
@@ -22,7 +22,7 @@
 | `docs/.vitepress/components.ts` | Node 侧扫描 `src/components/`，导出 `listComponents()`——站点侧唯一数据源 |
 | `docs/.vitepress/plugins/wc-mode.ts` | 从 playground 原样搬来，逻辑不变 |
 | `docs/.vitepress/theme/index.ts` | 扩展默认主题 + 引入 tokens.css/custom.css + 全局注册两个面板组件 |
-| `docs/.vitepress/theme/custom.css` | 把 `--ctc-*` 映射到 VitePress 的 `--vp-c-*` |
+| `docs/.vitepress/theme/custom.css` | 把 `--ew-*` 映射到 VitePress 的 `--vp-c-*` |
 | `docs/.vitepress/theme/components/ComponentDemo.vue` | 交互面板：属性表单 + 双模式预览 + 事件日志 |
 | `docs/.vitepress/theme/components/ComponentOverview.vue` | 兜底总览页正文：枚举所有组件各渲染一块面板 |
 | `docs/.vitepress/theme/components/VueMount.vue` | 从 playground 搬来，改 `@src` 别名 |
@@ -79,13 +79,13 @@ playwright-report/
 layout: home
 
 hero:
-  name: CTC Web Components
+  name: easy-webcomp
   text: 写一个组件，交付一个 Web Component
   tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素 —— npm 与 CDN 双通道，加组件零配置。
 
 features:
   - title: Vue 或 React 任选
-    details: 组件放 Component.vue 或 Component.tsx，构建脚本按文件名自动判别框架，最终产出一致的 <ctc-*> 元素。
+    details: 组件放 Component.vue 或 Component.tsx，构建脚本按文件名自动判别框架，最终产出一致的 <ew-*> 元素。
   - title: 自包含 Web Component
     details: 运行时内联进单文件产物，一个 <script> 标签即可使用；不依赖宿主框架，不怕样式冲突。
   - title: npm 与 CDN 双通道
@@ -105,13 +105,13 @@ import { defineConfig } from 'vitepress'
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
 
 export default defineConfig({
-  title: 'CTC Web Components',
+  title: 'easy-webcomp',
   description: '用 Vue 3 或 React 写业务组件，构建管线输出统一形态的 Web Component',
   srcExclude: ['superpowers/**'],
   vue: {
     template: {
       compilerOptions: {
-        isCustomElement: (tag: string) => tag.startsWith('ctc-'),
+        isCustomElement: (tag: string) => tag.startsWith('ew-'),
       },
     },
   },
@@ -132,7 +132,7 @@ export default defineConfig({
 - **`srcExclude: ['superpowers/**']`** 是唯一挡住内部设计文档的东西，漏了它们会被当页面发布。
 - **`rootDir` 从 `import.meta.url` 推**（`docs/.vitepress/` 上翻两级），不要用 `process.cwd()`。
 
-`isCustomElement` 目前没有直接消费者（`<ctc-*>` 只出现在 WC 模式的动态 `:is` 里，不走组件解析），但它是 spec 第 11 节点名必须带过来的配置，留着做保险。
+`isCustomElement` 目前没有直接消费者（`<ew-*>` 只出现在 WC 模式的动态 `:is` 里，不走组件解析），但它是 spec 第 11 节点名必须带过来的配置，留着做保险。
 
 - [ ] **Step 5: `tsconfig.json` 加 `docs` 与 `@src` 路径映射**
 
@@ -234,7 +234,7 @@ function makeComponent(name: string, files: string[]): void {
 const scan = () => listComponents(join(root, 'components'), join(root, 'docs/components'))
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'ctc-docs-'))
+  root = mkdtempSync(join(tmpdir(), 'ew-docs-'))
   mkdirSync(join(root, 'docs/components'), { recursive: true })
 })
 
@@ -365,7 +365,7 @@ git commit -m "docs: 文档站组件扫描模块与单测"
 mkdir -p docs/.vitepress/plugins && git mv playground/plugins/wc-mode.ts docs/.vitepress/plugins/wc-mode.ts
 ```
 
-**文件内容一字不改。** 它内部生成的是绝对路径 import（一期已如此），虚拟模块 id 仍是 `virtual:ctc-wc/<name>` 与 `virtual:ctc-wc-index`。工作空间落地时 id 才会变成 `virtual:ctc-wc/<ws>/<name>`。
+**文件内容一字不改。** 它内部生成的是绝对路径 import（一期已如此），虚拟模块 id 仍是 `virtual:ew-wc/<name>` 与 `virtual:ew-wc-index`。工作空间落地时 id 才会变成 `virtual:ew-wc/<ws>/<name>`。
 
 - [ ] **Step 2: 挂进 config.mts**
 
@@ -435,18 +435,18 @@ mkdir -p docs/.vitepress/theme/components && git mv playground/renderers/VueMoun
 
 - [ ] **Step 2: `VueMount.vue` 改运行时导入路径**
 
-把 `import { CTC_EMIT_KEY } from '../../src/runtime/vue'` 改成：
+把 `import { EW_EMIT_KEY } from '../../src/runtime/vue'` 改成：
 
 ```ts
-import { CTC_EMIT_KEY } from '@src/runtime/vue'
+import { EW_EMIT_KEY } from '@src/runtime/vue'
 ```
 
 - [ ] **Step 3: `ReactMount.vue` 改运行时导入路径**
 
-把 `import { CtcEmitContext } from '../../src/runtime/react'` 改成：
+把 `import { EwEmitContext } from '../../src/runtime/react'` 改成：
 
 ```ts
-import { CtcEmitContext } from '@src/runtime/react'
+import { EwEmitContext } from '@src/runtime/react'
 ```
 
 - [ ] **Step 4: `source-style.ts` 改成按目录名查表**
@@ -487,20 +487,20 @@ export default {
 } satisfies Theme
 ```
 
-`tokens.css` 必须在这里引入 —— 站点自己的 UI 也用 `var(--ctc-*)`，不引入的话侧边栏、正文的颜色全空。
+`tokens.css` 必须在这里引入 —— 站点自己的 UI 也用 `var(--ew-*)`，不引入的话侧边栏、正文的颜色全空。
 
 - [ ] **Step 6: 写 `docs/.vitepress/theme/custom.css`**
 
 ```css
 :root {
-  --vp-c-brand-1: var(--ctc-color-primary);
-  --vp-c-brand-2: var(--ctc-color-primary);
-  --vp-c-brand-3: var(--ctc-color-primary);
-  --vp-font-family-base: var(--ctc-font-family);
+  --vp-c-brand-1: var(--ew-color-primary);
+  --vp-c-brand-2: var(--ew-color-primary);
+  --vp-c-brand-3: var(--ew-color-primary);
+  --vp-font-family-base: var(--ew-font-family);
 }
 ```
 
-方向是 `--ctc-*` → `--vp-c-*`，不是反过来：token 是一等公民（消费方也要用），VitePress 的变量是文档站私有的皮肤。
+方向是 `--ew-*` → `--vp-c-*`，不是反过来：token 是一等公民（消费方也要用），VitePress 的变量是文档站私有的皮肤。
 
 - [ ] **Step 7: 写 `docs/.vitepress/env.d.ts`**
 
@@ -695,7 +695,7 @@ function handleEvent(name: string, detail: unknown): void {
 const mode = ref<'source' | 'wc'>('wc')
 
 async function enableWc(): Promise<void> {
-  const modules = (await import('virtual:ctc-wc-index')) as {
+  const modules = (await import('virtual:ew-wc-index')) as {
     default: Record<string, { Element: CustomElementConstructor }>
   }
   const mod = modules.default[props.name]
@@ -783,7 +783,7 @@ onMounted(() => {
             :is="tag"
             v-else
             v-bind="wcProps"
-            @ctc-select="handleEvent('select', ($event as CustomEvent).detail)"
+            @ew-select="handleEvent('select', ($event as CustomEvent).detail)"
           />
         </div>
       </div>
@@ -793,7 +793,7 @@ onMounted(() => {
         <p v-if="events.length === 0" class="empty">点击组件试试</p>
         <ul v-else>
           <li v-for="(e, i) in events" :key="i">
-            <code>ctc-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
+            <code>ew-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
           </li>
         </ul>
       </div>
@@ -808,12 +808,12 @@ onMounted(() => {
 .panel {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid var(--ctc-color-border);
-  border-radius: var(--ctc-radius-md);
+  border: 1px solid var(--ew-color-border);
+  border-radius: var(--ew-radius-md);
 }
 .panel h3 {
   margin: 0 0 12px;
-  font-size: var(--ctc-font-size-md);
+  font-size: var(--ew-font-size-md);
 }
 .panel-head {
   display: flex;
@@ -825,22 +825,22 @@ onMounted(() => {
 }
 .mode-switch button {
   padding: 4px 10px;
-  border: 1px solid var(--ctc-color-border);
-  background: var(--ctc-color-bg);
+  border: 1px solid var(--ew-color-border);
+  background: var(--ew-color-bg);
   font: inherit;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
   cursor: pointer;
 }
 .mode-switch button:first-child {
-  border-radius: var(--ctc-radius-sm) 0 0 var(--ctc-radius-sm);
+  border-radius: var(--ew-radius-sm) 0 0 var(--ew-radius-sm);
 }
 .mode-switch button:last-child {
   border-left: none;
-  border-radius: 0 var(--ctc-radius-sm) var(--ctc-radius-sm) 0;
+  border-radius: 0 var(--ew-radius-sm) var(--ew-radius-sm) 0;
 }
 .mode-switch button.active {
-  background: var(--ctc-color-primary);
-  border-color: var(--ctc-color-primary);
+  background: var(--ew-color-primary);
+  border-color: var(--ew-color-primary);
   color: #fff;
 }
 .field {
@@ -851,16 +851,16 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 .field small {
-  color: var(--ctc-color-text-secondary);
+  color: var(--ew-color-text-secondary);
 }
 .empty {
-  color: var(--ctc-color-text-secondary);
-  font-size: var(--ctc-font-size-sm);
+  color: var(--ew-color-text-secondary);
+  font-size: var(--ew-font-size-sm);
 }
 ul {
   margin: 0;
   padding-left: 18px;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
 }
 </style>
 ```
@@ -917,9 +917,9 @@ pnpm run docs:dev
 1. 面板**默认是 WC 模式**（按钮高亮在「WC 模式」），预览区出现一枚蓝色按钮。
 2. 改「name」输入框的内容，预览区文案实时变化。
 3. 勾上「autoLoad」，不报错。
-4. 点击预览里的按钮，事件日志出现 `ctc-select · <时间> · {"source":"hello-vue","name":"..."}`。
+4. 点击预览里的按钮，事件日志出现 `ew-select · <时间> · {"source":"hello-vue","name":"..."}`。
 5. 切到「源码模式」，外观与 WC 模式一致，点击同样能派发事件。
-6. 刷新页面，控制台**没有** `Failed to resolve component` 警告，也**没有**重复注册 `ctc-hello-vue` 的报错。
+6. 刷新页面，控制台**没有** `Failed to resolve component` 警告，也**没有**重复注册 `ew-hello-vue` 的报错。
 
 - [ ] **Step 6: 提交**
 
@@ -967,7 +967,7 @@ const names = Object.keys(import.meta.glob('@src/components/*/meta.ts', { eager:
 .overview-title {
   padding-top: 24px;
   margin-top: 24px;
-  border-top: 1px solid var(--ctc-color-border);
+  border-top: 1px solid var(--ew-color-border);
 }
 .overview-item:first-child .overview-title {
   padding-top: 0;
@@ -975,7 +975,7 @@ const names = Object.keys(import.meta.glob('@src/components/*/meta.ts', { eager:
   border-top: none;
 }
 .empty {
-  color: var(--ctc-color-text-secondary);
+  color: var(--ew-color-text-secondary);
 }
 </style>
 ```
@@ -1044,7 +1044,7 @@ git commit -m "docs: 组件总览兜底页"
 ```md
 # hello-vue
 
-用 Vue 3 写的示例组件。点击按钮会派发一次 `ctc-select` 事件。
+用 Vue 3 写的示例组件。点击按钮会派发一次 `ew-select` 事件。
 
 <ComponentDemo name="hello-vue" />
 
@@ -1056,13 +1056,13 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 npm ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 ```
 
 ## 属性
@@ -1077,18 +1077,18 @@ import 'ctc-web-components/hello-vue/define'
 
 | 事件 | `detail` |
 |---|---|
-| `ctc-select` | `{ source: 'hello-vue', name: string }` |
+| `ew-select` | `{ source: 'hello-vue', name: string }` |
 
 事件带 `composed: true`，能穿透 shadow root 冒泡到 `window`。
 
 ## 说明
 
-组件源码在 `src/components/hello-vue/Component.vue`，使用的框架不影响最终交付形态 —— 它同样产出一个 `<ctc-hello-vue>` 自定义元素。
+组件源码在 `src/components/hello-vue/Component.vue`，使用的框架不影响最终交付形态 —— 它同样产出一个 `<ew-hello-vue>` 自定义元素。
 ```
 
 - [ ] **Step 2: 写 `docs/components/hello-react.md`**
 
-内容为上一页的 React 版本：标题 `# hello-react`、面板 `<ComponentDemo name="hello-react" />`、CDN 片段里的 tag 改 `ctc-hello-react`、事件 `detail` 的 `source` 改 `'hello-react'`、说明段改为指向 `src/components/hello-react/Component.tsx` 并补一句「React 项目里传对象属性必须走 property 通道，React ≤18 会把对象属性序列化」。
+内容为上一页的 React 版本：标题 `# hello-react`、面板 `<ComponentDemo name="hello-react" />`、CDN 片段里的 tag 改 `ew-hello-react`、事件 `detail` 的 `source` 改 `'hello-react'`、说明段改为指向 `src/components/hello-react/Component.tsx` 并补一句「React 项目里传对象属性必须走 property 通道，React ≤18 会把对象属性序列化」。
 
 - [ ] **Step 3: config.mts 加组件导航与侧边栏**
 
@@ -1165,7 +1165,7 @@ git commit -m "docs: 组件页与自动侧边栏"
 
 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的 Web Component。支持 npm ESM 引入与 CDN 单文件引入。
 
-组件写哪个框架由你决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ctc-*>` 自定义元素。
+组件写哪个框架由你决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ew-*>` 自定义元素。
 
 ## 安装
 
@@ -1215,7 +1215,7 @@ src/components/<组件名>/
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-vue',
+  tag: 'ew-hello-vue',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
@@ -1234,10 +1234,10 @@ export default defineComponentMeta({
 import { useEmit } from '../../runtime/vue'   // React 组件改为 '../../runtime/react'
 
 const emit = useEmit()
-emit('select', { id: 1 })                      // → 派发 ctc-select 事件
+emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
 
-事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ctc-` 为前缀、`composed: true`，能穿透 shadow root。
+事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ew-` 为前缀、`composed: true`，能穿透 shadow root。
 
 ## 加完之后
 
@@ -1249,26 +1249,26 @@ emit('select', { id: 1 })                      // → 派发 ctc-select 事件
 ````md
 # 主题与 token
 
-所有设计 token 定义在 `src/tokens/tokens.css`，前缀 `--ctc-`。
+所有设计 token 定义在 `src/tokens/tokens.css`，前缀 `--ew-`。
 
 ## 换肤
 
-覆盖任意 `--ctc-*` 变量即可，无需 `::part()`：
+覆盖任意 `--ew-*` 变量即可，无需 `::part()`：
 
 ```css
 :root {
-  --ctc-color-primary: #ff4d4f;
+  --ew-color-primary: #ff4d4f;
 }
 ```
 
-组件内部一律用 `var(--ctc-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤静默失效。这是最容易踩的坑：写了不报错，只是换肤不起作用。
+组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤静默失效。这是最容易踩的坑：写了不报错，只是换肤不起作用。
 
 ## 降级到 light DOM
 
 默认每个组件挂 shadow root。给元素加 `disable-shadow` 属性即降级到 light DOM，样式改为注入 `document.head`（相同 CSS 只注入一次）：
 
 ```html
-<ctc-hello-vue name="World" disable-shadow></ctc-hello-vue>
+<ew-hello-vue name="World" disable-shadow></ew-hello-vue>
 ```
 
 降级后宿主页面的样式可以直接作用到组件内部，代价是失去了 Shadow 隔离。
@@ -1290,7 +1290,7 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ctc-all.js` | CDN 全量单文件 |
+| `dist/cdn/ew-all.js` | CDN 全量单文件 |
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
 
@@ -1304,15 +1304,15 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 
-document.body.innerHTML = '<ctc-hello-vue name="World"></ctc-hello-vue>'
+document.body.innerHTML = '<ew-hello-vue name="World"></ew-hello-vue>'
 ```
 
 React 项目里传对象属性：
@@ -1322,10 +1322,10 @@ const ref = useRef<HTMLElement>(null)
 useEffect(() => {
   if (ref.current) (ref.current as any).payload = { id: 1 }
 }, [])
-return <ctc-hello-vue ref={ref} name="World" />
+return <ew-hello-vue ref={ref} name="World" />
 ```
 
-React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
+React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
 
 ## 体积基线
 
@@ -1335,7 +1335,7 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hell
 |---|---|
 | `dist/cdn/hello-vue.js` | 26.8 KB |
 | `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/ctc-all.js` | 95.2 KB |
+| `dist/cdn/ew-all.js` | 95.2 KB |
 
 ESM 产物体积随打包器而定，不在基线对比范围内。
 ````
@@ -1346,7 +1346,7 @@ Task 1 因为目标页不存在而省掉了 hero 的 `actions`，现在 `docs/gu
 
 ```yaml
 hero:
-  name: CTC Web Components
+  name: easy-webcomp
   text: 写一个组件，交付一个 Web Component
   tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素 —— npm 与 CDN 双通道，加组件零配置。
   actions:
@@ -1517,7 +1517,7 @@ pnpm run dev
 - 首页正常渲染，四个 feature 卡片可点，两个按钮分别跳到 `/guide/` 与 `/components/`
 - 侧边栏「组件」分组里 `hello-vue`、`hello-react` 都在
 - 进入 `hello-vue` 页，散文与交互面板都在
-- 面板默认是 **WC 模式**，改属性实时生效，点击派发 `ctc-select` 并出现在事件日志
+- 面板默认是 **WC 模式**，改属性实时生效，点击派发 `ew-select` 并出现在事件日志
 - 切到源码模式，行为一致
 
 - [ ] **Step 4: 标准 4 —— 源码热更新不刷整页**
@@ -1531,7 +1531,7 @@ pnpm run dev
 ```bash
 mkdir -p src/components/tmp-probe
 cp src/components/hello-vue/{Component.vue,meta.ts,style.css,index.ts,define.ts} src/components/tmp-probe/
-sed -i '' "s/ctc-hello-vue/ctc-tmp-probe/" src/components/tmp-probe/meta.ts
+sed -i '' "s/ew-hello-vue/ew-tmp-probe/" src/components/tmp-probe/meta.ts
 ```
 
 重启 `pnpm run dev`（`src/components/` 的目录结构变了，侧边栏在启动时生成）。

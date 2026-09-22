@@ -100,7 +100,7 @@ function handleEvent(name: string, detail: unknown): void {
 const mode = ref<'source' | 'wc'>('wc')
 
 async function enableWc(): Promise<void> {
-  const modules = (await import('virtual:ctc-wc-index')) as {
+  const modules = (await import('virtual:ew-wc-index')) as {
     default: Record<string, { Element: CustomElementConstructor }>
   }
   const mod = modules.default[props.name]
@@ -184,7 +184,7 @@ onMounted(() => {
             :is="tag"
             v-else
             v-bind="wcProps"
-            @ctc-select="handleEvent('select', ($event as CustomEvent).detail)"
+            @ew-select="handleEvent('select', ($event as CustomEvent).detail)"
           />
         </div>
       </div>
@@ -194,7 +194,7 @@ onMounted(() => {
         <p v-if="events.length === 0" class="empty">点击组件试试</p>
         <ul v-else>
           <li v-for="(e, i) in events" :key="i">
-            <code>ctc-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
+            <code>ew-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
           </li>
         </ul>
       </div>
@@ -209,12 +209,12 @@ onMounted(() => {
 .panel {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid var(--ctc-color-border);
-  border-radius: var(--ctc-radius-md);
+  border: 1px solid var(--ew-color-border);
+  border-radius: var(--ew-radius-md);
 }
 .panel h3 {
   margin: 0 0 12px;
-  font-size: var(--ctc-font-size-md);
+  font-size: var(--ew-font-size-md);
 }
 .panel-head {
   display: flex;
@@ -226,22 +226,22 @@ onMounted(() => {
 }
 .mode-switch button {
   padding: 4px 10px;
-  border: 1px solid var(--ctc-color-border);
-  background: var(--ctc-color-bg);
+  border: 1px solid var(--ew-color-border);
+  background: var(--ew-color-bg);
   font: inherit;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
   cursor: pointer;
 }
 .mode-switch button:first-child {
-  border-radius: var(--ctc-radius-sm) 0 0 var(--ctc-radius-sm);
+  border-radius: var(--ew-radius-sm) 0 0 var(--ew-radius-sm);
 }
 .mode-switch button:last-child {
   border-left: none;
-  border-radius: 0 var(--ctc-radius-sm) var(--ctc-radius-sm) 0;
+  border-radius: 0 var(--ew-radius-sm) var(--ew-radius-sm) 0;
 }
 .mode-switch button.active {
-  background: var(--ctc-color-primary);
-  border-color: var(--ctc-color-primary);
+  background: var(--ew-color-primary);
+  border-color: var(--ew-color-primary);
   color: #fff;
 }
 .field {
@@ -252,15 +252,15 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 .field small {
-  color: var(--ctc-color-text-secondary);
+  color: var(--ew-color-text-secondary);
 }
 .empty {
-  color: var(--ctc-color-text-secondary);
-  font-size: var(--ctc-font-size-sm);
+  color: var(--ew-color-text-secondary);
+  font-size: var(--ew-font-size-sm);
 }
 ul {
   margin: 0;
   padding-left: 18px;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
 }
 </style>

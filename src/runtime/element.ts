@@ -1,19 +1,19 @@
 import { attrNameFor, coerceAttr, isAttributeChannel } from './props'
 import { applyStyles } from './style'
-import type { ComponentMeta, CtcElementConstructor, ElementAdapter } from './types'
+import type { ComponentMeta, EwElementConstructor, ElementAdapter } from './types'
 
 export function createElementClass(
   meta: ComponentMeta,
   adapter: ElementAdapter,
   css: string,
-): CtcElementConstructor {
+): EwElementConstructor {
   const propEntries = Object.entries(meta.props ?? {})
   const eventNames = new Set(meta.events ?? [])
   const useShadowDefault = meta.shadow ?? true
 
-  const liveInstances = new Set<CtcElement>()
+  const liveInstances = new Set<EwElement>()
 
-  class CtcElement extends HTMLElement {
+  class EwElement extends HTMLElement {
     static get observedAttributes(): string[] {
       return propEntries
         .filter(([, def]) => isAttributeChannel(def.type))
@@ -84,16 +84,16 @@ export function createElementClass(
     private _emit = (name: string, detail: unknown): void => {
       if (!eventNames.has(name)) {
         console.warn(
-          `[ctc] <${meta.tag}> 派发了未在 meta.events 中声明的事件 "${name}"。`,
+          `[ew] <${meta.tag}> 派发了未在 meta.events 中声明的事件 "${name}"。`,
         )
       }
       this.dispatchEvent(
-        new CustomEvent(`ctc-${name}`, { detail, bubbles: true, composed: true }),
+        new CustomEvent(`ew-${name}`, { detail, bubbles: true, composed: true }),
       )
     }
   }
 
-  const ctor = CtcElement as unknown as CtcElementConstructor
+  const ctor = EwElement as unknown as EwElementConstructor
   ctor.refresh = () => {
     for (const el of liveInstances) el.refresh()
   }

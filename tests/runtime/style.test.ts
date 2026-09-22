@@ -62,7 +62,7 @@ describe('applyStyles', () => {
     applyStyles(a, '.c { color: green; }')
     applyStyles(b, '.c { color: green; }')
 
-    const styles = document.head.querySelectorAll('style[data-ctc-style]')
+    const styles = document.head.querySelectorAll('style[data-ew-style]')
     expect(styles).toHaveLength(1)
     expect(styles[0]?.textContent).toBe('.c { color: green; }')
   })

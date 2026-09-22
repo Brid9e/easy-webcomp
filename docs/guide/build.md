@@ -11,7 +11,7 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ctc-all.js` | CDN 全量单文件 |
+| `dist/cdn/ew-all.js` | CDN 全量单文件 |
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
 
@@ -25,15 +25,15 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 
-document.body.innerHTML = '<ctc-hello-vue name="World"></ctc-hello-vue>'
+document.body.innerHTML = '<ew-hello-vue name="World"></ew-hello-vue>'
 ```
 
 React 项目里传对象属性：
@@ -43,10 +43,10 @@ const ref = useRef<HTMLElement>(null)
 useEffect(() => {
   if (ref.current) (ref.current as any).payload = { id: 1 }
 }, [])
-return <ctc-hello-vue ref={ref} name="World" />
+return <ew-hello-vue ref={ref} name="World" />
 ```
 
-React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
+React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
 
 Vue 项目里用 `v-bind` 要注意：**只要 prop 名在元素上已定义，Vue 就走 property 通道而不是 attribute 通道**，值不会经过字符串化与类型强转。所以数字要传数字、布尔要传真布尔 —— 传 `''` 表示布尔为真会被 Vue 的 Boolean prop 转换一律当成 `false`。文档站的交互面板就是按这条规则写的。
 
@@ -58,7 +58,7 @@ Vue 项目里用 `v-bind` 要注意：**只要 prop 名在元素上已定义，V
 |---|---|
 | `dist/cdn/hello-vue.js` | 26.8 KB |
 | `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/ctc-all.js` | 95.2 KB |
+| `dist/cdn/ew-all.js` | 95.2 KB |
 
 ESM 产物体积随打包器而定，不在基线对比范围内。
 

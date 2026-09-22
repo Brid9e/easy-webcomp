@@ -12,7 +12,7 @@ export default function HelloReact({ name = 'World', count = 0 }: HelloReactProp
   return (
     <button
       type="button"
-      className="ctc-hello"
+      className="ew-hello"
       onClick={() => emit('select', { source: 'hello-react', name })}
     >
       {`React 组件：${name} × ${count}`}

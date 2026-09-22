@@ -4,7 +4,7 @@ import type { ElementAdapter } from './types'
 
 export type EmitFn = (name: string, detail?: unknown) => void
 
-export const CtcEmitContext: Context<EmitFn> = createContext<EmitFn>(() => {})
+export const EwEmitContext: Context<EmitFn> = createContext<EmitFn>(() => {})
 
 interface ReactInstance {
   root: Root
@@ -18,7 +18,7 @@ export function reactAdapter(getComponent: () => unknown): ElementAdapter {
       const render = (next: Record<string, unknown>): void => {
         root.render(
           createElement(
-            CtcEmitContext.Provider,
+            EwEmitContext.Provider,
             { value: emit },
             createElement(getComponent() as never, next),
           ),
@@ -38,5 +38,5 @@ export function reactAdapter(getComponent: () => unknown): ElementAdapter {
 }
 
 export function useEmit(): EmitFn {
-  return useContext(CtcEmitContext)
+  return useContext(EwEmitContext)
 }

@@ -2,7 +2,7 @@
 import { createElement, type ComponentType } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CtcEmitContext } from '@src/runtime/react'
+import { EwEmitContext } from '@src/runtime/react'
 import { componentStyle } from './source-style'
 
 const props = defineProps<{
@@ -19,7 +19,7 @@ function render(): void {
   if (!root) return
   root.render(
     createElement(
-      CtcEmitContext.Provider,
+      EwEmitContext.Provider,
       { value: (name: string, detail: unknown) => props.onEvent(name, detail) },
       createElement(props.component, props.propsData),
     ),

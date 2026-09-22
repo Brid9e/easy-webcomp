@@ -1,4 +1,4 @@
-# ctc-web-components 文档站（VitePress）设计文档
+# easy-webcomp 文档站（VitePress）设计文档
 
 ## 1. 一句话定义
 
@@ -86,7 +86,7 @@ export function listComponents(): ComponentInfo[]
 
 VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue 或 React 任选、产出自包含 Web Component、npm 与 CDN 双通道、`meta.ts` 驱动零配置。按钮指向 `/guide/`。
 
-**feature 文案里的尖括号必须写成 HTML 实体**（实施期间实测纠正）：`details` 走 `v-html` 且**不经 markdown**（反引号会原样显示出来），裸的 `<script>` 会作为真脚本元素进入构建产物的 HTML，浏览器随即把它后面的文档——包括 `__VP_SITE_DATA__` 脚本——全部吞进该脚本体内，客户端初始化 `SyntaxError`、整站不可用。dev 下首页由客户端渲染，看不到这个问题，只有对 SSG 产物做浏览器验证才会暴露。因此写 `&lt;script&gt;`、`&lt;ctc-*&gt;`。
+**feature 文案里的尖括号必须写成 HTML 实体**（实施期间实测纠正）：`details` 走 `v-html` 且**不经 markdown**（反引号会原样显示出来），裸的 `<script>` 会作为真脚本元素进入构建产物的 HTML，浏览器随即把它后面的文档——包括 `__VP_SITE_DATA__` 脚本——全部吞进该脚本体内，客户端初始化 `SyntaxError`、整站不可用。dev 下首页由客户端渲染，看不到这个问题，只有对 SSG 产物做浏览器验证才会暴露。因此写 `&lt;script&gt;`、`&lt;ew-*&gt;`。
 
 ### 6.2 指南 `docs/guide/`
 
@@ -96,7 +96,7 @@ VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue �
 |---|---|
 | `index.md` | 快速开始：安装、`pnpm run dev`、两种模式各是什么 |
 | `authoring.md` | 新增组件：五个文件各自的职责、`meta.ts` 契约、`useEmit()` |
-| `theming.md` | `--ctc-*` 换肤、`:host` 陷阱、`disable-shadow` 降级 |
+| `theming.md` | `--ew-*` 换肤、`:host` 陷阱、`disable-shadow` 降级 |
 | `build.md` | ESM / CDN 产物矩阵、`exports` 自动生成、体积基线 |
 
 ### 6.3 组件页 `docs/components/`
@@ -106,7 +106,7 @@ VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue �
 ```md
 # hello-vue
 
-给 Vue 3 写的问候组件。点击按钮会派发 `ctc-select` 事件。
+给 Vue 3 写的问候组件。点击按钮会派发 `ew-select` 事件。
 
 <ComponentDemo name="hello-vue" />
 
@@ -139,7 +139,7 @@ VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue �
 
 **SSR 保护内置在组件里**：`ComponentDemo.vue` 的模板根部裹 `<ClientOnly>`。这样 md 作者不用记得加，写 `<ComponentDemo name="x" />` 就是安全的。代价是静态 HTML 里面板区域为空，客户端接管后出现（第 8 节）。
 
-**但 `<ClientOnly>` 挡的只是它 slot 里的内容**（实施期间实测纠正）：`ComponentDemo` 自身的 `setup` 在 SSR 期照样执行，被挡住的只有 `VueMount` / `ReactMount` / `<ctc-*>` 那棵子树。因此本组件的 `setup` 里不能碰 DOM、不能 import 桥接层——**WC 的注册必须挂在 `onMounted` 上，不能用 `watch(..., { immediate: true })`**。这不是风格偏好：`immediate` 会在 Node 里动态 import 到 `virtual:ctc-wc-index`，而它在**模块顶层**求值 `class CtcElement extends HTMLElement`，构建直接以 `HTMLElement is not defined` 失败。同一道理适用于日后任何往面板里加的东西。
+**但 `<ClientOnly>` 挡的只是它 slot 里的内容**（实施期间实测纠正）：`ComponentDemo` 自身的 `setup` 在 SSR 期照样执行，被挡住的只有 `VueMount` / `ReactMount` / `<ew-*>` 那棵子树。因此本组件的 `setup` 里不能碰 DOM、不能 import 桥接层——**WC 的注册必须挂在 `onMounted` 上，不能用 `watch(..., { immediate: true })`**。这不是风格偏好：`immediate` 会在 Node 里动态 import 到 `virtual:ew-wc-index`，而它在**模块顶层**求值 `class EwElement extends HTMLElement`，构建直接以 `HTMLElement is not defined` 失败。同一道理适用于日后任何往面板里加的东西。
 
 **面板走 property 通道**（实施期间实测纠正）：Vue 给自定义元素打 `v-bind` 时，只要 key 在元素上存在已定义的属性就走 property 而非 attribute——而桥接层给每个声明过的 prop 都装了 accessor。所以面板传的值必须是**已定型的**：`count` 传 `'7'` 会原样落进组件并触发 Vue 的 prop 类型警告，`autoLoad` 传 `''` 表示真更是直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 `false`）。这一条同时修掉了一期 playground 里一直存在、但没有任何测试覆盖到的同类缺陷。
 
@@ -147,12 +147,12 @@ VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue �
 
 VitePress 默认 SSG：每个 md 页在构建期于 Node 里渲染一次。`HTMLElement`、`customElements`、`attachShadow`、`document` 在 Node 里都不存在。
 
-最直接的雷：`src/runtime/element.ts` 的 `createElementClass` 内部有 `class CtcElement extends HTMLElement`，**模块顶层求值**时会立刻抛 `HTMLElement is not defined`。任何在 SSR 期 import 到它的路径都会炸。
+最直接的雷：`src/runtime/element.ts` 的 `createElementClass` 内部有 `class EwElement extends HTMLElement`，**模块顶层求值**时会立刻抛 `HTMLElement is not defined`。任何在 SSR 期 import 到它的路径都会炸。
 
 处理方式：
 
 - **`ComponentDemo.vue` 根部裹 `<ClientOnly>`** —— SSR 阶段面板那棵子树不渲染。但注意它挡不住 `ComponentDemo` 自己的 `setup`（见第 7 节的实测纠正）：`setup` 里只能做纯计算，任何 DOM 访问与桥接层 import 都必须等到 `onMounted`。
-- **`virtual:ctc-wc/*` 天然安全** —— 它只在 `enableWc()` 里被动态 `import()`，而 `enableWc()` 由 `onMounted` 触发，SSR 期不会走到。**若改用 `watch(..., { immediate: true })`，这道保险立刻失效** —— 实测就是这样炸的。
+- **`virtual:ew-wc/*` 天然安全** —— 它只在 `enableWc()` 里被动态 `import()`，而 `enableWc()` 由 `onMounted` 触发，SSR 期不会走到。**若改用 `watch(..., { immediate: true })`，这道保险立刻失效** —— 实测就是这样炸的。
 - **布局档位**：md 页在 `<ClientOnly>` 里渲染的默认槽是空的，所以面板高度在 hydration 前为 0，接管的瞬间会跳一下。可接受（文档站的 demo 区域本就不参与首屏布局）；如果实测难看到无法忍受，再给面板加 `min-height` 占位。
 
 **验证手段**：`pnpm run docs:build` 必须在 CI 意义上稳定通过。这是唯一能防住「哪天有人在面板外碰了 `document`」的关卡，因此纳入 `pnpm run verify`（第 12 节）。
@@ -177,18 +177,18 @@ export default {
 }
 ```
 
-`tokens.css` 必须在这里引入——站点自己的 UI 也用 `var(--ctc-*)`，不引入的话侧边栏、正文的字体颜色全空。
+`tokens.css` 必须在这里引入——站点自己的 UI 也用 `var(--ew-*)`，不引入的话侧边栏、正文的字体颜色全空。
 
 `custom.css` 覆盖 VitePress 默认主题的 `--vp-c-brand-*` 到我们的主色，让文档站与组件视觉一致。
 
-**把 `--ctc-*` 映射到 `--vp-c-*`**，而不是反过来：token 是一等公民（消费方也要用），VitePress 的变量是文档站私有的皮肤。
+**把 `--ew-*` 映射到 `--vp-c-*`**，而不是反过来：token 是一等公民（消费方也要用），VitePress 的变量是文档站私有的皮肤。
 
 ## 10. VitePress 配置要点
 
 ```ts
 // docs/.vitepress/config.mts
 export default defineConfig({
-  title: 'CTC Web Components',
+  title: 'easy-webcomp',
   srcExclude: ['superpowers/**'],
   vite: {
     resolve: { alias: { '@src': resolve(rootDir, 'src') } },
@@ -224,7 +224,7 @@ export default defineConfig({
 | `playground/index.html`、`main.ts` | 删除，VitePress 接管 |
 | `vite.playground.config.ts` | 删除，配置进 `config.mts` |
 
-`isCustomElement: (tag) => tag.startsWith('ctc-')` 的配置**必须带到 `config.mts`** —— 漏了 Vue 会把 `<ctc-hello-vue>` 当成未注册的 Vue 组件，每次渲染打一条 "Failed to resolve component" 警告。
+`isCustomElement: (tag) => tag.startsWith('ew-')` 的配置**必须带到 `config.mts`** —— 漏了 Vue 会把 `<ew-hello-vue>` 当成未注册的 Vue 组件，每次渲染打一条 "Failed to resolve component" 警告。
 
 **组件与运行时不改**：`src/` 下一行不动。这是本设计成立的前提——文档站是 `src/` 的消费者，不是它的改造者。
 
@@ -257,7 +257,7 @@ typecheck && test && build && docs:build && test:e2e
    - 首页正常渲染，四个 feature 卡片可点
    - 侧边栏「组件」分组里 `hello-vue`、`hello-react` 都在
    - 进入 `hello-vue` 页，散文与交互面板都在
-   - 面板默认是 **WC 模式**，改属性实时生效，点击派发 `ctc-select` 并出现在事件日志
+   - 面板默认是 **WC 模式**，改属性实时生效，点击派发 `ew-select` 并出现在事件日志
    - 切到源码模式，行为一致
 4. 编辑 `src/components/hello-vue/Component.vue` 的文案，两种模式下**都不刷新整页**且文案更新。
 5. 新建一个临时组件目录（只有五个文件、不写 md），重启 dev：它出现在侧边栏且链接指向 `/components/#<name>`，总览页能看到它的面板。验证完删除。
@@ -270,7 +270,7 @@ typecheck && test && build && docs:build && test:e2e
 |---|---|
 | `docs/.vitepress/components.ts` | 从「扫一个目录」改成「扫工作空间，再扫各自组件」，返回结构多一层 |
 | `config.mts` 的 `buildComponentSidebar()` | 侧边栏多一层「工作空间 → 组件」分组 |
-| `plugins/wc-mode.ts` | 虚拟模块 id 从 `virtual:ctc-wc/<name>` 变成 `virtual:ctc-wc/<ws>/<name>` |
+| `plugins/wc-mode.ts` | 虚拟模块 id 从 `virtual:ew-wc/<name>` 变成 `virtual:ew-wc/<ws>/<name>` |
 | `docs/components/*.md` | 可能挪到 `docs/workspaces/<ws>/components/` |
 
 **不受影响**：`VueMount.vue`、`ReactMount.vue`、`source-style.ts`、`ComponentDemo.vue` 的渲染逻辑，以及 `src/runtime/` 全部。也就是说工作空间的迁移是「换个扫描层 + 加一层导航分组」，不是重写。

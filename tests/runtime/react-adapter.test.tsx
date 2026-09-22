@@ -12,7 +12,7 @@ import { resetStyleCache } from '../../src/runtime/style'
 let counter = 0
 function uniqueTag(): string {
   counter += 1
-  return `ctc-react-adapter-${counter}`
+  return `ew-react-adapter-${counter}`
 }
 
 interface ProbeProps {
@@ -100,7 +100,7 @@ describe('reactAdapter', () => {
     await tick()
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     await act(async () => {
       el.shadowRoot?.querySelector<HTMLButtonElement>('.probe')?.click()

@@ -25,7 +25,7 @@ const names = Object.keys(import.meta.glob('@src/components/*/meta.ts', { eager:
 .overview-title {
   padding-top: 24px;
   margin-top: 24px;
-  border-top: 1px solid var(--ctc-color-border);
+  border-top: 1px solid var(--ew-color-border);
 }
 .overview-item:first-child .overview-title {
   padding-top: 0;
@@ -33,6 +33,6 @@ const names = Object.keys(import.meta.glob('@src/components/*/meta.ts', { eager:
   border-top: none;
 }
 .empty {
-  color: var(--ctc-color-text-secondary);
+  color: var(--ew-color-text-secondary);
 }
 </style>

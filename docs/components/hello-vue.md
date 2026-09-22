@@ -1,6 +1,6 @@
 # hello-vue
 
-用 Vue 3 写的示例组件。点击按钮会派发一次 `ctc-select` 事件。
+用 Vue 3 写的示例组件。点击按钮会派发一次 `ew-select` 事件。
 
 <ComponentDemo name="hello-vue" />
 
@@ -12,13 +12,13 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 npm ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 ```
 
 ## 属性
@@ -33,10 +33,10 @@ import 'ctc-web-components/hello-vue/define'
 
 | 事件 | `detail` |
 |---|---|
-| `ctc-select` | `{ source: 'hello-vue', name: string }` |
+| `ew-select` | `{ source: 'hello-vue', name: string }` |
 
 事件带 `composed: true`，能穿透 shadow root 冒泡到 `window`。
 
 ## 说明
 
-组件源码在 `src/components/hello-vue/Component.vue`。用哪个框架写不影响最终交付形态 —— 它同样产出一个 `<ctc-hello-vue>` 自定义元素。
+组件源码在 `src/components/hello-vue/Component.vue`。用哪个框架写不影响最终交付形态 —— 它同样产出一个 `<ew-hello-vue>` 自定义元素。

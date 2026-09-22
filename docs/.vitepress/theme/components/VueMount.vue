@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createApp, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type App } from 'vue'
-import { CTC_EMIT_KEY } from '@src/runtime/vue'
+import { EW_EMIT_KEY } from '@src/runtime/vue'
 import { componentStyle } from './source-style'
 
 const props = defineProps<{
@@ -32,7 +32,7 @@ onMounted(() => {
   root.appendChild(style)
 
   app = createApp({ render: () => h(props.component as never, propsRef.value) })
-  app.provide(CTC_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, detail))
+  app.provide(EW_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, detail))
   app.mount(root as unknown as Element)
 })
 

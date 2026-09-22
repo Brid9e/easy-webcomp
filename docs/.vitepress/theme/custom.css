@@ -1,6 +1,6 @@
 :root {
-  --vp-c-brand-1: var(--ctc-color-primary);
-  --vp-c-brand-2: var(--ctc-color-primary);
-  --vp-c-brand-3: var(--ctc-color-primary);
-  --vp-font-family-base: var(--ctc-font-family);
+  --vp-c-brand-1: var(--ew-color-primary);
+  --vp-c-brand-2: var(--ew-color-primary);
+  --vp-c-brand-3: var(--ew-color-primary);
+  --vp-font-family-base: var(--ew-font-family);
 }

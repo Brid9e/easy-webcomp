@@ -11,7 +11,7 @@ function supportsAdoptedStyleSheets(root: ShadowRoot): boolean {
 function injectLightStyle(doc: Document, css: string): void {
   if (injectedLightStyles.has(css)) return
   const style = doc.createElement('style')
-  style.setAttribute('data-ctc-style', '')
+  style.setAttribute('data-ew-style', '')
   style.textContent = css
   doc.head.appendChild(style)
   injectedLightStyles.add(css)

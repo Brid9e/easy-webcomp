@@ -6,8 +6,8 @@ test.beforeEach(async ({ page }) => {
 
 test('两个自定义元素都被注册并升级', async ({ page }) => {
   const defined = await page.evaluate(() => ({
-    vue: Boolean(customElements.get('ctc-hello-vue')),
-    react: Boolean(customElements.get('ctc-hello-react')),
+    vue: Boolean(customElements.get('ew-hello-vue')),
+    react: Boolean(customElements.get('ew-hello-react')),
   }))
   expect(defined.vue).toBe(true)
   expect(defined.react).toBe(true)
@@ -48,12 +48,12 @@ test('Vue 与 React 组件同页共存互不干扰', async ({ page }) => {
     const reactCss = stylesOf(react)
 
     return {
-      vueHasButton: Boolean(vue.querySelector('.ctc-hello')),
-      reactHasButton: Boolean(react.querySelector('.ctc-hello')),
+      vueHasButton: Boolean(vue.querySelector('.ew-hello')),
+      reactHasButton: Boolean(react.querySelector('.ew-hello')),
       separateRoots: vue !== react,
       styleCounts: [vueCss.length, reactCss.length],
-      vueUsesPrimary: vueCss.some((css) => css.includes('--ctc-color-primary')),
-      reactUsesDanger: reactCss.some((css) => css.includes('--ctc-color-danger')),
+      vueUsesPrimary: vueCss.some((css) => css.includes('--ew-color-primary')),
+      reactUsesDanger: reactCss.some((css) => css.includes('--ew-color-danger')),
       sheetsAreShared: vue.adoptedStyleSheets[0] === react.adoptedStyleSheets[0],
     }
   })
@@ -70,13 +70,13 @@ test('事件能穿透 shadow root 冒泡到 window', async ({ page }) => {
   const detail = await page.evaluate(async () => {
     return new Promise((resolve) => {
       window.addEventListener(
-        'ctc-select',
+        'ew-select',
         (e) => resolve((e as CustomEvent).detail),
         { once: true },
       )
       document
         .querySelector('#vue-el')!
-        .shadowRoot!.querySelector<HTMLButtonElement>('.ctc-hello')!
+        .shadowRoot!.querySelector<HTMLButtonElement>('.ew-hello')!
         .click()
     })
   })
@@ -88,8 +88,8 @@ test('disable-shadow 降级到 light DOM 且样式注入 head', async ({ page })
     const el = document.querySelector('#light-el')!
     return {
       hasShadow: Boolean(el.shadowRoot),
-      hasButton: Boolean(el.querySelector('.ctc-hello')),
-      headStyles: document.head.querySelectorAll('style[data-ctc-style]').length,
+      hasButton: Boolean(el.querySelector('.ew-hello')),
+      headStyles: document.head.querySelectorAll('style[data-ew-style]').length,
     }
   })
   expect(result.hasShadow).toBe(false)
@@ -102,13 +102,13 @@ test('token 换肤能穿透 shadow root 影响组件', async ({ page }) => {
     page.evaluate(
       () =>
         getComputedStyle(
-          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ctc-hello')!,
+          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ew-hello')!,
         ).borderTopColor,
     )
 
   const before = await colorOf()
   await page.evaluate(() => {
-    document.documentElement.style.setProperty('--ctc-color-primary', 'rgb(255, 0, 0)')
+    document.documentElement.style.setProperty('--ew-color-primary', 'rgb(255, 0, 0)')
   })
   const after = await colorOf()
 
@@ -124,12 +124,12 @@ test('单组件产物与全量包同时引入不触发重复注册错误', async
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
-  await page.addScriptTag({ url: '/dist/cdn/ctc-all.js' })
+  await page.addScriptTag({ url: '/dist/cdn/ew-all.js' })
 
   expect(errors).toEqual([])
 
   const upgraded = await page.evaluate(() => {
-    const el = document.createElement('ctc-hello-vue')
+    const el = document.createElement('ew-hello-vue')
     el.setAttribute('name', 'All')
     document.body.appendChild(el)
     return el.shadowRoot?.textContent?.includes('All') ?? false

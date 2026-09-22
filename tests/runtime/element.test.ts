@@ -35,7 +35,7 @@ let counter = 0
 
 function uniqueTag(): string {
   counter += 1
-  return `ctc-el-test-${counter}`
+  return `ew-el-test-${counter}`
 }
 
 function defineComponent(meta: ComponentMeta, css = '') {
@@ -115,8 +115,8 @@ describe('createElementClass', () => {
         autoLoad: { type: 'boolean', attr: 'auto-load' },
       },
     })
-    mount(tag, { name: 'CTC', count: '7', 'auto-load': '' })
-    expect(log[0]?.props).toMatchObject({ name: 'CTC', count: 7, autoLoad: true })
+    mount(tag, { name: 'EW', count: '7', 'auto-load': '' })
+    expect(log[0]?.props).toMatchObject({ name: 'EW', count: 7, autoLoad: true })
   })
 
   it('未提供 attribute 时使用 default', () => {
@@ -168,13 +168,13 @@ describe('createElementClass', () => {
     expect(statics.observedAttributes).toEqual(['name'])
   })
 
-  it('事件派发为 ctc- 前缀且 composed 为 true', () => {
+  it('事件派发为 ew- 前缀且 composed 为 true', () => {
     const tag = uniqueTag()
     defineComponent({ tag, events: ['select'] })
     mount(tag)
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     log[0]?.emit('select', { id: 1 })
 

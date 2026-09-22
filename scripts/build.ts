@@ -146,8 +146,8 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
       lib: {
         entry: join(generatedDir, 'all-define.ts'),
         formats: ['iife'],
-        name: 'CtcAll',
-        fileName: () => 'ctc-all.js',
+        name: 'EwAll',
+        fileName: () => 'ew-all.js',
       },
     },
   })
@@ -166,7 +166,7 @@ function writeExportsField(components: ComponentInfo[]): void {
     exports[`./${c.name}/define`] = `./dist/esm/${c.name}/define.js`
     exports[`./cdn/${c.name}`] = `./dist/cdn/${c.name}.js`
   }
-  exports['./cdn/ctc-all'] = './dist/cdn/ctc-all.js'
+  exports['./cdn/ew-all'] = './dist/cdn/ew-all.js'
 
   pkg.exports = exports
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)

@@ -1,8 +1,8 @@
-# ctc-web-components
+# easy-webcomp
 
 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的 Web Component。支持 npm ESM 引入与 CDN 单文件引入。
 
-组件写哪个框架由你决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ctc-*>` 自定义元素。
+组件写哪个框架由你决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ew-*>` 自定义元素。
 
 ## 快速开始
 
@@ -39,7 +39,7 @@ src/components/<组件名>/
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-vue',
+  tag: 'ew-hello-vue',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
@@ -55,10 +55,10 @@ export default defineComponentMeta({
 ```ts
 import { useEmit } from '../../runtime/vue'   // React 组件改为 '../../runtime/react'
 const emit = useEmit()
-emit('select', { id: 1 })                      // → 派发 ctc-select 事件
+emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
 
-事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ctc-` 为前缀、`composed: true`，能穿透 shadow root。
+事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ew-` 为前缀、`composed: true`，能穿透 shadow root。
 
 ## 构建
 
@@ -75,7 +75,7 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ctc-all.js` | CDN 全量单文件 |
+| `dist/cdn/ew-all.js` | CDN 全量单文件 |
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次（Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式）。
 
@@ -89,15 +89,15 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 
-document.body.innerHTML = '<ctc-hello-vue name="World"></ctc-hello-vue>'
+document.body.innerHTML = '<ew-hello-vue name="World"></ew-hello-vue>'
 ```
 
 React 项目里传对象属性：
@@ -107,29 +107,29 @@ const ref = useRef<HTMLElement>(null)
 useEffect(() => {
   if (ref.current) (ref.current as any).payload = { id: 1 }
 }, [])
-return <ctc-hello-vue ref={ref} name="World" />
+return <ew-hello-vue ref={ref} name="World" />
 ```
 
-React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
+React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
 
 ## 主题
 
-覆盖任意 `--ctc-*` 变量即可换肤，无需 `::part()`：
+覆盖任意 `--ew-*` 变量即可换肤，无需 `::part()`：
 
 ```css
 :root {
-  --ctc-color-primary: #ff4d4f;
+  --ew-color-primary: #ff4d4f;
 }
 ```
 
-组件内部一律用 `var(--ctc-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤失效。
+组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤失效。
 
 ## 降级到 light DOM
 
 默认每个组件挂 shadow root。给元素加 `disable-shadow` 属性即降级到 light DOM，样式改为注入 `document.head`（相同 CSS 只注入一次）：
 
 ```html
-<ctc-hello-vue name="World" disable-shadow></ctc-hello-vue>
+<ew-hello-vue name="World" disable-shadow></ew-hello-vue>
 ```
 
 ## 验证
@@ -162,7 +162,7 @@ e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chr
 |---|---|
 | `dist/cdn/hello-vue.js` | 26.8 KB |
 | `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/ctc-all.js` | 95.2 KB |
+| `dist/cdn/ew-all.js` | 95.2 KB |
 
 ESM 产物体积随打包器而定，不在基线对比范围内。
 

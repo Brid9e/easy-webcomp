@@ -1,4 +1,4 @@
-# ctc-web-components 一期（骨架跑通）实施计划
+# easy-webcomp 一期（骨架跑通）实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vite 7、TypeScript 严格模式、Vue 3.5、React 19、pnpm、Vitest + jsdom、Playwright。
 
-**Scope:** 只做 self-contained 产物列。`window.__CTC_SHARED__` 注册表、宿主注入三级协议、shared 模式产物、d.ts 之外的文档站均在二期/三期，本计划不涉及。
+**Scope:** 只做 self-contained 产物列。`window.__EW_SHARED__` 注册表、宿主注入三级协议、shared 模式产物、d.ts 之外的文档站均在二期/三期，本计划不涉及。
 
 ---
 
@@ -21,12 +21,12 @@
 | `src/runtime/props.ts` | attribute 名推导、类型强转、通道判定 |
 | `src/runtime/style.ts` | CSS 投递（shadow 用 `adoptedStyleSheets`，带 `<style>` 降级；light 注入 head 一次） |
 | `src/runtime/element.ts` | CE 基类工厂：生命周期、属性双通道、事件转发、`refresh()` |
-| `src/runtime/vue.ts` | Vue 适配器 + `useEmit()` + `CTC_EMIT_KEY` |
-| `src/runtime/react.ts` | React 适配器 + `useEmit()` + `CtcEmitContext` |
+| `src/runtime/vue.ts` | Vue 适配器 + `useEmit()` + `EW_EMIT_KEY` |
+| `src/runtime/react.ts` | React 适配器 + `useEmit()` + `EwEmitContext` |
 | `src/tokens/tokens.css` | 设计 token（CSS 自定义属性） |
 | `src/tokens/tokens.ts` | 供 JS 使用的 token 变量名常量 |
 | `scripts/build.ts` | 扫组件目录、生成 entries、编排 ESM 与 IIFE 两种构建、回写 package.json exports |
-| `playground/plugins/wc-mode.ts` | 提供 `virtual:ctc-wc/*` 与 `virtual:ctc-wc-index` 虚拟模块 |
+| `playground/plugins/wc-mode.ts` | 提供 `virtual:ew-wc/*` 与 `virtual:ew-wc-index` 虚拟模块 |
 | `tests/e2e/server.mjs` | 零依赖静态服务器，供 Playwright 加载 CDN 产物 |
 
 ---
@@ -46,7 +46,7 @@
 
 ```json
 {
-  "name": "ctc-web-components",
+  "name": "easy-webcomp",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -183,55 +183,55 @@ git commit -m "chore: 项目脚手架与依赖"
 
 ```css
 :root {
-  --ctc-color-primary: #1677ff;
-  --ctc-color-text: #1f2329;
-  --ctc-color-text-secondary: #646a73;
-  --ctc-color-bg: #ffffff;
-  --ctc-color-border: #d9d9d9;
-  --ctc-color-danger: #f5222d;
+  --ew-color-primary: #1677ff;
+  --ew-color-text: #1f2329;
+  --ew-color-text-secondary: #646a73;
+  --ew-color-bg: #ffffff;
+  --ew-color-border: #d9d9d9;
+  --ew-color-danger: #f5222d;
 
-  --ctc-radius-sm: 4px;
-  --ctc-radius-md: 6px;
-  --ctc-radius-lg: 12px;
+  --ew-radius-sm: 4px;
+  --ew-radius-md: 6px;
+  --ew-radius-lg: 12px;
 
-  --ctc-space-xs: 2px;
-  --ctc-space-sm: 4px;
-  --ctc-space-md: 8px;
-  --ctc-space-lg: 16px;
+  --ew-space-xs: 2px;
+  --ew-space-sm: 4px;
+  --ew-space-md: 8px;
+  --ew-space-lg: 16px;
 
-  --ctc-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+  --ew-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  --ctc-font-size-sm: 12px;
-  --ctc-font-size-md: 14px;
-  --ctc-font-size-lg: 16px;
+  --ew-font-size-sm: 12px;
+  --ew-font-size-md: 14px;
+  --ew-font-size-lg: 16px;
 }
 ```
 
-这条规则**只写 `:root`，绝不写 `:host`**。写成 `:host` 会把默认值塞进每个 shadow root，其优先级高于宿主继承来的值，导致宿主换肤失效 —— 见 spec 第 8.3 节陷阱 2。组件内部一律用 `var(--ctc-x, 兜底值)` 的形式取用。
+这条规则**只写 `:root`，绝不写 `:host`**。写成 `:host` 会把默认值塞进每个 shadow root，其优先级高于宿主继承来的值，导致宿主换肤失效 —— 见 spec 第 8.3 节陷阱 2。组件内部一律用 `var(--ew-x, 兜底值)` 的形式取用。
 
 - [ ] **Step 2: 写 `src/tokens/tokens.ts`**
 
 ```ts
-export const colorPrimary = 'var(--ctc-color-primary)'
-export const colorText = 'var(--ctc-color-text)'
-export const colorTextSecondary = 'var(--ctc-color-text-secondary)'
-export const colorBg = 'var(--ctc-color-bg)'
-export const colorBorder = 'var(--ctc-color-border)'
-export const colorDanger = 'var(--ctc-color-danger)'
+export const colorPrimary = 'var(--ew-color-primary)'
+export const colorText = 'var(--ew-color-text)'
+export const colorTextSecondary = 'var(--ew-color-text-secondary)'
+export const colorBg = 'var(--ew-color-bg)'
+export const colorBorder = 'var(--ew-color-border)'
+export const colorDanger = 'var(--ew-color-danger)'
 
-export const radiusSm = 'var(--ctc-radius-sm)'
-export const radiusMd = 'var(--ctc-radius-md)'
-export const radiusLg = 'var(--ctc-radius-lg)'
+export const radiusSm = 'var(--ew-radius-sm)'
+export const radiusMd = 'var(--ew-radius-md)'
+export const radiusLg = 'var(--ew-radius-lg)'
 
-export const spaceXs = 'var(--ctc-space-xs)'
-export const spaceSm = 'var(--ctc-space-sm)'
-export const spaceMd = 'var(--ctc-space-md)'
-export const spaceLg = 'var(--ctc-space-lg)'
+export const spaceXs = 'var(--ew-space-xs)'
+export const spaceSm = 'var(--ew-space-sm)'
+export const spaceMd = 'var(--ew-space-md)'
+export const spaceLg = 'var(--ew-space-lg)'
 
-export const fontFamily = 'var(--ctc-font-family)'
-export const fontSizeSm = 'var(--ctc-font-size-sm)'
-export const fontSizeMd = 'var(--ctc-font-size-md)'
-export const fontSizeLg = 'var(--ctc-font-size-lg)'
+export const fontFamily = 'var(--ew-font-family)'
+export const fontSizeSm = 'var(--ew-font-size-sm)'
+export const fontSizeMd = 'var(--ew-font-size-md)'
+export const fontSizeLg = 'var(--ew-font-size-lg)'
 ```
 
 供 JS 侧代码（如二期给 echarts 传主题）引用同一个 token，避免 CSS 与 JS 两处硬编码漂移。
@@ -268,7 +268,7 @@ export interface ComponentMeta {
   /** 是否使用 Shadow DOM，默认 true */
   shadow?: boolean
   props?: Record<string, PropDefinition>
-  /** 允许派发的事件名，派发时会被加上 ctc- 前缀 */
+  /** 允许派发的事件名，派发时会被加上 ew- 前缀 */
   events?: string[]
 }
 
@@ -283,7 +283,7 @@ export interface ElementAdapter {
 }
 
 /** 构造器上额外挂了 refresh()，供 HMR 与 playground 强制重渲染 */
-export interface CtcElementConstructor extends CustomElementConstructor {
+export interface EwElementConstructor extends CustomElementConstructor {
   refresh: () => void
 }
 
@@ -317,10 +317,10 @@ git commit -m "feat(runtime): 桥接层类型定义"
 ```ts
 import { describe, expect, it } from 'vitest'
 import { registerElement, resetRegistry } from '../../src/runtime/registry'
-import type { CtcElementConstructor } from '../../src/runtime/types'
+import type { EwElementConstructor } from '../../src/runtime/types'
 
-function makeCtor(): CtcElementConstructor {
-  const ctor = class extends HTMLElement {} as unknown as CtcElementConstructor
+function makeCtor(): EwElementConstructor {
+  const ctor = class extends HTMLElement {} as unknown as EwElementConstructor
   ctor.refresh = () => {}
   return ctor
 }
@@ -329,26 +329,26 @@ describe('registerElement', () => {
   it('首次注册后可从 customElements 取到同一构造器', () => {
     resetRegistry()
     const ctor = makeCtor()
-    const result = registerElement('ctc-test-first', ctor)
+    const result = registerElement('ew-test-first', ctor)
     expect(result).toBe(ctor)
-    expect(customElements.get('ctc-test-first')).toBe(ctor)
+    expect(customElements.get('ew-test-first')).toBe(ctor)
   })
 
   it('同 tag 二次注册不抛错，返回已注册的构造器', () => {
     resetRegistry()
     const first = makeCtor()
     const second = makeCtor()
-    registerElement('ctc-test-dup', first)
-    const result = registerElement('ctc-test-dup', second)
+    registerElement('ew-test-dup', first)
+    const result = registerElement('ew-test-dup', second)
     expect(result).toBe(first)
-    expect(customElements.get('ctc-test-dup')).toBe(first)
+    expect(customElements.get('ew-test-dup')).toBe(first)
   })
 
   it('customElements 上已存在同 tag 时复用而不覆盖', () => {
     resetRegistry()
     const external = makeCtor()
-    customElements.define('ctc-test-external', external)
-    const result = registerElement('ctc-test-external', makeCtor())
+    customElements.define('ew-test-external', external)
+    const result = registerElement('ew-test-external', makeCtor())
     expect(result).toBe(external)
   })
 })
@@ -362,25 +362,25 @@ Expected: FAIL —— 报错 `Failed to resolve import "../../src/runtime/regist
 - [ ] **Step 3: 写实现**
 
 ```ts
-import type { CtcElementConstructor } from './types'
+import type { EwElementConstructor } from './types'
 
-const registered = new Map<string, CtcElementConstructor>()
+const registered = new Map<string, EwElementConstructor>()
 
 export function registerElement(
   tag: string,
-  ctor: CtcElementConstructor,
-): CtcElementConstructor {
+  ctor: EwElementConstructor,
+): EwElementConstructor {
   const cached = registered.get(tag)
   if (cached) {
     if (cached !== ctor) {
-      console.warn(`[ctc] <${tag}> 已在本运行时注册过，忽略重复注册并复用已有构造器。`)
+      console.warn(`[ew] <${tag}> 已在本运行时注册过，忽略重复注册并复用已有构造器。`)
     }
     return cached
   }
 
-  const existing = customElements.get(tag) as CtcElementConstructor | undefined
+  const existing = customElements.get(tag) as EwElementConstructor | undefined
   if (existing) {
-    console.warn(`[ctc] <${tag}> 已被其他代码注册，复用已有构造器。`)
+    console.warn(`[ew] <${tag}> 已被其他代码注册，复用已有构造器。`)
     registered.set(tag, existing)
     return existing
   }
@@ -586,7 +586,7 @@ describe('applyStyles', () => {
     applyStyles(a, '.c { color: green; }')
     applyStyles(b, '.c { color: green; }')
 
-    const styles = document.head.querySelectorAll('style[data-ctc-style]')
+    const styles = document.head.querySelectorAll('style[data-ew-style]')
     expect(styles).toHaveLength(1)
     expect(styles[0]?.textContent).toBe('.c { color: green; }')
   })
@@ -624,7 +624,7 @@ function supportsAdoptedStyleSheets(root: ShadowRoot): boolean {
 function injectLightStyle(doc: Document, css: string): void {
   if (injectedLightStyles.has(css)) return
   const style = doc.createElement('style')
-  style.setAttribute('data-ctc-style', '')
+  style.setAttribute('data-ew-style', '')
   style.textContent = css
   doc.head.appendChild(style)
   injectedLightStyles.add(css)
@@ -717,7 +717,7 @@ let counter = 0
 
 function uniqueTag(): string {
   counter += 1
-  return `ctc-el-test-${counter}`
+  return `ew-el-test-${counter}`
 }
 
 function defineComponent(meta: ComponentMeta, css = '') {
@@ -797,8 +797,8 @@ describe('createElementClass', () => {
         autoLoad: { type: 'boolean', attr: 'auto-load' },
       },
     })
-    mount(tag, { name: 'CTC', count: '7', 'auto-load': '' })
-    expect(log[0]?.props).toMatchObject({ name: 'CTC', count: 7, autoLoad: true })
+    mount(tag, { name: 'EW', count: '7', 'auto-load': '' })
+    expect(log[0]?.props).toMatchObject({ name: 'EW', count: 7, autoLoad: true })
   })
 
   it('未提供 attribute 时使用 default', () => {
@@ -850,13 +850,13 @@ describe('createElementClass', () => {
     expect(statics.observedAttributes).toEqual(['name'])
   })
 
-  it('事件派发为 ctc- 前缀且 composed 为 true', () => {
+  it('事件派发为 ew- 前缀且 composed 为 true', () => {
     const tag = uniqueTag()
     defineComponent({ tag, events: ['select'] })
     const el = mount(tag)
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     log[0]?.emit('select', { id: 1 })
 
@@ -907,20 +907,20 @@ Expected: FAIL —— 无法解析 `../../src/runtime/element`。
 ```ts
 import { attrNameFor, coerceAttr, isAttributeChannel } from './props'
 import { applyStyles } from './style'
-import type { ComponentMeta, CtcElementConstructor, ElementAdapter } from './types'
+import type { ComponentMeta, EwElementConstructor, ElementAdapter } from './types'
 
 export function createElementClass(
   meta: ComponentMeta,
   adapter: ElementAdapter,
   css: string,
-): CtcElementConstructor {
+): EwElementConstructor {
   const propEntries = Object.entries(meta.props ?? {})
   const eventNames = new Set(meta.events ?? [])
   const useShadowDefault = meta.shadow ?? true
 
-  const liveInstances = new Set<CtcElement>()
+  const liveInstances = new Set<EwElement>()
 
-  class CtcElement extends HTMLElement {
+  class EwElement extends HTMLElement {
     static get observedAttributes(): string[] {
       return propEntries
         .filter(([, def]) => isAttributeChannel(def.type))
@@ -991,16 +991,16 @@ export function createElementClass(
     private _emit = (name: string, detail: unknown): void => {
       if (!eventNames.has(name)) {
         console.warn(
-          `[ctc] <${meta.tag}> 派发了未在 meta.events 中声明的事件 "${name}"。`,
+          `[ew] <${meta.tag}> 派发了未在 meta.events 中声明的事件 "${name}"。`,
         )
       }
       this.dispatchEvent(
-        new CustomEvent(`ctc-${name}`, { detail, bubbles: true, composed: true }),
+        new CustomEvent(`ew-${name}`, { detail, bubbles: true, composed: true }),
       )
     }
   }
 
-  const ctor = CtcElement as unknown as CtcElementConstructor
+  const ctor = EwElement as unknown as EwElementConstructor
   ctor.refresh = () => {
     for (const el of liveInstances) el.refresh()
   }
@@ -1052,7 +1052,7 @@ import { useEmit, vueAdapter } from '../../src/runtime/vue'
 let counter = 0
 function uniqueTag(): string {
   counter += 1
-  return `ctc-vue-adapter-${counter}`
+  return `ew-vue-adapter-${counter}`
 }
 
 const Probe = defineComponent({
@@ -1119,7 +1119,7 @@ describe('vueAdapter', () => {
     await tick()
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     el.shadowRoot?.querySelector<HTMLButtonElement>('.probe')?.click()
 
@@ -1162,7 +1162,7 @@ Expected: FAIL —— 无法解析 `../../src/runtime/vue`。
 import { createApp, h, inject, shallowRef, type App, type ShallowRef } from 'vue'
 import type { ElementAdapter } from './types'
 
-export const CTC_EMIT_KEY: unique symbol = Symbol('ctc-emit')
+export const EW_EMIT_KEY: unique symbol = Symbol('ew-emit')
 
 export type EmitFn = (name: string, detail?: unknown) => void
 
@@ -1178,7 +1178,7 @@ export function vueAdapter(getComponent: () => unknown): ElementAdapter {
       const app = createApp({
         render: () => h(getComponent() as never, propsRef.value),
       })
-      app.provide(CTC_EMIT_KEY, emit)
+      app.provide(EW_EMIT_KEY, emit)
       app.mount(host as HTMLElement)
       const instance: VueInstance = { app, propsRef }
       return instance
@@ -1193,9 +1193,9 @@ export function vueAdapter(getComponent: () => unknown): ElementAdapter {
 }
 
 export function useEmit(): EmitFn {
-  const emit = inject<EmitFn | null>(CTC_EMIT_KEY, null)
+  const emit = inject<EmitFn | null>(EW_EMIT_KEY, null)
   if (!emit) {
-    console.warn('[ctc] useEmit() 在 CTC_EMIT_KEY 未注入的上下文中被调用，事件不会被派发。')
+    console.warn('[ew] useEmit() 在 EW_EMIT_KEY 未注入的上下文中被调用，事件不会被派发。')
     return () => {}
   }
   return emit
@@ -1238,7 +1238,7 @@ import { resetStyleCache } from '../../src/runtime/style'
 let counter = 0
 function uniqueTag(): string {
   counter += 1
-  return `ctc-react-adapter-${counter}`
+  return `ew-react-adapter-${counter}`
 }
 
 interface ProbeProps {
@@ -1314,7 +1314,7 @@ describe('reactAdapter', () => {
     await tick()
 
     const received: CustomEvent[] = []
-    window.addEventListener('ctc-select', (e) => received.push(e as CustomEvent))
+    window.addEventListener('ew-select', (e) => received.push(e as CustomEvent))
 
     await act(async () => {
       el.shadowRoot?.querySelector<HTMLButtonElement>('.probe')?.click()
@@ -1362,7 +1362,7 @@ import type { ElementAdapter } from './types'
 
 export type EmitFn = (name: string, detail?: unknown) => void
 
-export const CtcEmitContext: Context<EmitFn> = createContext<EmitFn>(() => {})
+export const EwEmitContext: Context<EmitFn> = createContext<EmitFn>(() => {})
 
 interface ReactInstance {
   root: Root
@@ -1376,7 +1376,7 @@ export function reactAdapter(getComponent: () => unknown): ElementAdapter {
       const render = (next: Record<string, unknown>): void => {
         root.render(
           createElement(
-            CtcEmitContext.Provider,
+            EwEmitContext.Provider,
             { value: emit },
             createElement(getComponent() as never, next),
           ),
@@ -1396,7 +1396,7 @@ export function reactAdapter(getComponent: () => unknown): ElementAdapter {
 }
 
 export function useEmit(): EmitFn {
-  return useContext(CtcEmitContext)
+  return useContext(EwEmitContext)
 }
 ```
 
@@ -1436,7 +1436,7 @@ git commit -m "feat(runtime): React 适配器与 useEmit"
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-vue',
+  tag: 'ew-hello-vue',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
@@ -1470,7 +1470,7 @@ function handleClick(): void {
 </script>
 
 <template>
-  <button class="ctc-hello" type="button" @click="handleClick">{{ label }}</button>
+  <button class="ew-hello" type="button" @click="handleClick">{{ label }}</button>
 </template>
 ```
 
@@ -1483,24 +1483,24 @@ function handleClick(): void {
   display: inline-block;
 }
 
-.ctc-hello {
-  padding: var(--ctc-space-sm, 4px) var(--ctc-space-lg, 16px);
-  border: 1px solid var(--ctc-color-primary, #1677ff);
-  border-radius: var(--ctc-radius-md, 6px);
-  background: var(--ctc-color-bg, #ffffff);
-  color: var(--ctc-color-primary, #1677ff);
-  font-family: var(--ctc-font-family, sans-serif);
-  font-size: var(--ctc-font-size-md, 14px);
+.ew-hello {
+  padding: var(--ew-space-sm, 4px) var(--ew-space-lg, 16px);
+  border: 1px solid var(--ew-color-primary, #1677ff);
+  border-radius: var(--ew-radius-md, 6px);
+  background: var(--ew-color-bg, #ffffff);
+  color: var(--ew-color-primary, #1677ff);
+  font-family: var(--ew-font-family, sans-serif);
+  font-size: var(--ew-font-size-md, 14px);
   cursor: pointer;
 }
 
-.ctc-hello:hover {
-  background: var(--ctc-color-primary, #1677ff);
-  color: var(--ctc-color-bg, #ffffff);
+.ew-hello:hover {
+  background: var(--ew-color-primary, #1677ff);
+  color: var(--ew-color-bg, #ffffff);
 }
 ```
 
-所有 token 都用 `var(--ctc-x, 兜底值)` 形式（spec 陷阱 2）。`:host { display: inline-block }` 是布局规则不是变量默认值，不违反该规则。
+所有 token 都用 `var(--ew-x, 兜底值)` 形式（spec 陷阱 2）。`:host { display: inline-block }` 是布局规则不是变量默认值，不违反该规则。
 
 - [ ] **Step 4: 写 `index.ts`**
 
@@ -1556,7 +1556,7 @@ git commit -m "feat(components): hello-vue 示例组件"
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-react',
+  tag: 'ew-hello-react',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
@@ -1584,7 +1584,7 @@ export default function HelloReact({ name = 'World', count = 0 }: HelloReactProp
   return (
     <button
       type="button"
-      className="ctc-hello"
+      className="ew-hello"
       onClick={() => emit('select', { source: 'hello-react', name })}
     >
       {`React 组件：${name} × ${count}`}
@@ -1600,24 +1600,24 @@ export default function HelloReact({ name = 'World', count = 0 }: HelloReactProp
   display: inline-block;
 }
 
-.ctc-hello {
-  padding: var(--ctc-space-sm, 4px) var(--ctc-space-lg, 16px);
-  border: 1px solid var(--ctc-color-danger, #f5222d);
-  border-radius: var(--ctc-radius-md, 6px);
-  background: var(--ctc-color-bg, #ffffff);
-  color: var(--ctc-color-danger, #f5222d);
-  font-family: var(--ctc-font-family, sans-serif);
-  font-size: var(--ctc-font-size-md, 14px);
+.ew-hello {
+  padding: var(--ew-space-sm, 4px) var(--ew-space-lg, 16px);
+  border: 1px solid var(--ew-color-danger, #f5222d);
+  border-radius: var(--ew-radius-md, 6px);
+  background: var(--ew-color-bg, #ffffff);
+  color: var(--ew-color-danger, #f5222d);
+  font-family: var(--ew-font-family, sans-serif);
+  font-size: var(--ew-font-size-md, 14px);
   cursor: pointer;
 }
 
-.ctc-hello:hover {
-  background: var(--ctc-color-danger, #f5222d);
-  color: var(--ctc-color-bg, #ffffff);
+.ew-hello:hover {
+  background: var(--ew-color-danger, #f5222d);
+  color: var(--ew-color-bg, #ffffff);
 }
 ```
 
-用 `--ctc-color-danger` 是为了在视觉上一眼区分 Vue 组件与 React 组件，同时验证两套组件共用同一份 token。
+用 `--ew-color-danger` 是为了在视觉上一眼区分 Vue 组件与 React 组件，同时验证两套组件共用同一份 token。
 
 - [ ] **Step 4: 写 `index.ts`**
 
@@ -1810,8 +1810,8 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
       lib: {
         entry: join(generatedDir, 'all-define.ts'),
         formats: ['iife'],
-        name: 'CtcAll',
-        fileName: () => 'ctc-all.js',
+        name: 'EwAll',
+        fileName: () => 'ew-all.js',
       },
     },
   })
@@ -1830,7 +1830,7 @@ function writeExportsField(components: ComponentInfo[]): void {
     exports[`./${c.name}/define`] = `./dist/esm/${c.name}/define.js`
     exports[`./cdn/${c.name}`] = `./dist/cdn/${c.name}.js`
   }
-  exports['./cdn/ctc-all'] = './dist/cdn/ctc-all.js'
+  exports['./cdn/ew-all'] = './dist/cdn/ew-all.js'
 
   pkg.exports = exports
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
@@ -1915,7 +1915,7 @@ Expected: 打印发现的 2 个组件，ESM 与 CDN 阶段都完成，末尾列�
 Run: `find dist -type f -name '*.js' | sort`
 Expected: 至少包含
 ```
-dist/cdn/ctc-all.js
+dist/cdn/ew-all.js
 dist/cdn/hello-react.js
 dist/cdn/hello-vue.js
 dist/esm/hello-react.js
@@ -1929,11 +1929,11 @@ dist/esm/index.js
 - [ ] **Step 5: 验证 exports 已回写**
 
 Run: `node -e "console.log(Object.keys(require('./package.json').exports).join('\n'))"`
-Expected: 列出 `.`、`./tokens.css`、`./hello-vue`、`./hello-vue/define`、`./hello-react`、`./hello-react/define`、`./cdn/hello-vue`、`./cdn/hello-react`、`./cdn/ctc-all`。
+Expected: 列出 `.`、`./tokens.css`、`./hello-vue`、`./hello-vue/define`、`./hello-react`、`./hello-react/define`、`./cdn/hello-vue`、`./cdn/hello-react`、`./cdn/ew-all`。
 
 - [ ] **Step 6: 验证 IIFE 产物确实自包含**
 
-Run: `grep -c 'Hello, World\|ctc-hello-vue' dist/cdn/hello-vue.js || true`
+Run: `grep -c 'Hello, World\|ew-hello-vue' dist/cdn/hello-vue.js || true`
 Expected: 输出大于 0 —— 说明组件实现确实被打进了单文件。
 
 - [ ] **Step 7: Commit**
@@ -1978,7 +1978,7 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith('ctc-'),
+          isCustomElement: (tag) => tag.startsWith('ew-'),
         },
       },
     }),
@@ -1993,7 +1993,7 @@ export default defineConfig({
 
 Task 14 会把 `wcModePlugin` 插到 `plugins` 数组最前面。
 
-`isCustomElement` 现在就配上 —— 否则在浏览器里看到 `<ctc-*>` 会被 Vue 当成未注册组件并刷警告。Task 14 加上 `wcModePlugin` 时，它是唯一改动 `plugins` 的地方。
+`isCustomElement` 现在就配上 —— 否则在浏览器里看到 `<ew-*>` 会被 Vue 当成未注册组件并刷警告。Task 14 加上 `wcModePlugin` 时，它是唯一改动 `plugins` 的地方。
 
 - [ ] **Step 2: 写 `playground/index.html`**
 
@@ -2003,12 +2003,12 @@ Task 14 会把 `wcModePlugin` 插到 `plugins` 数组最前面。
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CTC Web Components Playground</title>
+    <title>easy-webcomp Playground</title>
     <style>
       body {
         margin: 0;
-        font-family: var(--ctc-font-family);
-        color: var(--ctc-color-text);
+        font-family: var(--ew-font-family);
+        color: var(--ew-color-text);
       }
     </style>
   </head>
@@ -2036,7 +2036,7 @@ createApp(App).mount('#app')
 ```vue
 <script setup lang="ts">
 import { provide, type Component } from 'vue'
-import { CTC_EMIT_KEY } from '../../src/runtime/vue'
+import { EW_EMIT_KEY } from '../../src/runtime/vue'
 
 const props = defineProps<{
   component: Component
@@ -2044,7 +2044,7 @@ const props = defineProps<{
   onEvent: (name: string, detail: unknown) => void
 }>()
 
-provide(CTC_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, detail))
+provide(EW_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, detail))
 </script>
 
 <template>
@@ -2052,7 +2052,7 @@ provide(CTC_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, det
 </template>
 ```
 
-把 `CTC_EMIT_KEY` 提供出去，让源码模式下的事件行为与 WC 模式一致 —— 否则 React/Vue 组件在源码模式下 emit 会被吞掉，两种模式表现不一致，playground 就失去验证意义。
+把 `EW_EMIT_KEY` 提供出去，让源码模式下的事件行为与 WC 模式一致 —— 否则 React/Vue 组件在源码模式下 emit 会被吞掉，两种模式表现不一致，playground 就失去验证意义。
 
 - [ ] **Step 5: 写 `playground/renderers/ReactMount.vue`**
 
@@ -2061,7 +2061,7 @@ provide(CTC_EMIT_KEY, (name: string, detail: unknown) => props.onEvent(name, det
 import { createElement, type ComponentType } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CtcEmitContext } from '../../src/runtime/react'
+import { EwEmitContext } from '../../src/runtime/react'
 
 const props = defineProps<{
   component: ComponentType<Record<string, unknown>>
@@ -2076,7 +2076,7 @@ function render(): void {
   if (!root) return
   root.render(
     createElement(
-      CtcEmitContext.Provider,
+      EwEmitContext.Provider,
       { value: (name: string, detail: unknown) => props.onEvent(name, detail) },
       createElement(props.component, props.propsData),
     ),
@@ -2145,7 +2145,7 @@ const current = computed(() => entries.value.find((e) => e.name === currentName.
 <template>
   <div class="layout">
     <aside class="sidebar">
-      <h1>CTC Components</h1>
+      <h1>EW Components</h1>
       <button
         v-for="entry in entries"
         :key="entry.name"
@@ -2171,11 +2171,11 @@ const current = computed(() => entries.value.find((e) => e.name === currentName.
 .sidebar {
   width: 220px;
   padding: 16px;
-  border-right: 1px solid var(--ctc-color-border);
+  border-right: 1px solid var(--ew-color-border);
   background: #fafafa;
 }
 .sidebar h1 {
-  font-size: var(--ctc-font-size-md);
+  font-size: var(--ew-font-size-md);
   margin: 0 0 16px;
 }
 .nav-item {
@@ -2185,14 +2185,14 @@ const current = computed(() => entries.value.find((e) => e.name === currentName.
   margin-bottom: 4px;
   padding: 8px;
   border: none;
-  border-radius: var(--ctc-radius-sm);
+  border-radius: var(--ew-radius-sm);
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 .nav-item.active {
-  background: var(--ctc-color-primary);
+  background: var(--ew-color-primary);
   color: #fff;
 }
 .nav-item small {
@@ -2329,7 +2329,7 @@ function handleEvent(name: string, detail: unknown): void {
       <p v-if="events.length === 0" class="empty">点击组件试试</p>
       <ul v-else>
         <li v-for="(e, i) in events" :key="i">
-          <code>ctc-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
+          <code>ew-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
         </li>
       </ul>
     </div>
@@ -2338,18 +2338,18 @@ function handleEvent(name: string, detail: unknown): void {
 
 <style scoped>
 .tag {
-  color: var(--ctc-color-text-secondary);
-  font-size: var(--ctc-font-size-sm);
+  color: var(--ew-color-text-secondary);
+  font-size: var(--ew-font-size-sm);
 }
 .panel {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid var(--ctc-color-border);
-  border-radius: var(--ctc-radius-md);
+  border: 1px solid var(--ew-color-border);
+  border-radius: var(--ew-radius-md);
 }
 .panel h3 {
   margin: 0 0 12px;
-  font-size: var(--ctc-font-size-md);
+  font-size: var(--ew-font-size-md);
 }
 .field {
   display: flex;
@@ -2359,16 +2359,16 @@ function handleEvent(name: string, detail: unknown): void {
   margin-bottom: 8px;
 }
 .field small {
-  color: var(--ctc-color-text-secondary);
+  color: var(--ew-color-text-secondary);
 }
 .empty {
-  color: var(--ctc-color-text-secondary);
-  font-size: var(--ctc-font-size-sm);
+  color: var(--ew-color-text-secondary);
+  font-size: var(--ew-font-size-sm);
 }
 ul {
   margin: 0;
   padding-left: 18px;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
 }
 </style>
 ```
@@ -2384,7 +2384,7 @@ Expected: 终端打印 `http://localhost:5273`，无编译错误。
 - 左侧列出 `hello-vue` 与 `hello-react`
 - 点击 `hello-vue`，右侧出现 Vue 组件按钮，文案为「Vue 组件：World × 0」
 - 修改属性面板的 `name` 输入框，预览**实时**变化
-- 点击预览区按钮，事件日志出现 `ctc-select`
+- 点击预览区按钮，事件日志出现 `ew-select`
 - 切到 `hello-react`，同样验证一遍，按钮为红色
 
 - [ ] **Step 9: 验证源码模式热更新**
@@ -2415,10 +2415,10 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
-const COMPONENTS_PREFIX = 'virtual:ctc-wc/'
-const INDEX_ID = 'virtual:ctc-wc-index'
-const RESOLVED_PREFIX = '\0ctc-wc/'
-const RESOLVED_INDEX = '\0ctc-wc-index'
+const COMPONENTS_PREFIX = 'virtual:ew-wc/'
+const INDEX_ID = 'virtual:ew-wc-index'
+const RESOLVED_PREFIX = '\0ew-wc/'
+const RESOLVED_INDEX = '\0ew-wc-index'
 
 function listComponents(componentsDir: string): Array<{ name: string; framework: 'vue' | 'react' }> {
   return readdirSync(componentsDir)
@@ -2434,7 +2434,7 @@ export function wcModePlugin(componentsDir: string): Plugin {
   const root = resolve(componentsDir, '..', '..')
 
   return {
-    name: 'ctc-wc-mode',
+    name: 'ew-wc-mode',
 
     resolveId(id) {
       if (id === INDEX_ID) return RESOLVED_INDEX
@@ -2525,7 +2525,7 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith('ctc-'),
+          isCustomElement: (tag) => tag.startsWith('ew-'),
         },
       },
     }),
@@ -2541,7 +2541,7 @@ export default defineConfig({
 两处必须这样写：
 
 - **`wcModePlugin` 放在最前** —— `resolveId` 需要先于其他插件处理 `virtual:` 前缀。
-- **`isCustomElement` 必须配置** —— 否则 Vue 会把 `<ctc-hello-vue>` 当成未注册的 Vue 组件，每次渲染都打一条 "Failed to resolve component" 警告。
+- **`isCustomElement` 必须配置** —— 否则 Vue 会把 `<ew-hello-vue>` 当成未注册的 Vue 组件，每次渲染都打一条 "Failed to resolve component" 警告。
 
 - [ ] **Step 3: 在 ComponentPage 加模式开关**
 
@@ -2570,7 +2570,7 @@ const wcAttributes = computed<Record<string, unknown>>(() => {
 })
 
 async function enableWc(): Promise<void> {
-  const modules = (await import('virtual:ctc-wc-index')) as {
+  const modules = (await import('virtual:ew-wc-index')) as {
     default: Record<string, { Element: CustomElementConstructor }>
   }
   const mod = modules.default[props.entry.name]
@@ -2631,7 +2631,7 @@ watch(mode, (next) => {
       :is="entry.tag"
       v-else
       v-bind="wcAttributes"
-      @ctc-select="handleEvent('select', ($event as CustomEvent).detail)"
+      @ew-select="handleEvent('select', ($event as CustomEvent).detail)"
     />
   </div>
 </div>
@@ -2654,32 +2654,32 @@ watch(mode, (next) => {
 }
 .mode-switch button {
   padding: 4px 10px;
-  border: 1px solid var(--ctc-color-border);
+  border: 1px solid var(--ew-color-border);
   background: #fff;
   font: inherit;
-  font-size: var(--ctc-font-size-sm);
+  font-size: var(--ew-font-size-sm);
   cursor: pointer;
 }
 .mode-switch button:first-child {
-  border-radius: var(--ctc-radius-sm) 0 0 var(--ctc-radius-sm);
+  border-radius: var(--ew-radius-sm) 0 0 var(--ew-radius-sm);
 }
 .mode-switch button:last-child {
   border-left: none;
-  border-radius: 0 var(--ctc-radius-sm) var(--ctc-radius-sm) 0;
+  border-radius: 0 var(--ew-radius-sm) var(--ew-radius-sm) 0;
 }
 .mode-switch button.active {
-  background: var(--ctc-color-primary);
-  border-color: var(--ctc-color-primary);
+  background: var(--ew-color-primary);
+  border-color: var(--ew-color-primary);
   color: #fff;
 }
 ```
 
-- [ ] **Step 4: 验证 `virtual:ctc-wc-index` 模块可被 TS 解析**
+- [ ] **Step 4: 验证 `virtual:ew-wc-index` 模块可被 TS 解析**
 
-在 `src/env.d.ts` 末尾追加类型声明，否则 `import('virtual:ctc-wc-index')` 会报 TS 错误：
+在 `src/env.d.ts` 末尾追加类型声明，否则 `import('virtual:ew-wc-index')` 会报 TS 错误：
 
 ```ts
-declare module 'virtual:ctc-wc-index' {
+declare module 'virtual:ew-wc-index' {
   const modules: Record<string, { Element: CustomElementConstructor }>
   export default modules
 }
@@ -2691,9 +2691,9 @@ Run: `pnpm run dev`
 在浏览器切到 `hello-vue`，点「WC 模式」。
 
 Expected:
-- 页面出现 `<ctc-hello-vue>` 元素
+- 页面出现 `<ew-hello-vue>` 元素
 - 改属性面板的值，组件属性**同步更新**
-- 点击组件，事件日志出现 `ctc-select`
+- 点击组件，事件日志出现 `ew-select`
 - 打开 devtools 检查该元素，能看到 `#shadow-root (open)` 及其内部的 `<style>`
 
 - [ ] **Step 6: 验证 WC 模式热更新**
@@ -2792,13 +2792,13 @@ export default defineConfig({
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>CTC CDN 冒烟</title>
+    <title>EW CDN 冒烟</title>
     <link rel="stylesheet" href="/src/tokens/tokens.css" />
   </head>
   <body>
-    <ctc-hello-vue id="vue-el" name="Smoke"></ctc-hello-vue>
-    <ctc-hello-react id="react-el" name="Smoke"></ctc-hello-react>
-    <ctc-hello-vue id="light-el" name="Light" disable-shadow></ctc-hello-vue>
+    <ew-hello-vue id="vue-el" name="Smoke"></ew-hello-vue>
+    <ew-hello-react id="react-el" name="Smoke"></ew-hello-react>
+    <ew-hello-vue id="light-el" name="Light" disable-shadow></ew-hello-vue>
 
     <script src="/dist/cdn/hello-vue.js"></script>
     <script src="/dist/cdn/hello-react.js"></script>
@@ -2817,8 +2817,8 @@ test.beforeEach(async ({ page }) => {
 
 test('两个自定义元素都被注册并升级', async ({ page }) => {
   const defined = await page.evaluate(() => ({
-    vue: Boolean(customElements.get('ctc-hello-vue')),
-    react: Boolean(customElements.get('ctc-hello-react')),
+    vue: Boolean(customElements.get('ew-hello-vue')),
+    react: Boolean(customElements.get('ew-hello-react')),
   }))
   expect(defined.vue).toBe(true)
   expect(defined.react).toBe(true)
@@ -2843,8 +2843,8 @@ test('Vue 与 React 组件同页共存互不干扰', async ({ page }) => {
     const vue = document.querySelector('#vue-el')!.shadowRoot!
     const react = document.querySelector('#react-el')!.shadowRoot!
     return {
-      vueHasButton: Boolean(vue.querySelector('.ctc-hello')),
-      reactHasButton: Boolean(react.querySelector('.ctc-hello')),
+      vueHasButton: Boolean(vue.querySelector('.ew-hello')),
+      reactHasButton: Boolean(react.querySelector('.ew-hello')),
       separateRoots: vue !== react,
       styleCounts: [vue.querySelectorAll('style').length, react.querySelectorAll('style').length],
     }
@@ -2859,13 +2859,13 @@ test('事件能穿透 shadow root 冒泡到 window', async ({ page }) => {
   const detail = await page.evaluate(async () => {
     return new Promise((resolve) => {
       window.addEventListener(
-        'ctc-select',
+        'ew-select',
         (e) => resolve((e as CustomEvent).detail),
         { once: true },
       )
       document
         .querySelector('#vue-el')!
-        .shadowRoot!.querySelector<HTMLButtonElement>('.ctc-hello')!
+        .shadowRoot!.querySelector<HTMLButtonElement>('.ew-hello')!
         .click()
     })
   })
@@ -2877,8 +2877,8 @@ test('disable-shadow 降级到 light DOM 且样式注入 head', async ({ page })
     const el = document.querySelector('#light-el')!
     return {
       hasShadow: Boolean(el.shadowRoot),
-      hasButton: Boolean(el.querySelector('.ctc-hello')),
-      headStyles: document.head.querySelectorAll('style[data-ctc-style]').length,
+      hasButton: Boolean(el.querySelector('.ew-hello')),
+      headStyles: document.head.querySelectorAll('style[data-ew-style]').length,
     }
   })
   expect(result.hasShadow).toBe(false)
@@ -2891,13 +2891,13 @@ test('token 换肤能穿透 shadow root 影响组件', async ({ page }) => {
     page.evaluate(
       () =>
         getComputedStyle(
-          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ctc-hello')!,
+          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ew-hello')!,
         ).borderTopColor,
     )
 
   const before = await colorOf()
   await page.evaluate(() => {
-    document.documentElement.style.setProperty('--ctc-color-primary', 'rgb(255, 0, 0)')
+    document.documentElement.style.setProperty('--ew-color-primary', 'rgb(255, 0, 0)')
   })
   const after = await colorOf()
 
@@ -2913,12 +2913,12 @@ test('单组件产物与全量包同时引入不触发重复注册错误', async
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
-  await page.addScriptTag({ url: '/dist/cdn/ctc-all.js' })
+  await page.addScriptTag({ url: '/dist/cdn/ew-all.js' })
 
   expect(errors).toEqual([])
 
   const upgraded = await page.evaluate(() => {
-    const el = document.createElement('ctc-hello-vue')
+    const el = document.createElement('ew-hello-vue')
     el.setAttribute('name', 'All')
     document.body.appendChild(el)
     return el.shadowRoot?.textContent?.includes('All') ?? false
@@ -2980,7 +2980,7 @@ Expected: 记录每个产物的 gzip 体积。把这张表抄进 `README.md`。�
 - [ ] **Step 4: 写 `README.md`**
 
 ````markdown
-# ctc-web-components
+# easy-webcomp
 
 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的 Web Component。支持 npm ESM 引入与 CDN 单文件引入。
 
@@ -3009,7 +3009,7 @@ src/components/<组件名>/
 ```ts
 import { useEmit } from '../../runtime/vue'   // React 组件改为 '../../runtime/react'
 const emit = useEmit()
-emit('select', { id: 1 })                      // → 派发 ctc-select 事件
+emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
 
 事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。
@@ -3029,7 +3029,7 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ctc-all.js` | CDN 全量单文件 |
+| `dist/cdn/ew-all.js` | CDN 全量单文件 |
 
 ## 引入方式
 
@@ -3039,15 +3039,15 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-vue.js"></script>
 
-<ctc-hello-vue name="World" count="3"></ctc-hello-vue>
+<ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
 ESM：
 
 ```ts
-import 'ctc-web-components/hello-vue/define'
+import 'easy-webcomp/hello-vue/define'
 
-document.body.innerHTML = '<ctc-hello-vue name="World"></ctc-hello-vue>'
+document.body.innerHTML = '<ew-hello-vue name="World"></ew-hello-vue>'
 ```
 
 React 项目里传对象属性：
@@ -3057,22 +3057,22 @@ const ref = useRef<HTMLElement>(null)
 useEffect(() => {
   if (ref.current) (ref.current as any).payload = { id: 1 }
 }, [])
-return <ctc-hello-vue ref={ref} name="World" />
+return <ew-hello-vue ref={ref} name="World" />
 ```
 
-React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
+React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
 
 ## 主题
 
-覆盖任意 `--ctc-*` 变量即可换肤，无需 `::part()`：
+覆盖任意 `--ew-*` 变量即可换肤，无需 `::part()`：
 
 ```css
 :root {
-  --ctc-color-primary: #ff4d4f;
+  --ew-color-primary: #ff4d4f;
 }
 ```
 
-组件内部一律用 `var(--ctc-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤失效。
+组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤失效。
 
 ## 验证
 
@@ -3104,8 +3104,8 @@ git commit -m "docs: README 与 verify 脚本"
 
 以下内容**不在本计划内**，不要顺手实现：
 
-- `window.__CTC_SHARED__` 注册表与 `useSharedDep()`（重库单例）
-- 宿主注入三级协议（`<ctc-provider>` / `window.__CTC_HOST__` / 组件属性）
+- `window.__EW_SHARED__` 注册表与 `useSharedDep()`（重库单例）
+- 宿主注入三级协议（`<ew-provider>` / `window.__EW_HOST__` / 组件属性）
 - shared 模式产物（external 到 `window.Vue` / `window.React`）
 - **由 `meta.ts` 驱动的组件契约测试**（spec 第 12 节第 2 层）—— 一期只有两个组件，其契约已由 Task 15 的 e2e 逐条覆盖；等组件上到一定数量、手写 e2e 开始重复时再做这套生成式测试才有收益
 - `vite-plugin-dts` 生成 `.d.ts`（spec 第 6 节第 3 处驱动）—— 一期产物未发布，TS 消费方还不存在

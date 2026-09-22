@@ -19,7 +19,7 @@ src/components/<组件名>/
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-vue',
+  tag: 'ew-hello-vue',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
@@ -40,10 +40,10 @@ export default defineComponentMeta({
 import { useEmit } from '../../runtime/vue'   // React 组件改为 '../../runtime/react'
 
 const emit = useEmit()
-emit('select', { id: 1 })                      // → 派发 ctc-select 事件
+emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
 
-事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ctc-` 为前缀、`composed: true`，能穿透 shadow root。
+事件名必须出现在 `meta.ts` 的 `events` 数组里，否则开发态会打印警告。事件一律以 `ew-` 为前缀、`composed: true`，能穿透 shadow root。
 
 ## 加完之后
 

@@ -18,5 +18,5 @@ function handleClick(): void {
 </script>
 
 <template>
-  <button class="ctc-hello" type="button" @click="handleClick">{{ label }}</button>
+  <button class="ew-hello" type="button" @click="handleClick">{{ label }}</button>
 </template>

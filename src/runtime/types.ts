@@ -13,7 +13,7 @@ export interface ComponentMeta {
   /** 是否使用 Shadow DOM，默认 true */
   shadow?: boolean
   props?: Record<string, PropDefinition>
-  /** 允许派发的事件名，派发时会被加上 ctc- 前缀 */
+  /** 允许派发的事件名，派发时会被加上 ew- 前缀 */
   events?: string[]
 }
 
@@ -28,7 +28,7 @@ export interface ElementAdapter {
 }
 
 /** 构造器上额外挂了 refresh()，供 HMR 与文档站交互面板强制重渲染 */
-export interface CtcElementConstructor extends CustomElementConstructor {
+export interface EwElementConstructor extends CustomElementConstructor {
   refresh: () => void
 }
 

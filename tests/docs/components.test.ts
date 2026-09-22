@@ -14,7 +14,7 @@ function makeComponent(name: string, files: string[]): void {
 const scan = () => listComponents(join(root, 'components'), join(root, 'docs/components'))
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'ctc-docs-'))
+  root = mkdtempSync(join(tmpdir(), 'ew-docs-'))
   mkdirSync(join(root, 'docs/components'), { recursive: true })
 })
 

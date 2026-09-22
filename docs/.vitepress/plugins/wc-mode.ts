@@ -2,10 +2,10 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Plugin } from 'vite'
 
-const COMPONENTS_PREFIX = 'virtual:ctc-wc/'
-const INDEX_ID = 'virtual:ctc-wc-index'
-const RESOLVED_PREFIX = '\0ctc-wc/'
-const RESOLVED_INDEX = '\0ctc-wc-index'
+const COMPONENTS_PREFIX = 'virtual:ew-wc/'
+const INDEX_ID = 'virtual:ew-wc-index'
+const RESOLVED_PREFIX = '\0ew-wc/'
+const RESOLVED_INDEX = '\0ew-wc-index'
 
 interface ComponentInfo {
   name: string
@@ -32,7 +32,7 @@ export function wcModePlugin(componentsDir: string): Plugin {
   const srcDir = resolve(componentsDir, '..')
 
   return {
-    name: 'ctc-wc-mode',
+    name: 'ew-wc-mode',
 
     resolveId(id) {
       if (id === INDEX_ID) return RESOLVED_INDEX

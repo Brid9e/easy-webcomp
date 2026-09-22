@@ -15,7 +15,7 @@ function buildComponentSidebar() {
 }
 
 export default defineConfig({
-  title: 'CTC Web Components',
+  title: 'easy-webcomp',
   description: '用 Vue 3 或 React 写业务组件，构建管线输出统一形态的 Web Component',
   srcExclude: ['superpowers/**'],
   head: [
@@ -30,7 +30,7 @@ export default defineConfig({
   vue: {
     template: {
       compilerOptions: {
-        isCustomElement: (tag: string) => tag.startsWith('ctc-'),
+        isCustomElement: (tag: string) => tag.startsWith('ew-'),
       },
     },
   },

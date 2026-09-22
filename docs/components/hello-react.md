@@ -1,6 +1,6 @@
 # hello-react
 
-用 React 19 写的示例组件。点击按钮会派发一次 `ctc-select` 事件。
+用 React 19 写的示例组件。点击按钮会派发一次 `ew-select` 事件。
 
 <ComponentDemo name="hello-react" />
 
@@ -12,13 +12,13 @@ CDN：
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
 <script src="https://your-cdn/hello-react.js"></script>
 
-<ctc-hello-react name="World" count="3"></ctc-hello-react>
+<ew-hello-react name="World" count="3"></ew-hello-react>
 ```
 
 npm ESM：
 
 ```ts
-import 'ctc-web-components/hello-react/define'
+import 'easy-webcomp/hello-react/define'
 ```
 
 ## 属性
@@ -33,7 +33,7 @@ import 'ctc-web-components/hello-react/define'
 
 | 事件 | `detail` |
 |---|---|
-| `ctc-select` | `{ source: 'hello-react', name: string }` |
+| `ew-select` | `{ source: 'hello-react', name: string }` |
 
 事件带 `composed: true`，能穿透 shadow root 冒泡到 `window`。
 

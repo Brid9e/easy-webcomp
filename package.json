@@ -1,5 +1,5 @@
 {
-  "name": "ctc-web-components",
+  "name": "easy-webcomp",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -16,7 +16,7 @@
     "./hello-vue": "./dist/esm/hello-vue.js",
     "./hello-vue/define": "./dist/esm/hello-vue/define.js",
     "./cdn/hello-vue": "./dist/cdn/hello-vue.js",
-    "./cdn/ctc-all": "./dist/cdn/ctc-all.js"
+    "./cdn/ew-all": "./dist/cdn/ew-all.js"
   },
   "scripts": {
     "dev": "vitepress dev docs",

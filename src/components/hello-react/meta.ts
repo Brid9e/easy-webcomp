@@ -1,7 +1,7 @@
 import { defineComponentMeta } from '../../runtime/types'
 
 export default defineComponentMeta({
-  tag: 'ctc-hello-react',
+  tag: 'ew-hello-react',
   shadow: true,
   props: {
     name: { type: 'string', default: 'World' },
