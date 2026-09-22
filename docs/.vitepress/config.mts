@@ -51,9 +51,16 @@ export default defineConfig(async () => ({
     resolve: {
       alias: { '@src': resolve(rootDir, 'src') },
     },
-    // 组件样式里的 `@use '<空间>/styles'` 靠它解析，与 scripts/build.ts 的 cssConfig 是同一份约定
+    // 组件样式里的 `@use '<空间>/styles'` 靠它解析，与 scripts/build.ts 的 cssConfig 是同一份约定。
+    // 这里必须写 includePaths：VitePress 1.6 内嵌 Vite 5，走的是只认这个名字的旧 Sass API。
+    // 同时也留着 loadPaths，好在将来 VitePress 升到 Vite 6+ 时不必回头找这行。
     css: {
-      preprocessorOptions: { scss: { loadPaths: [resolve(rootDir, 'src/workspaces')] } },
+      preprocessorOptions: {
+        scss: {
+          loadPaths: [resolve(rootDir, 'src/workspaces')],
+          includePaths: [resolve(rootDir, 'src/workspaces')],
+        },
+      },
     },
     plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react(), tailwind()],
   },

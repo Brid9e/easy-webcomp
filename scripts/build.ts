@@ -99,10 +99,19 @@ const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
 
 /**
  * 空间共享样式在 src/workspaces/<空间>/styles/index.scss，组件里以 `@use '<空间>/styles'` 取用。
- * 有了 loadPaths 才不必写 `../../` —— 相对路径的层数跟组件所在位置绑死，挪目录就断。
+ * 有了它才不必写 `../../` —— 相对路径的层数跟组件所在位置绑死，挪目录就断。
+ *
+ * 两个键名都写：Vite 6+ 的现代 Sass API 认 loadPaths，Vite 5 用的旧 API 只认 includePaths，
+ * 且互不识别（旧 API 收到 loadPaths 会当没看见）。本仓库两代并存 —— 根构建跑 Vite 7，
+ * VitePress 1.6 内嵌的是 Vite 5 —— 只写一个就会有一条管线断掉。
  */
 const cssConfig = {
-  preprocessorOptions: { scss: { loadPaths: [join(root, 'src/workspaces')] } },
+  preprocessorOptions: {
+    scss: {
+      loadPaths: [workspacesDir],
+      includePaths: [workspacesDir],
+    },
+  },
 }
 
 async function buildEsm(components: ComponentInfo[]): Promise<void> {
