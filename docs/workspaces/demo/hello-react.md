@@ -39,4 +39,4 @@ import 'easy-webcomp/hello-react/define'
 
 ## 说明
 
-组件源码在 `src/components/hello-react/Component.tsx`。注意 React 项目里传对象属性必须走 property 通道（React ≤18 会把对象属性序列化），具体见[构建与产物](/guide/build)的「引入方式」。
+组件源码在 `src/workspaces/demo/components/hello-react/Component.tsx`。注意 React 项目里传对象属性必须走 property 通道（React ≤18 会把对象属性序列化），具体见[构建与产物](/guide/build)的「引入方式」。
