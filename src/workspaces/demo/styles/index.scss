@@ -1,0 +1,13 @@
+// demo 空间的共享样式：变量与 mixin 写这里，组件按需取用。
+//
+//   @use 'demo/styles' as styles;
+//   .foo { padding: styles.$gutter; @include styles.focus-ring; }
+//
+// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径 —— 组件挪到更深层级也不用改。
+
+$gutter: 8px;
+
+@mixin focus-ring {
+  outline: 2px solid var(--ew-color-primary, #1677ff);
+  outline-offset: 2px;
+}
