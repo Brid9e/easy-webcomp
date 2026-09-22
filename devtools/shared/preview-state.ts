@@ -49,6 +49,10 @@ export function usePropControls(meta: Ref<ComponentMeta | undefined>): PropContr
   // 直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 false）。
   //
   // 源码模式与 WC 模式用的是同一份值：Vue / React 组件收到的 props 与 WC 收到的 property 在此没有差别。
+  //
+  // 只定型 string / number / boolean 三种。PropType 里的 object / array / function 走 `else`
+  // 分支，会被当成文本框里的字符串原样传过去 —— 这三种属性目前在面板里没有可用的编辑方式，
+  // 遇到时应当先补一个编辑控件（以及取值方式），而不是在这里猜测怎么解析。
   const model = computed<Record<string, unknown>>(() => {
     const result: Record<string, unknown> = {}
     for (const [name, def] of propDefs.value) {
