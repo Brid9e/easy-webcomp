@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
-import { wcModePlugin } from './playground/plugins/wc-mode'
+import { wcModePlugin } from './docs/.vitepress/plugins/wc-mode'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
 

@@ -388,6 +388,16 @@ import { wcModePlugin } from './plugins/wc-mode'
 
 这里**不加** `react()` —— 本任务里还没有任何模块 import `.tsx`，等 Task 4 迁移 renderer 时再加，能干净地定位问题。
 
+插件搬走后 `vite.playground.config.ts` 的导入路径失效，把它的 `'./playground/plugins/wc-mode'` 临时改成 `'./docs/.vitepress/plugins/wc-mode'` —— playground 要到 Task 9 才删，这期间它得继续能 typecheck。这个临时耦合随 Task 9 一起消失。
+
+- [ ] **Step 2b: 修 playground 配置的导入路径**
+
+`vite.playground.config.ts`：
+
+```ts
+import { wcModePlugin } from './docs/.vitepress/plugins/wc-mode'
+```
+
 - [ ] **Step 3: 验证构建与类型**
 
 ```bash
