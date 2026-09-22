@@ -1,10 +1,10 @@
-// 本组件 shadow: false（见 meta.ts），这份样式注入 document.head —— 所以**不要写 `:host`**：
-// 那是 shadow tree 专属的选择器，在 light DOM 里不匹配任何东西，写了等于白写。
-// 直接写标签名。自定义元素默认 display: inline，不改成 block 的话表格拿不到容器宽度。
+// 本组件 shadow: true（见 meta.ts），这份样式进 shadow root，所以宿主要用 `:host` 而不是
+// 标签名 —— 宿主元素自身在 shadow 树外面，树里的 `ew-my-list` 一条也匹配不到它。
+// 自定义元素默认 display: inline，不改成 block 的话表格拿不到容器宽度。
 //
 // height: 100% 是给「撑满高度区域」用的：容器有确定高度时列表铺满，容器没高度时
 // 百分比退化成 auto，等于按内容撑开 —— 两种容器都不会坏。
-ew-my-list {
+:host {
   display: block;
   height: 100%;
 }

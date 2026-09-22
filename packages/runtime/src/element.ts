@@ -22,6 +22,7 @@ export function createElementClass(
 
     private _props: Record<string, unknown> = {}
     private _instance: unknown = null
+    private _styledRoot: HTMLElement | ShadowRoot | null = null
 
     constructor() {
       super()
@@ -47,11 +48,19 @@ export function createElementClass(
         }
       }
 
+      // 元素被移出文档再放回来会走第二轮 connectedCallback（切页签、被宿主框架挪动、
+      // v-if 重挂都会）。shadow root 这时已经存在，再 attachShadow 一次会抛
+      // NotSupportedError 并从这里中断 —— 既不投样式也不 mount，元素永久空着。
+      // 复用已有的那个；样式只认自己投过的那个 root，重复投会一直往
+      // adoptedStyleSheets 上堆（每轮一份，无上限）。
       const useShadow = useShadowDefault && !this.hasAttribute('disable-shadow')
       const root: HTMLElement | ShadowRoot = useShadow
-        ? this.attachShadow({ mode: 'open' })
+        ? (this.shadowRoot ?? this.attachShadow({ mode: 'open' }))
         : this
-      applyStyles(root, css)
+      if (this._styledRoot !== root) {
+        applyStyles(root, css)
+        this._styledRoot = root
+      }
 
       this._instance = adapter.mount(root, { ...this._props }, this._emit)
       liveInstances.add(this)

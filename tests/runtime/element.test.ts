@@ -108,6 +108,34 @@ describe('createElementClass', () => {
     expect(el.shadowRoot?.querySelector('style')?.textContent).toBe('.x { color: red; }')
   })
 
+  // 元素被移出文档再放回来（切页签、被框架挪动、v-if 重挂）会走第二轮 connectedCallback。
+  // 这时 shadow root 已经存在，再 attachShadow 一次会抛 NotSupportedError，
+  // 回调从这里中断：既不 applyStyles 也不 mount，元素就永久空着。
+  it('断开后重新插入能再次挂载，并复用已是自己的那个 shadow root', () => {
+    const tag = uniqueTag()
+    defineComponent({ tag })
+    const el = mount(tag)
+    const shadow = el.shadowRoot
+
+    document.body.removeChild(el)
+    expect(log[0]?.unmounted).toBe(true)
+
+    document.body.appendChild(el)
+    expect(log).toHaveLength(2)
+    expect(log[1]?.host).toBe(shadow)
+  })
+
+  it('重新插入不往 shadow root 里堆第二份 style', () => {
+    const tag = uniqueTag()
+    defineComponent({ tag }, '.x { color: red; }')
+    const el = mount(tag)
+
+    document.body.removeChild(el)
+    document.body.appendChild(el)
+
+    expect(el.shadowRoot?.querySelectorAll('style')).toHaveLength(1)
+  })
+
   it('标量 attribute 映射为带类型的 props', () => {
     const tag = uniqueTag()
     defineComponent({

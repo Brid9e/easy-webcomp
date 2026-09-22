@@ -67,6 +67,23 @@ describe('applyStyles', () => {
     expect(styles[0]?.textContent).toBe('.c { color: green; }')
   })
 
+  it('shadow root 往 head 放的那份额外副本裹在 @layer 里 —— 不许盖过宿主页面的样式', () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+
+    applyStyles(shadow, '.a { color: red; }')
+
+    // 树里那份是原样的；head 那份必须降级，UI 库自带的 `:root{color-scheme:light}`
+    // 和一堆 --el-* 默认值否则会反压宿主自己的主题。
+    expect(shadow.querySelector('style')?.textContent).toBe('.a { color: red; }')
+
+    const head = document.head.querySelector('style[data-ew-style]')
+    expect(head).not.toBeNull()
+    expect(head?.textContent).toMatch(/^@layer [\w-]+ \{/)
+    expect(head?.textContent).toContain('.a { color: red; }')
+  })
+
   it('空 CSS 不做任何事', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)

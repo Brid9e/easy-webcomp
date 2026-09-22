@@ -2,11 +2,13 @@ import { defineComponentMeta } from '@ew/runtime'
 
 export default defineComponentMeta({
   tag: 'ew-my-list',
-  // 关掉 Shadow DOM 是 UI 库逼的：Element Plus 的主题变量在 :root 上、浮层 Teleport 到
-  // document.body，antd / Ant Design Vue 的样式运行时注入 document.head —— 都够不到 shadow
-  // root 里面。代价是本组件样式不再隔离，会落到 document.head 影响整页。
+  // shadow 打开：本组件样式进 shadow root，不再落到整页。
+  // 但同一份 CSS 还会被 runtime 往 document.head 再放一份 —— 那不是冗余，是必需的：
+  // `:root` 在 shadow 树里匹配不到元素，Element Plus 的 --el-* 变量得靠 head 那份定义在
+  // 真实 <html> 上再继承进来；下拉、日期面板、弹框这些 Teleport 到 body 的浮层也落在
+  // 树外，只有 head 那份够得着。详见 packages/runtime/src/style.ts。
 
-  shadow: false,
+  shadow: true,
   props: {
     // 面板标题，也是验证「attribute → property」这条通道的活体属性
     label: { type: 'string', default: '我的列表' },
