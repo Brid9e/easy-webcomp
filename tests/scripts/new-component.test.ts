@@ -92,16 +92,20 @@ describe('createComponent · 基础骨架', () => {
     expect(scss.indexOf(':host')).toBeGreaterThan(0)
   })
 
+  // 组件名刻意与默认的 my-card 不同：用默认名的话断言里的 ew-my-card 与硬编码的
+  // 字面量无从区分，测不出类名是从 spec.name 派生的
   it('Vue 组件根元素用 ew-<组件名> 作类名，不用共享的 ew-root', () => {
-    createComponent(root, spec())
-    expect(read('my-card', 'Component.vue')).toContain('class="ew-my-card"')
-    expect(read('my-card', 'Component.vue')).not.toContain('ew-root')
+    createComponent(root, spec({ name: 'user-profile' }))
+    const vue = read('user-profile', 'Component.vue')
+    expect(vue).toContain('class="ew-user-profile"')
+    expect(vue).not.toContain('ew-root')
   })
 
   it('React 组件同理', () => {
-    createComponent(root, spec({ framework: 'react' }))
-    expect(read('my-card', 'Component.tsx')).toContain('className="ew-my-card"')
-    expect(read('my-card', 'Component.tsx')).not.toContain('ew-root')
+    createComponent(root, spec({ name: 'user-profile', framework: 'react' }))
+    const tsx = read('user-profile', 'Component.tsx')
+    expect(tsx).toContain('className="ew-user-profile"')
+    expect(tsx).not.toContain('ew-root')
   })
 })
 
