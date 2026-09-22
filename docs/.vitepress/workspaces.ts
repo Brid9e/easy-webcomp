@@ -86,7 +86,12 @@ export async function readWorkspaceMeta(
     const file = pathToFileURL(join(workspacesDir, id, 'workspace.ts')).href
     const mod = (await tsImport(file, import.meta.url)) as { default?: WorkspaceMeta }
     return mod.default ?? {}
-  } catch {
+  } catch (error) {
+    // 清单「写坏」与「没写」要分开：前者会让整个侧边栏静默退化成目录名，值得报出来
+    // （spec 的验收靠肉眼比对标题，那是兜底不是第一道防线）；后者只是回落，不必刷屏。
+    if (existsSync(join(workspacesDir, id, 'workspace.ts'))) {
+      console.warn(`[docs] 读取 ${id}/workspace.ts 失败，展示名回落到目录名：`, error)
+    }
     return {}
   }
 }

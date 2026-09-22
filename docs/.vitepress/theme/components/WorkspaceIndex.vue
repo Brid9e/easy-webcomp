@@ -20,6 +20,11 @@ const componentModules = import.meta.glob('@src/workspaces/*/components/*/Compon
 const wsOfMeta = (path: string) => path.split('/').at(-2) ?? ''
 const wsOfComponent = (path: string) => path.split('/').at(-4) ?? ''
 
+// 空间页是 index 路由，产物在 workspaces/<id>/index.html —— 末尾这个斜杠不能省。
+// normalizeLink 只对以 `/` 结尾的链接不加 .html；少了它会拼成 workspaces/<id>.html，
+// 那个文件不存在，直接访问或中键新开都会 404（SPA 内点击被客户端路由接管，看不出来）。
+const wsHref = (id: string) => `/workspaces/${id}/`
+
 // 两边取并集：只有清单没组件的空间、以及（手建时）只有组件没清单的空间都要出现
 const ids = computed(() => {
   const all = new Set<string>()
@@ -44,7 +49,7 @@ const workspaces = computed(() =>
 <template>
   <p v-if="workspaces.length === 0" class="empty">还没有任何工作空间。</p>
   <div v-else class="grid">
-    <VPLink v-for="ws in workspaces" :key="ws.id" :href="`/workspaces/${ws.id}`" class="ws-card">
+    <VPLink v-for="ws in workspaces" :key="ws.id" :href="wsHref(ws.id)" class="ws-card">
       <span class="ws-title">{{ ws.title }}</span>
       <span v-if="ws.description" class="ws-desc">{{ ws.description }}</span>
       <span class="ws-count">{{ ws.count }} 个组件</span>

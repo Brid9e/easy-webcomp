@@ -1526,10 +1526,13 @@ docs/.vitepress/dist/workspaces/demo/hello-react.html
 
 先临时造一个没有散文的组件：
 
+（`Component.vue` 必须是**能过 SFC 解析的合法单文件组件** —— `export default {}` 会直接报
+`At least one <template> or <script> is required in a single file component`，dev 起不来。）
+
 ```bash
 mkdir -p src/workspaces/demo/components/tmp-probe
 printf "import { defineComponentMeta } from '../../../../runtime/types'\n\nexport default defineComponentMeta({ tag: 'ew-tmp-probe', props: {} })\n" > src/workspaces/demo/components/tmp-probe/meta.ts
-printf "export default {}\n" > src/workspaces/demo/components/tmp-probe/Component.vue
+printf '<template><span>tmp-probe</span></template>\n' > src/workspaces/demo/components/tmp-probe/Component.vue
 : > src/workspaces/demo/components/tmp-probe/style.css
 printf "export {}\n" > src/workspaces/demo/components/tmp-probe/index.ts
 printf "" > src/workspaces/demo/components/tmp-probe/define.ts
@@ -1748,7 +1751,7 @@ src/workspaces/<空间名>/components/<组件名>/
 - [ ] **Step 7: 全仓搜一遍残留**
 
 Run: `grep -rn "src/components\|@src/components\|docs/components\|/components/" --include="*.ts" --include="*.tsx" --include="*.vue" --include="*.mts" --include="*.md" --include="*.html" . 2>/dev/null | grep -v node_modules | grep -v "/dist/" | grep -v "docs/superpowers" | grep -v "\.vitepress/cache"`
-Expected: 无输出
+Expected: **会有输出，这是正常的** —— `/components/` 这个候选词按设计就会命中新布局自身的 `src/workspaces/<空间名>/components/`，以及文档站主题组件里的相对导入（`./components/xxx.vue`）。实测约 18 处，逐个确认**都不是指向旧位置**即可：不该出现 `src/components/`、`@src/components/` 或 `docs/components/` 这三个前缀。
 
 - [ ] **Step 8: 提交**
 
