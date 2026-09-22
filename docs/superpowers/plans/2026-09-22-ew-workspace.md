@@ -242,6 +242,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 - [ ] **Step 6: 注册脚本**
 
+> **有意不做的校验**：`pnpm run new:workspace define` 会建出 `src/workspaces/define/`，与已有的 `define.ts` 并存，文档站会多出一个空的幽灵空间。不加保留名校验是权衡后的选择 —— 真撞上的概率极低，而 spec 第 3 节把工作空间的删除 / 重命名 / 迁移都划为非目标。记在这里，以便日后真踩到时知道是已知缺口而不是疏漏。
+
 在 `package.json` 的 `scripts` 里，`"build": "tsx scripts/build.ts"` 之前插入一行：
 
 ```json
@@ -614,6 +616,7 @@ Expected: FAIL —— `Failed to resolve import "../../docs/.vitepress/workspace
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import type { WorkspaceMeta } from '../../src/workspaces/define'
 
 export const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -626,12 +629,6 @@ export interface ComponentInfo {
 export interface WorkspaceInfo {
   id: string
   components: ComponentInfo[]
-}
-
-export interface WorkspaceMeta {
-  /** 展示名。缺省时由读取方回落到目录名 */
-  title?: string
-  description?: string
 }
 
 const workspacesDirOf = () => join(rootDir, 'src/workspaces')
@@ -709,6 +706,8 @@ export async function readWorkspaceMeta(
   }
 }
 ```
+
+> **`WorkspaceMeta` 是 `import type` 从 `src/workspaces/define.ts` 取的，不要在这里再抄一份 interface。** Task 1 已经让 `define.ts` 成为这个形状的唯一出处（脚手架生成的每个清单都 import 它），抄一份就多一处会漂移的地方 —— 这与 spec 第 4 节「一个信息只存一处」是同一条原则。type-only import 会被 esbuild 整个抹掉，不产生任何运行时依赖，因此不违背「构建脚本与文档站共享约定而非代码」。
 
 - [ ] **Step 4: 跑测试确认通过**
 
