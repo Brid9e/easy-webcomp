@@ -43,8 +43,8 @@ function locateComponents(workspacesDir: string): Located[] {
 }
 
 /**
- * 生成的代码一律用绝对路径引用源码。Vite root 是 `docs/`，写 `/src/...`
- * 会被解析成 `docs/src/...`，找不到文件。
+ * 生成的代码一律用绝对路径引用源码。使用者（文档站、调试页）各自的 Vite root
+ * 都不是仓库根，写 `/src/...` 会被解析成 `<root>/src/...`，找不到文件。
  */
 export function wcModePlugin(workspacesDir: string): Plugin {
   return {
