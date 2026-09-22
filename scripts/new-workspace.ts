@@ -7,12 +7,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const NAME_RE = /^[a-z][a-z0-9-]*$/
 
 function template(name: string): string {
-  return `import type { WorkspaceMeta } from '../define'
+  return `import { defineWorkspace } from '../define'
 
-export default {
+export default defineWorkspace({
   title: '${name}',
   description: '',
-} satisfies WorkspaceMeta
+})
 `
 }
 

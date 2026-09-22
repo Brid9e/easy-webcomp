@@ -1,6 +1,7 @@
 // @vitest-environment node
-// readWorkspaceMeta 用原生动态 import 加载清单；jsdom 环境下 vite-node 无法 import 项目根之外的
-// 文件（连 .js 都报 Cannot find module），所以这个文件必须在 node 环境跑。
+// readWorkspaceMeta 经 tsx 加载清单，而 tsx 依赖 esbuild。jsdom 环境下 esbuild 无法初始化：
+// 它的 TextEncoder 返回的是别的 realm 的 Uint8Array，触发 esbuild 启动时的
+// "new TextEncoder().encode(\"\") instanceof Uint8Array" 不变式失败。所以本文件必须跑在 node 环境。
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,6 +21,10 @@ const scan = () => listWorkspaces(join(root, 'src/workspaces'), join(root, 'docs
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'ew-ws-'))
+  // 临时目录里放一个 package.json 复刻真实项目的模块类型：项目根是 "type": "module"，
+  // src/workspaces/<id>/workspace.ts 因此被 tsx 当 ESM 加载，mod.default 就是清单本身。
+  // 少了它，tsx 会把清单当 CJS 转译，mod.default 变成 { default: {...} }（多包一层）。
+  writeFileSync(join(root, 'package.json'), '{"type":"module"}\n')
   mkdirSync(join(root, 'docs/workspaces'), { recursive: true })
 })
 

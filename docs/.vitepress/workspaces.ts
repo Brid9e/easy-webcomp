@@ -73,17 +73,18 @@ export function listWorkspaces(
 
 /**
  * config.mts 由 Vite 用 esbuild 打包后加载，`import.meta.glob` 在那里不可用，而清单是 TS。
- * 这里靠 Node 22.18+ 的原生类型剥离加载：清单只写类型导入（会被剥掉，不产生运行时相对导入），
- * 因此动态 import 能直接求值。读不到就返回空对象，调用方回落到目录名 —— 一个清单文件写错
- * 不该让整个构建失败。
+ * tsx 已是既有 devDependency（scripts/build.ts 就跑在它上面）；Vite 打包 config 时会把裸包
+ * import 标记为 external，所以这个动态 import 会留给 Node 真正加载。
+ * 读不到就返回空对象，调用方回落到目录名 —— 一个清单文件写错不该让整个构建失败。
  */
 export async function readWorkspaceMeta(
   id: string,
   workspacesDir = workspacesDirOf(),
 ): Promise<WorkspaceMeta> {
   try {
+    const { tsImport } = await import('tsx/esm/api')
     const file = pathToFileURL(join(workspacesDir, id, 'workspace.ts')).href
-    const mod = (await import(file)) as { default?: WorkspaceMeta }
+    const mod = (await tsImport(file, import.meta.url)) as { default?: WorkspaceMeta }
     return mod.default ?? {}
   } catch {
     return {}
