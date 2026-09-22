@@ -162,7 +162,9 @@ export { applyGlobalStyles, applyStyles, resetStyleCache, rewriteHost } from './
 pnpm run test -- style
 ```
 
-预期：PASS（原有 5 条 + 新增 6 条）。
+预期：PASS（原有 5 条 + 新增 9 条 = 14 条）。
+
+> 下面列的是 6 条。另外 3 条是评审补的，见文件末尾的说明：一条锁 `applyGlobalStyles` 的裸 CSS 语义（不然把实现换成裹 `@layer` 的版本测试照样绿），两条补 `rewriteHost` 的边界（`:host-context()` 与注释里的 `:host`）。
 
 - [ ] **Step 5: 提交**
 
@@ -230,6 +232,13 @@ describe('findPrefixViolations', () => {
     expect(findPrefixViolations(css, 'my-list')).toEqual([])
   })
 
+  // Sass 产物含非 ASCII 时会在最前面补 @charset，它没有 block，不切成一条独立语句的话
+  // 会把紧随其后的第一条规则整条吞掉。my-list 编译出来就带这行。
+  it('@charset 开头时第一条规则照样被扫', () => {
+    const css = '@charset "UTF-8";\n.bad { a: 1 }\n.ew-ok { b: 2 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad'])
+  })
+
   it('去重后按出现顺序返回', () => {
     const css = '.b { a: 1 }\n.a { a: 1 }\n.b { c: 2 }'
     expect(findPrefixViolations(css, 'my-list')).toEqual(['b', 'a'])
@@ -271,6 +280,11 @@ function stripComments(css: string): string {
  * 取出所有选择器文本：每个 `{` 之前那段就是它的选择器，`@` 开头的是 at 规则的条件
  * 而不是选择器。用这种括号配对而不是正则匹配 `{...}`，是为了让 `@media` 块里嵌套的
  * 选择器也能被扫到 —— 只按顶层切会把它们整段漏掉。
+ *
+ * `;` 也要清 buffer：无 block 的 at 规则（`@charset "UTF-8";`、`@import ...;`）不会走到
+ * `{`，不清的话它会和紧随其后的第一条规则粘成一个以 `@` 开头的 buffer，把那条规则整条
+ * 跳过。Sass 在产物含非 ASCII 时会自动补 `@charset`，所以这不是假想的情况。选择器里
+ * 不可能出现 `;`，无条件清是安全的。
  */
 function selectorsOf(css: string): string[] {
   const out: string[] = []
@@ -280,7 +294,7 @@ function selectorsOf(css: string): string[] {
       const text = buffer.trim()
       if (text !== '' && !text.startsWith('@')) out.push(text)
       buffer = ''
-    } else if (char === '}') {
+    } else if (char === '}' || char === ';') {
       buffer = ''
     } else {
       buffer += char
@@ -323,7 +337,7 @@ export function findPrefixViolations(css: string, name: string): string[] {
 pnpm run test -- style-prefix
 ```
 
-预期：PASS（9 条）。
+预期：PASS（10 条）。
 
 - [ ] **Step 5: 修掉 demo 里两处撞车**
 
@@ -354,10 +368,12 @@ pnpm run test -- style-prefix
 改完用下面这条命令确认没有漏网的（注意排除 `docs/.vitepress/dist` 那份构建产物）：
 
 ```bash
-grep -rn "\.ew-hello\b" src tests docs/guide devtools 2>/dev/null | grep -v "ew-hello-vue\|ew-hello-react"
+grep -rn "\.ew-hello\b" src tests/e2e docs/guide devtools 2>/dev/null | grep -v "ew-hello-vue\|ew-hello-react"
 ```
 
 预期：无输出。标签名 `ew-hello-vue` 本身不受影响，`grep "ew-hello"` 会命中一堆，所以这条查的是**带点号的类名**。
+
+> 别把整个 `tests/` 都放进这条 grep —— `tests/scripts/style-prefix.test.ts` 里为了断言「`.ew-hello` 是违规」必然写着 `.ew-hello`，那是夹具不是漏改。所以上面只查 `tests/e2e`。
 
 - [ ] **Step 6: 接进构建管线**
 
@@ -437,11 +453,13 @@ import 区加：
 import { findPrefixViolations } from './style-prefix.ts'
 ```
 
-`main()` 里在 `const components = discoverComponents()` 与「发现 N 个组件」那句之间插一行：
+`main()` 里在 `if (components.length === 0) throw new Error('[build] 未发现任何组件')` **之后**、「发现 N 个组件」那句 `console.log` 之前插一行：
 
 ```ts
   checkStylePrefixes(components)
 ```
+
+> 放在空检查之后而不是 `discoverComponents()` 紧后面：没有组件时应该先报「未发现任何组件」，而不是先跑一遍无意义的扫描。
 
 - [ ] **Step 7: 确认构建通过**
 
@@ -1700,7 +1718,7 @@ git commit -m "docs: 框架产物的用法、样式来源与类名命名约定"
 pnpm run verify
 ```
 
-七个阶段依次要绿：`typecheck` → `test`（115 → **149**：Task 1 加 6、Task 2 加 9、Task 3 加 2、Task 4 加 17）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
+七个阶段依次要绿：`typecheck` → `test`（115 → **153**：Task 1 加 9、Task 2 加 10、Task 3 加 2、Task 4 加 17）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
 
 > **与 spec §9 的一处偏离：** spec 写的是「在文档站里引 `dist/framework/vue.js` 渲染一个组件，跑一条 e2e」。实际做成了 jsdom 集成测试（`check:framework`）+ 一个 import-map 的独立 e2e 页面。原因是文档站页面要在**构建期**解析 `dist/framework/vue.js`，而 `verify` 里 `typecheck` 与 `docs:build` 都排在 `build` 之前 —— 干净 clone 上 `dist` 还不存在，页面直接构建失败。换成独立 fixture 页后覆盖的内容一样（真实浏览器 + 真实产物），且不再给文档站加一条「必须先构建」的隐性前置。
 
