@@ -167,7 +167,7 @@ export function useEventLog(eventNames: Ref<string[] | undefined>): {
 
 ### 5.6 文档站侧的改动
 
-- `docs/.vitepress/config.mts`：加 `@devtools` 别名（`resolve(rootDir, 'devtools/shared')`），`wcModePlugin` 的 import 改为 `@devtools/wc-mode`。
+- `docs/.vitepress/config.mts`：加 `@devtools` 别名（`resolve(rootDir, 'devtools/shared')`），`wcModePlugin` 的 import 改为**相对路径** `../../devtools/shared/wc-mode` —— 不能用别名，原因见 7.1。
 - `docs/.vitepress/theme/components/ComponentDemo.vue`：内联 glob 与 `propsData`/`wcProps` 改为引 `@devtools/component-index` 与 `@devtools/preview-state`；`@ew-select` 改为 `v-on="wcHandlers"`；`VueMount`/`ReactMount` 的 import 指向 `@devtools/mount/*`。**面板模板与 `--vp-*` 样式不动。**
 - `ComponentPreview.vue`、`ComponentDetail.vue`、其余 theme 文件不动。
 
@@ -231,6 +231,11 @@ export default defineConfig({
   server: { port: 5273, strictPort: true },
 })
 ```
+
+**`@devtools` 这个别名有两副面孔，别搞混：**
+
+- 在**被 Vite 处理的应用代码**里（`devtools/src/**`、`devtools/shared/**`、`docs/.vitepress/theme/**`）走 `resolve.alias`，`@devtools/*` 正常可用。
+- 在**配置文件的自身 import** 里不可用。VitePress 用 esbuild 把 `config.mts` 打成一个独立临时模块，其中裸模块说明符一律标记为 external，再由 Node 从 `node_modules` 解析 —— 既不认 tsconfig `paths`，也不认 `resolve.alias`（别名只作用于配置加载**之后**的内容构建）。所以要引共享层时写相对路径，和同文件里已有的 `./workspaces` 一样。`devtools/vite.config.ts` 是普通 Vite 配置（自己就是 Vite 入口），不受这条限制，但那份也照相对路径写，保持一致。
 
 **五件套一件都不能少**（`@src` 别名、两个 glob 的解析、scss 的 `loadPaths` + `includePaths`、`wcModePlugin`、`isCustomElement`）：
 
@@ -326,6 +331,7 @@ workspace.ts ─┘     └─────────────────�
 | 风险 | 应对 |
 |---|---|
 | `import.meta.glob` 在文档站（root = `docs/`）里匹配 `docs/` 之外的 `src/` — 这是把 glob 从文档站内部搬到 `devtools/shared/` 新增的不确定性 | 第一步就先做「搬迁 + 文档站改 import」，以 `pnpm run docs:build` 绿为准再往下走。glob 解析到的是绝对路径，预期无碍；真有 root 限制就在这里暴露，代价最小 |
+| `docs/.vitepress/config.mts` 自身 import 共享层时用别名 → `docs:build` 直接失败（`ERR_MODULE_NOT_FOUND`） | **已实测命中。** VitePress 把 config 单独打成一个 esbuild 临时模块，裸说明符一律 external 交给 Node 从 `node_modules` 解析，`resolve.alias` 与 tsconfig `paths` 都够不着。修法是写相对路径（见 5.6 / 7.1） |
 | 重构 `ComponentDemo.vue` 打断文档站 | `docs:build`（SSR）+ `typecheck` 覆盖；e2e 覆盖不到，所以改完必须手工打开 `pnpm docs:dev` 看一眼 demo 页两模式外观仍正常 |
 | 拖拽把手被组件吞事件 | 把手贴在容器边缘外侧而非内容区；`setPointerCapture` 兜住移出容器的移动 |
 | 端口 5273/5173 被残留进程占住 | `strictPort: true` → 启动即报错，不再静默顺延 |

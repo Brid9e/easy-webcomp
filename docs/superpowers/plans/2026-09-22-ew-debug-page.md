@@ -112,8 +112,12 @@ import { componentStyle } from '../source-style'
 第 6 行改为：
 
 ```ts
-import { wcModePlugin } from '@devtools/wc-mode'
+import { wcModePlugin } from '../../devtools/shared/wc-mode'
 ```
+
+> **这里必须写相对路径，不能用 `@devtools/wc-mode`。** VitePress 用 esbuild 把 `config.mts` 单独打成一个临时模块，其中**裸模块说明符一律被标记为 external**，再由 Node 从 `node_modules` 解析 —— 既不认 tsconfig 的 `paths`，也不认 `vite.resolve.alias`（后者只作用于配置加载**之后**的内容构建）。`@devtools` 不是真包，Node 会抛 `ERR_MODULE_NOT_FOUND: Cannot find package '@devtools/wc-mode'`。
+>
+> 同文件第 7 行的 `./workspaces` 就是相对路径，原因相同。下面那个 `vite.resolve.alias` 仍然要有 —— 它服务的是内容构建期的 `import.meta.glob('@src/...')` 与 `@devtools/mount/*`，那些走 Vite 的解析链，别名有效。
 
 `vite.resolve` 块（第 51-53 行）改为：
 
