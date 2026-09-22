@@ -248,6 +248,7 @@ pnpm run new:workspace demo
 |---|---|
 | `src/components/hello-vue/` | `src/workspaces/demo/components/hello-vue/` |
 | `src/components/hello-react/` | `src/workspaces/demo/components/hello-react/` |
+| 各组件文件内的 `../../runtime/*` 相对导入 | `../../../../runtime/*`（每个组件 5 处：`index.ts` 3、`meta.ts` 1、`Component.vue` / `.tsx` 1；深了两层） |
 | `docs/components/hello-vue.md` | `docs/workspaces/demo/hello-vue.md` |
 | `docs/components/hello-react.md` | `docs/workspaces/demo/hello-react.md` |
 | `docs/components/index.md` | 删除，由 `docs/workspaces/index.md` 取代 |
