@@ -53,13 +53,24 @@ describe('buildComponents', () => {
     expect(byName['no-meta']).toBeUndefined()
   })
 
-  it('meta 按组件名与本空间的源码配对，不会被相邻空间的同名组件抢走', () => {
+  // meta 与源码只按组件名配对，不看空间 —— 能这么写是因为名字全局唯一：
+  // docs/.vitepress/workspaces.ts 遇到跨空间重名会直接抛错（tag 与 exports 都不带空间前缀）。
+  it('跨空间也能按名字配上各自的 meta', () => {
     const built = buildComponents(
-      { 'src/workspaces/a/components/hello/Component.vue': { default: {} } },
-      { 'src/workspaces/b/components/hello/meta.ts': { default: metaOf('ew-b') } },
+      {
+        'src/workspaces/a/components/alpha/Component.vue': { default: {} },
+        'src/workspaces/b/components/beta/Component.vue': { default: {} },
+      },
+      {
+        'src/workspaces/a/components/alpha/meta.ts': { default: metaOf('ew-alpha') },
+        'src/workspaces/b/components/beta/meta.ts': { default: metaOf('ew-beta') },
+      },
     )
 
-    expect(built[0]?.meta).toEqual(metaOf('ew-b'))
+    expect(Object.fromEntries(built.map((c) => [c.name, c.meta]))).toEqual({
+      alpha: metaOf('ew-alpha'),
+      beta: metaOf('ew-beta'),
+    })
   })
 
   it('source 带上源码模块的默认导出', () => {
