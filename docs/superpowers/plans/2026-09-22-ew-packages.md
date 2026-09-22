@@ -711,6 +711,9 @@ git commit -m "refactor(packages): 建 @ew/runtime 包与桶，组件改用包�
 - Modify: `docs/.vitepress/theme/components/VueMount.vue:3`
 - Modify: `docs/.vitepress/theme/components/ReactMount.vue:5`
 - Modify: `docs/guide/authoring.md:39,60-62`
+- Modify: `README.md:62,76,79-80`
+
+> **实测补充**：执行 Task 2 时发现根目录 `README.md` 也引了旧写法，原计划的迁移面清单漏了它。README 是仓库门面，示例写错比指南写错更显眼。
 
 - [ ] **Step 1: 文档主题**
 
@@ -762,21 +765,47 @@ import { useVueEmit } from '@ew/runtime'   // React 组件改为 useReactEmit
 const emit = useVueEmit()
 ```
 
-- [ ] **Step 4: 核对与模板逐字一致**
+- [ ] **Step 4: README**
+
+`README.md:62`（与指南 Step 2 同一改法）：
+
+```ts
+import { defineComponentMeta } from '../../../../runtime/types'
+```
+→
+```ts
+import { defineComponentMeta } from '@ew/runtime'
+```
+
+`README.md` 第 76、79–80 行（与指南 Step 3 同一改法）：
+
+```ts
+import { useEmit } from '../../../../runtime/vue'   // React 组件改为 '../../../../runtime/react'
+
+const emit = useEmit()
+```
+→
+```ts
+import { useVueEmit } from '@ew/runtime'   // React 组件改为 useReactEmit
+
+const emit = useVueEmit()
+```
+
+- [ ] **Step 5: 核对与模板逐字一致**
 
 Run: `pnpm exec vitest run tests/scripts/new-component.test.ts`
 Expected: PASS。这条保证 `authoring.md` 的示例与脚手架生成物是同一份写法 —— 上面两条改动的措辞就是照着模板的最终形态抄的。
 
-- [ ] **Step 5: 构建文档站**
+- [ ] **Step 6: 构建文档站**
 
 Run: `pnpm run docs:build`
 Expected: 成功，无 `Failed to resolve` 警告。
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 7: 提交**
 
 ```bash
-git add docs/.vitepress/theme docs/guide/authoring.md
-git commit -m "docs: 文档站与指南改用 @ew/runtime"
+git add docs/.vitepress/theme docs/guide/authoring.md README.md
+git commit -m "docs: 文档站、指南与 README 改用 @ew/runtime"
 ```
 
 ---
@@ -925,8 +954,10 @@ Expected: 全绿，且输出里能看到 `[check:artifacts] 产物隔离正常`�
 
 - [ ] **Step 2: 残留检查**
 
-Run: `grep -rn "\.\./\.\./\.\./\.\./runtime\|src/runtime" src scripts docs/.vitepress tests`
+Run: `grep -rn "\.\./\.\./\.\./\.\./runtime\|src/runtime\|useEmit" src scripts tests docs/.vitepress docs/guide README.md`
 Expected: **无输出**。
+
+（`README.md` 与 `docs/guide/` 必须显式列出：Task 2 执行时发现 README 也引了旧写法，而原来的搜索范围只覆盖了 `src scripts docs/.vitepress tests`，正好漏掉它。`useEmit` 一并搜 —— 它已拆名为 `useVueEmit`/`useReactEmit`。）
 
 `docs/superpowers/**` 下的历史 spec/plan 里还有大量 `../../../../runtime` 与 `useEmit` 字样 —— 那些是**历史记录，不修改**。
 
