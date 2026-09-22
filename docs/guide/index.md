@@ -15,10 +15,13 @@ pnpm install
 ## 本地开发
 
 ```bash
-pnpm run dev        # 等价于 pnpm run docs:dev，起文档站：http://localhost:5173
+pnpm dev            # 调试页：http://localhost:5273
+pnpm docs:dev       # 文档站：http://localhost:5173
 ```
 
-每个组件页上的交互面板都有两种模式：
+**调试页**一次只渲染一个组件，占满视口。容器可以拖拽，也可以按 375 / 768 / 1024 / 铺满 取预设，右上角有实时像素读数——调自适应与移动端场景用它。左栏选组件，右栏改属性、看事件。
+
+文档站的每个组件页上也有一个交互面板，两种模式：
 
 - **WC 模式**（默认）—— 走真实的 `createElementClass` 路径，验证属性传递、事件冒泡、Shadow 隔离。这是消费方实际拿到的东西。
 - **源码模式** —— 组件源码直接挂载，用于组件作者调试，可获得原生 HMR 与框架 devtools。

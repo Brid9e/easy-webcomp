@@ -71,7 +71,7 @@ function main(): void {
   console.log(`    1. 编辑 src/workspaces/${name}/workspace.ts 的 title 与 description`)
   console.log(`    2. 空间共享的变量与 mixin 放 src/workspaces/${name}/styles/index.scss`)
   console.log(`    3. 在 src/workspaces/${name}/components/ 下新建组件目录（五个文件，零配置）`)
-  console.log('    4. 重启 dev（pnpm run dev）—— 页面清单与侧边栏在启动时就定好了')
+  console.log('    4. 重启 docs:dev 与 dev —— 页面清单与侧边栏在启动时就定好了')
 }
 
 // 只有被当作脚本直接执行时才跑 CLI。被测试 import 时 process.argv[1] 是 vitest 的可执行文件。

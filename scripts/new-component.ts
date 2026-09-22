@@ -565,7 +565,7 @@ async function main(): Promise<void> {
       `  提示：状态在 store.ts 里，组件里 use${toIdentifier(spec.name)}Store() 即可取到本元素那份。`,
     )
   }
-  outro('完成。重启 dev（pnpm run dev）—— 页面清单与侧边栏在启动时就定好了')
+  outro('完成。重启 docs:dev 与 dev —— 页面清单与侧边栏在启动时就定好了')
 }
 
 // 只有被当作脚本直接执行时才跑 CLI。被测试 import 时 process.argv[1] 是 vitest 的可执行文件。

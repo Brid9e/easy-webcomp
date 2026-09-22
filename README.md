@@ -8,8 +8,11 @@
 
 ```bash
 pnpm install
-pnpm run dev        # 文档站：http://localhost:5173
+pnpm dev            # 调试页：http://localhost:5273 —— 单组件调试，容器可 resize
+pnpm docs:dev       # 文档站：http://localhost:5173
 ```
+
+调试页一次只渲染一个组件，占满视口，容器可以拖拽或按 375 / 768 / 1024 / 铺满 改尺寸，还有实时像素读数——用来观察组件在窄容器下的自适应表现。左栏选组件，右栏改属性、看事件。它也扫 `src/workspaces/`，所以和文档站一样**新增目录后要重启**。
 
 文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会在空间页里给出兜底详情页。
 
@@ -41,7 +44,7 @@ src/workspaces/
 pnpm run new:workspace <空间名>
 ```
 
-目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。**新建后要重启 dev** —— 页面清单、侧边栏与 grid 都在启动时就定好了，运行时冒出来的新目录不会被收进去（新增组件同理）。
+目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。**新建后要重启 `docs:dev` 与 `pnpm dev`** —— 页面清单、侧边栏与 grid 都在启动时就定好了，运行时冒出来的新目录不会被收进去（新增组件同理）。
 
 工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，撞名时构建会直接报错。
 
@@ -170,16 +173,18 @@ pnpm run verify   # typecheck + 单测 + 构建 + 文档站构建 + 冒烟测试
 | 阶段 | 内容 |
 |---|---|
 | `typecheck` | `vue-tsc --noEmit`，根目录 `*.config.ts` 也在检查范围内 |
-| `test` | Vitest + jsdom，8 个文件 56 个用例，覆盖桥接层全部易错点与组件扫描 |
+| `test` | Vitest + jsdom，13 个文件 113 个用例，覆盖桥接层全部易错点与组件扫描 |
 | `build` | ESM + CDN 全量产物 |
 | `docs:build` | VitePress 构建文档站，同时是 SSR 问题的唯一防线 |
-| `test:e2e` | Playwright 冒烟测试，8 个用例加载 `dist/cdn/*.js` 真实产物 |
+| `test:e2e` | Playwright 冒烟测试，9 个用例加载 `dist/cdn/*.js` 真实产物，其中一个起调试页 |
 
 e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chromium 的下载源在本机只有约 2.5 MB/min，182 MB 装不上。若要改用自带 chromium：`pnpm exec playwright install chromium`，然后删掉 `playwright.config.ts` 里的 `channel`。
 
 ### 冒烟测试覆盖
 
 注册升级、shadow 渲染、Vue 与 React 同页共存互不干扰（含两个 root 的样式表互相独立）、事件穿透 shadow root 冒泡到 window、`disable-shadow` 降级、token 换肤穿透、单组件产物与全量包同时引入不触发重复注册错误。
+
+另有一条起调试页（独立端口 5274）验证舞台本身：WC 模式渲染进 shadow root、按 375 预设后容器实测宽度就是 375、源码模式可用。
 
 ### 体积基线
 
