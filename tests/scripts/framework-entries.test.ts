@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest'
+import {
+  barrelSource,
+  hostClassOf,
+  reactWrapperSource,
+  vueWrapperSource,
+  type FrameworkComponent,
+} from '../../scripts/framework-entries'
+
+function component(overrides: Partial<FrameworkComponent> = {}): FrameworkComponent {
+  return {
+    name: 'hello-vue',
+    workspace: 'demo',
+    framework: 'vue',
+    styleFile: 'style.scss',
+    meta: { tag: 'ew-hello-vue', events: ['select'], props: { name: { type: 'string' } } },
+    ...overrides,
+  }
+}
+
+describe('hostClassOf', () => {
+  it('宿主类名由组件名派生', () => {
+    expect(hostClassOf('my-list')).toBe('ew-my-list-host')
+  })
+})
+
+describe('vueWrapperSource', () => {
+  const source = vueWrapperSource(component())
+
+  it('从组件目录直接引源码，不经过 index.ts（那会把 createElementClass 拖进来）', () => {
+    expect(source).toContain("from '../../workspaces/demo/components/hello-vue/Component.vue'")
+    expect(source).not.toContain("index'")
+  })
+
+  it('样式按 ?inline 引，并在模块顶层改写好 :host', () => {
+    expect(source).toContain("import rawCss from '../../workspaces/demo/components/hello-vue/style.scss?inline'")
+    expect(source).toContain("rewriteHost(rawCss, '.ew-hello-vue-host')")
+  })
+
+  it('导出名是 PascalCase', () => {
+    expect(source).toContain('export const HelloVue = defineComponent(')
+  })
+
+  it('emits 取自 meta.events，这样派发不会触发 Vue 的未声明事件警告', () => {
+    expect(source).toContain("emits: ['select']")
+  })
+
+  it('渲染一层带宿主类的 div，并把 attrs 透传给内层组件', () => {
+    expect(source).toContain("h('div', { class: 'ew-hello-vue-host' }")
+    expect(source).toContain('h(Component as never, { ...attrs }, slots)')
+  })
+
+  it('inheritAttrs 关掉 —— 否则 attrs 会同时落到宿主 div 与内层组件上', () => {
+    expect(source).toContain('inheritAttrs: false')
+  })
+
+  it('包装层提供 EW_EMIT_KEY，把 emit 接到原生 v-on 上', () => {
+    expect(source).toContain('provide(EW_EMIT_KEY, (name: string, detail?: unknown) => emit(name, detail))')
+  })
+
+  it('props 类型从 meta.props 生成', () => {
+    expect(source).toContain('export interface HelloVueProps {')
+    expect(source).toContain('  name?: string')
+  })
+
+  it('object / array 退化成宽松类型', () => {
+    const src = vueWrapperSource(
+      component({ meta: { tag: 'x', props: { data: { type: 'object' }, list: { type: 'array' } } } }),
+    )
+    expect(src).toContain('data?: Record<string, unknown>')
+    expect(src).toContain('list?: unknown[]')
+  })
+
+  it('没有 props 时仍生成一个空接口，消费方 import 得到的东西不会是 undefined', () => {
+    const src = vueWrapperSource(component({ meta: { tag: 'x' } }))
+    expect(src).toContain('export interface HelloVueProps {}')
+  })
+})
+
+describe('reactWrapperSource', () => {
+  const source = reactWrapperSource(
+    component({ name: 'hello-react', framework: 'react', meta: { tag: 'ew-hello-react', events: ['select'] } }),
+  )
+
+  it('不写 JSX —— 生成物是 .ts，交给 react() 插件编译会白搭', () => {
+    expect(source).not.toContain('<div')
+    expect(source).toContain("'div'")
+    expect(source).toContain("{ className: 'ew-hello-react-host' }")
+  })
+
+  it('事件名映射到 React 的 onXxx 约定', () => {
+    expect(source).toContain("'select': 'onSelect'")
+  })
+
+  // useLayoutEffect 而不是 useEffect：它在 paint 之前同步跑完，首帧就已经带上样式，
+  // 不会先闪一下无样式的按钮。
+  it('挂载后注入样式，且在 paint 之前', () => {
+    expect(source).toContain('useLayoutEffect(() => applyGlobalStyles(css), [])')
+  })
+
+  it('用 EwEmitContext 而不是 EW_EMIT_KEY', () => {
+    expect(source).toContain('EwEmitContext.Provider')
+  })
+})
+
+describe('barrelSource', () => {
+  it('只导出该框架的组件', () => {
+    const src = barrelSource(
+      [
+        component({ name: 'a-one', framework: 'vue' }),
+        component({ name: 'b-two', framework: 'react' }),
+      ],
+      'vue',
+    )
+    expect(src).toContain("export { AOne } from './a-one'")
+    expect(src).not.toContain('BTwo')
+  })
+
+  it('没有该框架的组件时是一个合法的空模块', () => {
+    expect(barrelSource([], 'react').trim()).toBe('export {}')
+  })
+})
