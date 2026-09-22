@@ -32,7 +32,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "verify": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run docs:build && pnpm run test:e2e"
+    "check:artifacts": "tsx scripts/check-artifacts.ts",
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run check:artifacts && pnpm run docs:build && pnpm run test:e2e"
   },
   "dependencies": {
     "react": "^19.0.0",
