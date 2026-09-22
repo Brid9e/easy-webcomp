@@ -1,6 +1,4 @@
-import { createElementClass } from '../../../../runtime/element'
-import { registerElement } from '../../../../runtime/registry'
-import { vueAdapter } from '../../../../runtime/vue'
+import { createElementClass, registerElement, vueAdapter } from '@ew/runtime'
 import Component from './Component.vue'
 import meta from './meta'
 import css from './style.css?inline'

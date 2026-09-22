@@ -1,6 +1,4 @@
-import { createElementClass } from '../../../../runtime/element'
-import { registerElement } from '../../../../runtime/registry'
-import { reactAdapter } from '../../../../runtime/react'
+import { createElementClass, reactAdapter, registerElement } from '@ew/runtime'
 import Component from './Component'
 import meta from './meta'
 import css from './style.css?inline'

@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createElementClass } from '../../src/runtime/element'
-import { resetRegistry } from '../../src/runtime/registry'
-import { resetStyleCache } from '../../src/runtime/style'
-import type { ComponentMeta, ElementAdapter } from '../../src/runtime/types'
+import {
+  createElementClass,
+  resetRegistry,
+  resetStyleCache,
+  type ComponentMeta,
+  type ElementAdapter,
+} from '@ew/runtime'
 
 interface StubInstance {
   host: HTMLElement | ShadowRoot

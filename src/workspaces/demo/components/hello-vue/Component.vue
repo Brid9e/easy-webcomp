@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useVueEmit } from '../../../../runtime/vue'
+import { useVueEmit } from '@ew/runtime'
 
 const props = defineProps<{
   name?: string

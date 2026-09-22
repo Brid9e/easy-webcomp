@@ -1,4 +1,4 @@
-import type { EwElementConstructor } from './types'
+import type { EwElementConstructor } from './types.ts'
 
 const registered = new Map<string, EwElementConstructor>()
 

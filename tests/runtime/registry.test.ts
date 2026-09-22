@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { registerElement, resetRegistry } from '../../src/runtime/registry'
-import type { EwElementConstructor } from '../../src/runtime/types'
+import { registerElement, resetRegistry, type EwElementConstructor } from '@ew/runtime'
 
 function makeCtor(): EwElementConstructor {
   const ctor = class extends HTMLElement {} as unknown as EwElementConstructor

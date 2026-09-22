@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, inject, type Plugin } from 'vue'
-import { createElementClass } from '../../src/runtime/element'
-import { resetRegistry } from '../../src/runtime/registry'
-import { resetStyleCache } from '../../src/runtime/style'
-import { useVueEmit, vueAdapter } from '../../src/runtime/vue'
+import {
+  createElementClass,
+  resetRegistry,
+  resetStyleCache,
+  useVueEmit,
+  vueAdapter,
+} from '@ew/runtime'
 
 let counter = 0
 function uniqueTag(): string {

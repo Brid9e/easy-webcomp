@@ -1,4 +1,4 @@
-import { useReactEmit } from '../../../../runtime/react'
+import { useReactEmit } from '@ew/runtime'
 
 export interface HelloReactProps {
   name?: string

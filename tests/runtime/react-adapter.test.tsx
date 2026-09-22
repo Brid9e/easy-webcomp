@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
-import { createElementClass } from '../../src/runtime/element'
-import { reactAdapter, useReactEmit } from '../../src/runtime/react'
-import { resetRegistry } from '../../src/runtime/registry'
-import { resetStyleCache } from '../../src/runtime/style'
+import {
+  createElementClass,
+  reactAdapter,
+  resetRegistry,
+  resetStyleCache,
+  useReactEmit,
+} from '@ew/runtime'
 
 // 不设这个标志位，act() 不会真正把 React 更新刷成同步，断言会变得看运气
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true

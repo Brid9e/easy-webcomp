@@ -1,4 +1,4 @@
-import { defineComponentMeta } from '../../../../runtime/types'
+import { defineComponentMeta } from '@ew/runtime'
 
 export default defineComponentMeta({
   tag: 'ew-hello-react',

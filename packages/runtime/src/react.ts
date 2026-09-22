@@ -1,6 +1,6 @@
 import { createContext, createElement, useContext, type Context } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import type { ElementAdapter, EmitFn } from './types'
+import type { ElementAdapter, EmitFn } from './types.ts'
 
 export const EwEmitContext: Context<EmitFn> = createContext<EmitFn>(() => {})
 

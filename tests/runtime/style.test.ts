@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { applyStyles, resetStyleCache } from '../../src/runtime/style'
+import { applyStyles, resetStyleCache } from '@ew/runtime'
 
 describe('applyStyles', () => {
   beforeEach(() => {

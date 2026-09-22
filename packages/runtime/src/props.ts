@@ -1,4 +1,4 @@
-import type { PropDefinition, PropType } from './types'
+import type { PropDefinition, PropType } from './types.ts'
 
 export function attrNameFor(name: string, def: PropDefinition): string {
   return def.attr ?? name.replace(/([A-Z])/g, '-$1').toLowerCase()

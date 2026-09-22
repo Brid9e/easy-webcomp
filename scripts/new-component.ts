@@ -210,12 +210,12 @@ export function createComponent(targetRoot: string, spec: ComponentSpec): Create
 
 // ────────────────────────────────── 模板 ──────────────────────────────────
 
-/** 组件目录在 src/workspaces/<ws>/components/<name>/，四个 .. 回到 src/ */
-const RUNTIME = '../../../../runtime'
+/** 运行时是具名 workspace 包，与组件目录深度解耦 */
+const RUNTIME_PKG = '@ew/runtime'
 
 function metaTemplate(spec: ComponentSpec, tag: string, shadow: boolean): string {
   const shadowComment = shadow ? '' : `\n${UI_SHADOW_NOTE}`
-  return `import { defineComponentMeta } from '${RUNTIME}/types'
+  return `import { defineComponentMeta } from '${RUNTIME_PKG}'
 
 export default defineComponentMeta({
   tag: '${tag}',${shadowComment}
@@ -266,9 +266,7 @@ function indexTemplate(
   const libImport = uiAddon?.cssEntry ? `import libCss from '${uiAddon.cssEntry}?inline'\n` : ''
   const cssArg = uiAddon?.cssEntry ? "libCss + '\\n' + css" : 'css'
 
-  return `import { createElementClass } from '${RUNTIME}/element'
-import { registerElement } from '${RUNTIME}/registry'
-import { ${adapter} } from '${RUNTIME}/${isVue ? 'vue' : 'react'}'
+  return `import { createElementClass, registerElement, ${adapter} } from '${RUNTIME_PKG}'
 ${piniaImport}import Component from './Component${isVue ? '.vue' : ''}'
 import meta from './meta'
 ${libImport}import css from './style.css?inline'
@@ -293,7 +291,7 @@ function componentTemplate(spec: ComponentSpec, id: string, uiLabel?: string): s
 
 function plainVueComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
-import { useVueEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME_PKG}'
 
 const props = defineProps<{ label?: string }>()
 
@@ -316,7 +314,7 @@ function elementPlusComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
 // <script setup> 里 import 进来的组件自动可用，模板写 <ElButton> 或 <el-button> 都行
 import { ElButton } from 'element-plus'
-import { useVueEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME_PKG}'
 
 const props = defineProps<{ label?: string }>()
 
@@ -336,7 +334,7 @@ function handleClick(): void {
 function antDesignVueComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
 import { Button } from 'ant-design-vue'
-import { useVueEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME_PKG}'
 
 const props = defineProps<{ label?: string }>()
 
@@ -354,7 +352,7 @@ function handleClick(): void {
 }
 
 function plainReactComponent(spec: ComponentSpec, id: string): string {
-  return `import { useReactEmit } from '${RUNTIME}/react'
+  return `import { useReactEmit } from '${RUNTIME_PKG}'
 
 export interface ${id}Props {
   label?: string
@@ -378,7 +376,7 @@ export default function ${id}({ label = '${spec.name}' }: ${id}Props) {
 
 function antdComponent(spec: ComponentSpec, id: string): string {
   return `import { Button } from 'antd'
-import { useReactEmit } from '${RUNTIME}/react'
+import { useReactEmit } from '${RUNTIME_PKG}'
 
 export interface ${id}Props {
   label?: string

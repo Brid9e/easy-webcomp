@@ -1,6 +1,6 @@
-import { attrNameFor, coerceAttr, isAttributeChannel } from './props'
-import { applyStyles } from './style'
-import type { ComponentMeta, EwElementConstructor, ElementAdapter } from './types'
+import { attrNameFor, coerceAttr, isAttributeChannel } from './props.ts'
+import { applyStyles } from './style.ts'
+import type { ComponentMeta, EwElementConstructor, ElementAdapter } from './types.ts'
 
 export function createElementClass(
   meta: ComponentMeta,

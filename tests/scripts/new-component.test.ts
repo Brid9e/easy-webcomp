@@ -53,10 +53,14 @@ describe('createComponent · 基础骨架', () => {
     expect(index).toContain('registerElement(meta.tag, UserProfileElement)')
   })
 
-  it('运行时相对路径是四个 ..（组件目录在 src/workspaces/<ws>/components/<name>/）', () => {
+  it('运行时用具名包引入，不用相对路径', () => {
     createComponent(root, spec())
-    expect(read('my-card', 'index.ts')).toContain("from '../../../../runtime/element'")
-    expect(read('my-card', 'Component.vue')).toContain("from '../../../../runtime/vue'")
+    expect(read('my-card', 'index.ts')).toContain(
+      "import { createElementClass, registerElement, vueAdapter } from '@ew/runtime'",
+    )
+    expect(read('my-card', 'Component.vue')).toContain(
+      "import { useVueEmit } from '@ew/runtime'",
+    )
   })
 
   it('不选配套设施时不返回任何依赖，也不多生成文件', () => {

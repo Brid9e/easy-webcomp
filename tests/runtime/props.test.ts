@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attrNameFor, coerceAttr, isAttributeChannel } from '../../src/runtime/props'
+import { attrNameFor, coerceAttr, isAttributeChannel } from '@ew/runtime'
 
 describe('attrNameFor', () => {
   it('camelCase 属性名默认转 kebab-case', () => {

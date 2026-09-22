@@ -7,7 +7,7 @@ import {
   type Plugin,
   type ShallowRef,
 } from 'vue'
-import type { ElementAdapter, EmitFn } from './types'
+import type { ElementAdapter, EmitFn } from './types.ts'
 
 export const EW_EMIT_KEY: unique symbol = Symbol('ew-emit')
 
