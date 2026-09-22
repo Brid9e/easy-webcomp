@@ -48,8 +48,8 @@ test('Vue 与 React 组件同页共存互不干扰', async ({ page }) => {
     const reactCss = stylesOf(react)
 
     return {
-      vueHasButton: Boolean(vue.querySelector('.ew-hello')),
-      reactHasButton: Boolean(react.querySelector('.ew-hello')),
+      vueHasButton: Boolean(vue.querySelector('.ew-hello-vue')),
+      reactHasButton: Boolean(react.querySelector('.ew-hello-react')),
       separateRoots: vue !== react,
       styleCounts: [vueCss.length, reactCss.length],
       vueUsesPrimary: vueCss.some((css) => css.includes('--ew-color-primary')),
@@ -76,7 +76,7 @@ test('事件能穿透 shadow root 冒泡到 window', async ({ page }) => {
       )
       document
         .querySelector('#vue-el')!
-        .shadowRoot!.querySelector<HTMLButtonElement>('.ew-hello')!
+        .shadowRoot!.querySelector<HTMLButtonElement>('.ew-hello-vue')!
         .click()
     })
   })
@@ -88,7 +88,7 @@ test('disable-shadow 降级到 light DOM 且样式注入 head', async ({ page })
     const el = document.querySelector('#light-el')!
     return {
       hasShadow: Boolean(el.shadowRoot),
-      hasButton: Boolean(el.querySelector('.ew-hello')),
+      hasButton: Boolean(el.querySelector('.ew-hello-vue')),
       headStyles: document.head.querySelectorAll('style[data-ew-style]').length,
     }
   })
@@ -102,7 +102,7 @@ test('token 换肤能穿透 shadow root 影响组件', async ({ page }) => {
     page.evaluate(
       () =>
         getComputedStyle(
-          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ew-hello')!,
+          document.querySelector('#vue-el')!.shadowRoot!.querySelector('.ew-hello-vue')!,
         ).borderTopColor,
     )
 

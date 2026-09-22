@@ -13,8 +13,10 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
+import { compile } from 'sass'
 import { build } from 'vite'
 import { toIdentifier } from '@ew/utils'
+import { findPrefixViolations } from './style-prefix.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const workspacesDir = join(root, 'src/workspaces')
@@ -25,6 +27,8 @@ interface ComponentInfo {
   workspace: string
   dir: string
   framework: 'vue' | 'react'
+  /** 样式文件名，两种后缀都由构建期探测，别处不再各自猜一遍 */
+  styleFile: string
 }
 
 function discoverComponents(): ComponentInfo[] {
@@ -65,11 +69,46 @@ function discoverComponents(): ComponentInfo[] {
         }
       }
 
-      components.push({ name, workspace, dir, framework: hasVue ? 'vue' : 'react' })
+      const styleFiles = ['style.scss', 'style.css'].filter((f) => existsSync(join(dir, f)))
+      if (styleFiles.length !== 1) {
+        throw new Error(
+          `[build] ${name} 必须且只能有一个 style.scss 或 style.css（当前 ${styleFiles.length} 个）`,
+        )
+      }
+      const styleFile = styleFiles[0] as string
+
+      components.push({ name, workspace, dir, framework: hasVue ? 'vue' : 'react', styleFile })
     }
   }
 
   return components.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * 组件样式的类名必须落在自己的命名空间里，否则落到 light DOM 就会互相覆盖。
+ * 拦在构建里而不是写进文档，理由见 scripts/style-prefix.ts。
+ */
+function checkStylePrefixes(components: ComponentInfo[]): void {
+  const failures: string[] = []
+
+  for (const c of components) {
+    const path = join(c.dir, c.styleFile)
+    const source = readFileSync(path, 'utf8')
+    // Tailwind 的 preflight 是一份全局 reset，与「不影响其他组件」在 light DOM 下天然
+    // 冲突，它的类名也无法用前缀约束。跳过。
+    if (source.includes('@import "tailwindcss"')) continue
+
+    const { css } = compile(path, { loadPaths: [workspacesDir] })
+    for (const token of findPrefixViolations(css, c.name)) {
+      failures.push(
+        `${c.workspace}/${c.name} 的样式里出现类名 ".${token}"，应以 ".ew-${c.name}" 为前缀`,
+      )
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`[build] 组件样式类名未按组件名加前缀：\n  ${failures.join('\n  ')}`)
+  }
 }
 
 function writeGeneratedEntries(components: ComponentInfo[]): void {
@@ -252,6 +291,7 @@ async function main(): Promise<void> {
 
   const components = discoverComponents()
   if (components.length === 0) throw new Error('[build] 未发现任何组件')
+  checkStylePrefixes(components)
 
   console.log(
     `[build] 发现 ${components.length} 个组件：` +

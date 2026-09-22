@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest'
+import { findPrefixViolations } from '../../scripts/style-prefix'
+
+describe('findPrefixViolations', () => {
+  it('合规的类名不报', () => {
+    const css = '.ew-my-list { display: flex; }\n.ew-my-list__head { gap: 8px; }'
+    expect(findPrefixViolations(css, 'my-list')).toEqual([])
+  })
+
+  it('库前缀 el- 放行', () => {
+    expect(findPrefixViolations('.el-form-item { max-width: 100%; }', 'my-list')).toEqual([])
+  })
+
+  // 这条检查存在的唯一理由：demo 里 hello-vue 与 hello-react 曾经共用 .ew-hello
+  it('前缀指向别的组件时报出来', () => {
+    expect(findPrefixViolations('.ew-hello { color: red; }', 'hello-vue')).toEqual(['ew-hello'])
+  })
+
+  it('裸根类名不算违规', () => {
+    expect(findPrefixViolations('.ew-my-list { a: 1 }', 'my-list')).toEqual([])
+  })
+
+  it('同名前缀但缺分隔符也算违规 —— ew-hello 不能冒充 ew-hello-vue 的命名空间', () => {
+    expect(findPrefixViolations('.ew-hellovue { a: 1 }', 'hello-vue')).toEqual(['ew-hellovue'])
+  })
+
+  it('只扫选择器，声明里的点号不算类名', () => {
+    expect(findPrefixViolations('.ew-my-list { content: ".other"; }', 'my-list')).toEqual([])
+  })
+
+  it('@media 里的选择器照样扫，@media 自身的条件文本不当选择器', () => {
+    const css = '@media (min-width: 600px) { .ew-my-list { a: 1 } .other { b: 2 } }'
+    expect(findPrefixViolations(css, 'my-list')).toEqual(['other'])
+  })
+
+  it('注释里的花括号不影响括号配对', () => {
+    const css = '/* { .other } */\n.ew-my-list { a: 1 }'
+    expect(findPrefixViolations(css, 'my-list')).toEqual([])
+  })
+
+  it('去重后按出现顺序返回', () => {
+    const css = '.b { a: 1 }\n.a { a: 1 }\n.b { c: 2 }'
+    expect(findPrefixViolations(css, 'my-list')).toEqual(['b', 'a'])
+  })
+})

@@ -4,7 +4,7 @@
   display: inline-block;
 }
 
-.ew-hello {
+.ew-hello-vue {
   padding: var(--ew-space-sm, 4px) var(--ew-space-lg, 16px);
   border: 1px solid var(--ew-color-primary, #1677ff);
   border-radius: var(--ew-radius-md, 6px);
@@ -15,7 +15,7 @@
   cursor: pointer;
 }
 
-.ew-hello:hover {
+.ew-hello-vue:hover {
   background: var(--ew-color-primary, #1677ff);
   color: var(--ew-color-bg, #ffffff);
 }
