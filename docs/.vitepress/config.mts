@@ -2,9 +2,17 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitepress'
+import { listComponents } from './components'
 import { wcModePlugin } from './plugins/wc-mode'
 
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
+
+function buildComponentSidebar() {
+  return listComponents().map((c) => ({
+    text: c.name,
+    link: c.documented ? `/components/${c.name}` : `/components/#${c.name}`,
+  }))
+}
 
 export default defineConfig({
   title: 'CTC Web Components',
@@ -33,6 +41,23 @@ export default defineConfig({
     plugins: [wcModePlugin(resolve(rootDir, 'src/components')), react()],
   },
   themeConfig: {
-    nav: [],
+    nav: [
+      { text: '指南', link: '/guide/' },
+      { text: '组件', link: '/components/' },
+    ],
+    sidebar: {
+      '/guide/': [
+        {
+          text: '指南',
+          items: [
+            { text: '快速开始', link: '/guide/' },
+            { text: '新增一个组件', link: '/guide/authoring' },
+            { text: '主题与 token', link: '/guide/theming' },
+            { text: '构建与产物', link: '/guide/build' },
+          ],
+        },
+      ],
+      '/components/': [{ text: '组件', items: buildComponentSidebar() }],
+    },
   },
 })
