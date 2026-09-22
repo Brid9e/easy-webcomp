@@ -86,6 +86,8 @@ export function listComponents(): ComponentInfo[]
 
 VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue 或 React 任选、产出自包含 Web Component、npm 与 CDN 双通道、`meta.ts` 驱动零配置。按钮指向 `/guide/`。
 
+**feature 文案里的尖括号必须写成 HTML 实体**（实施期间实测纠正）：`details` 走 `v-html` 且**不经 markdown**（反引号会原样显示出来），裸的 `<script>` 会作为真脚本元素进入构建产物的 HTML，浏览器随即把它后面的文档——包括 `__VP_SITE_DATA__` 脚本——全部吞进该脚本体内，客户端初始化 `SyntaxError`、整站不可用。dev 下首页由客户端渲染，看不到这个问题，只有对 SSG 产物做浏览器验证才会暴露。因此写 `&lt;script&gt;`、`&lt;ctc-*&gt;`。
+
 ### 6.2 指南 `docs/guide/`
 
 四页手写散文，内容从一期 README 改写而来：
@@ -206,6 +208,8 @@ export default defineConfig({
 - **`wcModePlugin` 里生成的 import 仍用绝对路径**（一期已如此）。VitePress 的 Vite root 是 `docs/`，写 `/src/...` 会被解析成 `docs/src/...`；绝对路径是唯一稳妥的写法。这与 `@src` 别名不冲突：插件生成的是字符串代码，别名只服务于手写文件。
 
 **注意有两份 Vite**：VitePress 1.6.4 内部绑 Vite 5，仓库根是 Vite 7。pnpm 隔离，互不干扰；但 `@vitejs/plugin-react@4.7.0` 会被装进 VitePress 的 Vite 5，需实测（第 14 节）。
+
+**不设 `cleanUrls`，站内链接一律带 `.html`**（实施期间实测）：VitePress 1.6.4 的 `cleanUrls` 默认为 `false`（源码 `cleanUrls: !!userConfig.cleanUrls`），生成 `/components/hello-vue.html` 这类链接。这是能落到任何静态托管的形态，不引入「服务器要不要做 rewrite」这一层部署依赖，所以保持默认。
 
 ## 11. 与一期 playground 的迁移关系
 
