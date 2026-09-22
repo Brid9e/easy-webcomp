@@ -1,99 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { componentByName } from '@devtools/component-index'
+import { useEventLog, usePropControls } from '@devtools/preview-state'
 import ReactMount from '@devtools/mount/ReactMount.vue'
 import VueMount from '@devtools/mount/VueMount.vue'
 
-interface MetaShape {
-  tag: string
-  props?: Record<string, { type: string; default?: unknown }>
-}
-
 const props = defineProps<{ name: string }>()
 
-const metaModules = import.meta.glob('@src/workspaces/*/components/*/meta.ts', {
-  eager: true,
-}) as Record<string, { default: MetaShape }>
-const sourceModules = import.meta.glob('@src/workspaces/*/components/*/Component.{vue,tsx}', {
-  eager: true,
-}) as Record<string, { default: unknown }>
-
-// glob 生成的 key 形状（绝对路径 / 别名前缀 / 相对路径）是实现细节，只取倒数第二段目录名
-function dirName(path: string): string {
-  return path.split('/').at(-2) ?? ''
-}
-
-const meta = computed<MetaShape | undefined>(
-  () => Object.entries(metaModules).find(([path]) => dirName(path) === props.name)?.[1].default,
-)
-
-const framework = computed<'vue' | 'react'>(() =>
-  Object.keys(sourceModules).some((path) => dirName(path) === props.name && path.endsWith('.vue'))
-    ? 'vue'
-    : 'react',
-)
-
-const sourceComponent = computed<unknown>(
-  () =>
-    Object.entries(sourceModules).find(
-      ([path]) =>
-        dirName(path) === props.name &&
-        path.endsWith(framework.value === 'vue' ? '.vue' : '.tsx'),
-    )?.[1].default,
-)
-
+const entry = computed(() => componentByName(props.name))
+const meta = computed(() => entry.value?.meta)
+const framework = computed(() => entry.value?.framework ?? 'react')
+const sourceComponent = computed(() => entry.value?.source)
 const tag = computed(() => meta.value?.tag ?? '')
 
-const propDefs = computed(() => Object.entries(meta.value?.props ?? {}))
-
-const values = reactive<Record<string, string>>({})
-const booleanValues = reactive<Record<string, boolean>>({})
-
-function initValue(name: string, type: string, fallback: unknown): void {
-  if (type === 'boolean') {
-    if (!(name in booleanValues)) booleanValues[name] = Boolean(fallback)
-    return
-  }
-  if (!(name in values)) values[name] = fallback === undefined ? '' : String(fallback)
-}
-
-const propsData = computed<Record<string, unknown>>(() => {
-  const result: Record<string, unknown> = {}
-  for (const [name, def] of propDefs.value) {
-    if (def.type === 'boolean') result[name] = booleanValues[name]
-    else if (def.type === 'number') result[name] = Number(values[name] || 0)
-    else result[name] = values[name]
-  }
-  return result
-})
-
-watch(
-  propDefs,
-  (defs) => {
-    for (const [name, def] of defs) initValue(name, def.type, def.default)
-  },
-  { immediate: true },
-)
-
-// Vue 给自定义元素打 v-bind 时，只要该 key 在元素上是已定义的属性，就走 property 通道而不是
-// attribute 通道 —— 而桥接层给每个声明过的 prop 都装了 accessor。所以这里必须传**已定型**的值：
-// 传字符串会原样落进组件（`count` 变成 `'7'`，Vue 报 prop 类型警告），传 `''` 表示布尔为真更是
-// 直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 false）。
-const wcProps = computed<Record<string, unknown>>(() => {
-  const result: Record<string, unknown> = {}
-  for (const [name, def] of propDefs.value) {
-    if (def.type === 'boolean') result[name] = booleanValues[name]
-    else if (def.type === 'number') result[name] = Number(values[name] || 0)
-    else result[name] = values[name]
-  }
-  return result
-})
-
-const events = ref<Array<{ name: string; detail: unknown; at: string }>>([])
-
-function handleEvent(name: string, detail: unknown): void {
-  events.value.unshift({ name, detail, at: new Date().toLocaleTimeString() })
-  events.value = events.value.slice(0, 20)
-}
+const { propDefs, values, booleanValues, model } = usePropControls(meta)
+const { entries: events, log, wcHandlers } = useEventLog(computed(() => meta.value?.events))
 
 // 文档站的读者是组件消费者，他们实际拿到的是 WC
 const mode = ref<'source' | 'wc'>('wc')
@@ -167,24 +88,19 @@ onMounted(() => {
               v-if="framework === 'vue'"
               :name="name"
               :component="sourceComponent as never"
-              :props-data="propsData"
-              :on-event="handleEvent"
+              :props-data="model"
+              :on-event="log"
             />
             <ReactMount
               v-else
               :name="name"
               :component="sourceComponent as never"
-              :props-data="propsData"
-              :on-event="handleEvent"
+              :props-data="model"
+              :on-event="log"
             />
           </template>
 
-          <component
-            :is="tag"
-            v-else
-            v-bind="wcProps"
-            @ew-select="handleEvent('select', ($event as CustomEvent).detail)"
-          />
+          <component :is="tag" v-else v-bind="model" v-on="wcHandlers" />
         </div>
       </div>
 
