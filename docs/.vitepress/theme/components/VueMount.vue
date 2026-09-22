@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createApp, h, onBeforeUnmount, onMounted, ref, shallowRef, watch, type App } from 'vue'
-import { CTC_EMIT_KEY } from '../../src/runtime/vue'
+import { CTC_EMIT_KEY } from '@src/runtime/vue'
 import { componentStyle } from './source-style'
 
 const props = defineProps<{

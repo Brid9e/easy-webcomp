@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitepress'
 import { wcModePlugin } from './plugins/wc-mode'
 
@@ -20,7 +21,7 @@ export default defineConfig({
     resolve: {
       alias: { '@src': resolve(rootDir, 'src') },
     },
-    plugins: [wcModePlugin(resolve(rootDir, 'src/components'))],
+    plugins: [wcModePlugin(resolve(rootDir, 'src/components')), react()],
   },
   themeConfig: {
     nav: [],

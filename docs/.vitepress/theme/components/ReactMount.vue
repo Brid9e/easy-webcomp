@@ -2,7 +2,7 @@
 import { createElement, type ComponentType } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { CtcEmitContext } from '../../src/runtime/react'
+import { CtcEmitContext } from '@src/runtime/react'
 import { componentStyle } from './source-style'
 
 const props = defineProps<{
