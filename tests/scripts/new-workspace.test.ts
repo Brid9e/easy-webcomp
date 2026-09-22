@@ -21,6 +21,15 @@ describe('createWorkspace', () => {
     expect(existsSync(join(root, 'src/workspaces/demo/components/.gitkeep'))).toBe(true)
   })
 
+  it('生成 styles/index.scss，写明空间级共享样式的用法', () => {
+    createWorkspace(root, 'demo')
+    const scss = readFileSync(join(root, 'src/workspaces/demo/styles/index.scss'), 'utf8')
+    // 注释里那行用法是使用者唯一能发现这条约定的地方，别让它悄悄消失
+    expect(scss).toContain("@use 'demo/styles' as styles")
+    expect(scss).toContain('$gutter')
+    expect(scss).toContain('@mixin focus-ring')
+  })
+
   it('title 预填目录名，description 留空，并 import defineWorkspace', () => {
     createWorkspace(root, 'demo')
     const source = readFileSync(join(root, 'src/workspaces/demo/workspace.ts'), 'utf8')
