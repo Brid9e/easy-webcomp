@@ -1,0 +1,1 @@
+<WorkspaceGrid :ws="$params.ws" />
