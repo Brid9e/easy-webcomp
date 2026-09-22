@@ -1818,14 +1818,18 @@ Run: `pnpm run docs:preview`（先 `pnpm run docs:build`），打开 `http://loc
 
 - [ ] **Step 4: 验收 spec 第 11 节第 5 条 —— 全局重名校验**
 
+探针必须是**五个文件齐全的合法组件**：`scripts/build.ts:44` 的重名检查虽然排在文件检查之前，但它是**逐个组件**边扫边查的，`demo/components/dup-probe` 是它扫到的第一个组件，此时 `seen` 还是空的 —— 若探针只有个空的 `Component.vue`，会先撞上 `scripts/build.ts:60` 的「缺少 meta.ts」，根本走不到重名那一支。直接拷一个现成组件：
+
 ```bash
-mkdir -p src/workspaces/demo/components/dup-probe src/workspaces/tmp-dup/components/dup-probe
-touch src/workspaces/demo/components/dup-probe/Component.vue
-touch src/workspaces/tmp-dup/components/dup-probe/Component.vue
+mkdir -p src/workspaces/tmp-dup/components
+cp -r src/workspaces/demo/components/hello-vue src/workspaces/demo/components/dup-probe
+cp -r src/workspaces/demo/components/hello-vue src/workspaces/tmp-dup/components/dup-probe
 pnpm run build
 ```
 
-Expected: FAIL，报错含 `组件名 "dup-probe" 在 "demo" 与 "tmp-dup" 下重复` 与 `全局唯一`。
+（`meta.ts` 里的 tag 仍是 `ew-hello-vue` 也无妨 —— 构建只校验目录名唯一，不校验 tag。）
+
+Expected: FAIL，报错含 `组件名 "dup-probe"`、`下重复` 与 `全局唯一`。两个空间名「demo」「tmp-dup」谁在前取决于目录遍历顺序，不必逐字比对。
 
 ```bash
 rm -rf src/workspaces/demo/components/dup-probe src/workspaces/tmp-dup
