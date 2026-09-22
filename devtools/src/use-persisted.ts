@@ -18,7 +18,9 @@ export function usePersisted<T>(key: string, fallback: T): ShallowRef<T> {
       const parsed: unknown = JSON.parse(raw)
       // JSON.parse 对类型错误是静默的：数字键下存着 `"wide"` 照样解析成功。
       // 类型对不上就当没存过，否则宽度这类值会一路流进 style。
-      return typeof parsed === typeof fallback ? (parsed as T) : fallback
+      // `parsed !== null` 不是多余的：typeof null 也是 'object'，对象/数组型默认值
+      // 光靠 typeof 拦不住存进去的 null。
+      return parsed !== null && typeof parsed === typeof fallback ? (parsed as T) : fallback
     } catch {
       return fallback
     }

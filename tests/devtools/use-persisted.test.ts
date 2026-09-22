@@ -1,5 +1,5 @@
 import { nextTick } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { usePersisted } from '../../devtools/src/use-persisted'
 
 const KEY = 'probe'
@@ -7,6 +7,11 @@ const STORAGE_KEY = `ew-debug:${KEY}`
 
 beforeEach(() => {
   localStorage.clear()
+})
+
+// 最后一条用例会 mock 掉 setItem；断言若先抛，mock 就留在原地污染后续用例
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('usePersisted', () => {
@@ -46,6 +51,13 @@ describe('usePersisted', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(1))
 
     expect(usePersisted(KEY, false).value).toBe(false)
+  })
+
+  // typeof null 也是 'object'，只比 typeof 的话对象默认值会漏掉存进去的 null
+  it('对象默认值下存了 null 也回落默认值', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(null))
+
+    expect(usePersisted(KEY, { mode: 'a' }).value).toEqual({ mode: 'a' })
   })
 
   it('setItem 抛异常（隐私模式）时本次仍然可用', async () => {
