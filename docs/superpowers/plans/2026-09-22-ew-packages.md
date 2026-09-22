@@ -17,7 +17,9 @@
 | 标记 | `hello-vue.js` | `hello-react.js` | `ew-all.js` |
 |---|---|---|---|
 | `react-dom` | 0 | 1 | 1 |
-| `__v_isRef` | 1 | 0 | 1 |
+| `__isVue` | 1 | 0 | 1 |
+
+计数用 `grep -o "<标记>" <文件> | wc -l`，**不要用 `grep -c`** —— 后者数的是「命中的行数」不是「出现次数」，压缩产物一行放很多东西，两个数会差很远。实测修正：最早这里写的是 `__v_isRef` 且声称 1 次，实际是 **5 次**（一个健康的 Vue runtime 里 `isRef`、`toRef`、`"__proto__,__v_isRef,__isVue"` 键名字符串、两个 `RefImpl` 类都含它）—— 拿它当标记会对正确的代码误报。改用 `__isVue`：每个 Vue 副本恰好 1 次，React 里 0 次，「装了两份 Vue」照样能抓到。
 
 | 文件 | 大小 |
 |---|---|
@@ -834,7 +836,7 @@ const cdnDir = join(root, 'dist/cdn')
  *
  * 「自家标记恰好 1 次」同时还覆盖了「同一个框架被装了两份」—— 两份就会数到 2。
  */
-const MARKER = { vue: '__v_isRef', react: 'react-dom' } as const
+const MARKER = { vue: '__isVue', react: 'react-dom' } as const
 
 type Framework = keyof typeof MARKER
 
@@ -932,7 +934,7 @@ const MARKER = { vue: 'react-dom', react: 'react-dom' } as const
 Run: `pnpm run check:artifacts`
 Expected: 退出码 1，且报告里点名 `hello-vue.js`。
 
-改回 `{ vue: '__v_isRef', react: 'react-dom' }`，再跑一次确认恢复绿色。
+改回 `{ vue: '__isVue', react: 'react-dom' }`，再跑一次确认恢复绿色。
 
 - [ ] **Step 5: 提交**
 
@@ -975,6 +977,8 @@ Run: `pnpm run build` 后 `ls -l dist/cdn/`
 对照基线表：`hello-vue.js` 68,580 B、`hello-react.js` 225,817 B、`ew-all.js` 292,760 B。
 
 Expected: 三个都在 ±5% 以内。包化不改变产物内容，明显偏离说明有东西被多打进去了。
+
+（顺带复核标记：`grep -o "__isVue" dist/cdn/hello-vue.js | wc -l` = 1、`grep -o "react-dom" dist/cdn/hello-vue.js | wc -l` = 0。体积对得上但标记错位是可能的 —— 摇不掉 react-dom 的同时又少打了别的，两下抵平。两者一起看才严密。）
 
 - [ ] **Step 5: 交付契约未变**
 
