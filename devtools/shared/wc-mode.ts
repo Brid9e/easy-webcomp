@@ -89,11 +89,6 @@ import * as ComponentModule from ${JSON.stringify(componentPath)}
 
 export { meta, Element }
 
-// 元素构造器上留着建它时用的那份 CSS（含 index.ts 内联的 UI 库样式）。
-// 源码模式要用它 —— 那条路不 import index.ts，光靠 style.{css,scss} 的 glob
-// 只能拿到组件自己的那点样式，引了 Element Plus 的组件会整个裸掉。
-export const styles = Element.styles ?? ''
-
 if (import.meta.hot) {
   import.meta.hot.accept(${JSON.stringify(componentPath)}, () => {
     // 保留 ComponentModule 的引用，让上面那条 import 真正成为本模块的依赖边 ——

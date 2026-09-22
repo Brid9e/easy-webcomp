@@ -15,9 +15,12 @@ const metaModules = import.meta.glob('@src/workspaces/*/components/*/meta.ts', {
   eager: true,
 }) as Record<string, { default: ComponentMeta }>
 
+// 只用键（哪些组件存在），模块值不用 —— 枚举以源码文件为准的理由见 component-shape。
+// eager 保留：改成动态 import 省不下什么（组件本来就会被 wc-mode 的虚拟模块整包取回），
+// 却会让 Rollup 为每个组件报一条「既动态又静态导入」的警告。
 const sourceModules = import.meta.glob('@src/workspaces/*/components/*/Component.{vue,tsx}', {
   eager: true,
-}) as Record<string, { default: unknown }>
+})
 
 const workspaceModules = import.meta.glob('@src/workspaces/*/workspace.ts', {
   eager: true,

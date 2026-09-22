@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ComponentEntry } from '@devtools/component-index'
-import ReactMount from '@devtools/mount/ReactMount.vue'
-import VueMount from '@devtools/mount/VueMount.vue'
-import { loadWcModule, registerWcElement } from '@devtools/wc-registry'
+import { registerWcElement } from '@devtools/wc-registry'
 import ResizeHandle from './ResizeHandle.vue'
 import { usePersisted } from './use-persisted'
 
@@ -11,10 +9,8 @@ const props = defineProps<{
   entry: ComponentEntry | undefined
   model: Record<string, unknown>
   wcHandlers: Record<string, (e: Event) => void>
-  onEvent: (name: string, detail: unknown) => void
 }>()
 
-const mode = usePersisted<'wc' | 'source'>('mode', 'wc')
 const width = usePersisted('width', 375)
 const height = usePersisted('height', 480)
 const fill = usePersisted('fill', false)
@@ -25,7 +21,6 @@ const MIN_HEIGHT = 80
 const PRESETS = [375, 768, 1024]
 
 const tag = computed(() => props.entry?.meta?.tag ?? '')
-const framework = computed(() => props.entry?.framework ?? 'react')
 
 const body = ref<HTMLElement | null>(null)
 const defined = ref(false)
@@ -56,7 +51,7 @@ const frameStyle = computed(() => ({
 // 宿主元素上外部文档的普通声明优先于 shadow tree 里的 :host 规则，所以内联样式压得过它。
 const targetStyle = computed(() => (fillTarget.value ? { display: 'block', width: '100%' } : {}))
 
-// WC 模式必须复用组件自己的 index.ts（UI 库样式内联、Pinia 按实例装都在里面），
+// 必须复用组件自己的 index.ts（UI 库样式内联、Pinia 按实例装都在里面），
 // 所以走 wc-mode 插件的虚拟模块，而不是在这里重造元素
 async function enableWc(): Promise<void> {
   const wanted = tag.value
@@ -69,21 +64,9 @@ async function enableWc(): Promise<void> {
   if (tag.value === wanted) defined.value = true
 }
 
-const styles = ref('')
-
 watch(
-  [() => props.entry?.name, mode],
+  () => props.entry?.name,
   () => {
-    const name = props.entry?.name ?? ''
-
-    // 两种模式都要这份：源码模式不 import index.ts，组件引的 UI 库样式只能从这里补
-    void loadWcModule(name)
-      .then((mod) => {
-        if (props.entry?.name === name) styles.value = mod?.styles ?? ''
-      })
-      .catch((err) => console.error('[ew] 加载 WC 模块失败：', err))
-
-    if (mode.value !== 'wc') return
     // 换组件时先把标签收起来：新 tag 还没 define，直接渲染会落一个未升级的空元素
     defined.value = Boolean(tag.value && customElements.get(tag.value))
     void enableWc().catch((err) => console.error('[ew] 加载 WC 模块失败：', err))
@@ -112,15 +95,6 @@ function applyPreset(value: number): void {
   <section class="stage">
     <header class="stage-head">
       <div class="switch">
-        <button type="button" :class="{ active: mode === 'wc' }" @click="mode = 'wc'">
-          WC 模式
-        </button>
-        <button type="button" :class="{ active: mode === 'source' }" @click="mode = 'source'">
-          源码模式
-        </button>
-      </div>
-
-      <div class="switch">
         <button
           v-for="preset in PRESETS"
           :key="preset"
@@ -146,30 +120,11 @@ function applyPreset(value: number): void {
           <p v-if="!entry" class="placeholder">左栏选一个组件</p>
 
           <component
-            v-else-if="mode === 'wc' && tag && defined"
+            v-else-if="tag && defined"
             :is="tag"
             :style="targetStyle"
             v-bind="model"
             v-on="wcHandlers"
-          />
-
-          <VueMount
-            v-else-if="mode === 'source' && framework === 'vue'"
-            :key="entry.name"
-            :name="entry.name"
-            :styles="styles"
-            :component="entry.source as never"
-            :props-data="model"
-            :on-event="onEvent"
-          />
-          <ReactMount
-            v-else-if="mode === 'source'"
-            :key="entry.name"
-            :name="entry.name"
-            :styles="styles"
-            :component="entry.source as never"
-            :props-data="model"
-            :on-event="onEvent"
           />
         </div>
 

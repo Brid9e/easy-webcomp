@@ -16,12 +16,9 @@ pnpm docs:dev       # 文档站：http://localhost:5173
 
 文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会在空间页里给出兜底详情页。
 
-组件页的交互面板有两种模式：
+组件页的交互面板走真实的 `createElementClass` 路径 —— 即消费方实际拿到的那条路，能验证属性传递、事件冒泡、Shadow 隔离。改源码热更新，不重新 `customElements.define`。
 
-- **源码模式** —— 组件源码直接挂载，获得原生 HMR 与框架 devtools。
-- **WC 模式** —— 走真实的 `createElementClass` 路径，验证属性传递、事件冒泡、Shadow 隔离。改源码同样热更新，不重新 `customElements.define`。
-
-两种模式下属性面板与事件日志都由 `meta.ts` 驱动，不用手写。
+属性面板与事件日志都由 `meta.ts` 驱动，不用手写。
 
 ## 工作空间
 
@@ -184,7 +181,7 @@ e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chr
 
 注册升级、shadow 渲染、Vue 与 React 同页共存互不干扰（含两个 root 的样式表互相独立）、事件穿透 shadow root 冒泡到 window、`disable-shadow` 降级、token 换肤穿透、单组件产物与全量包同时引入不触发重复注册错误。
 
-另有一条起调试页（独立端口 5274）验证舞台本身：WC 模式渲染进 shadow root、按 375 预设后容器实测宽度就是 375、源码模式可用。
+另有一条起调试页（独立端口 5274）验证舞台本身：元素升级后渲染进 shadow root、按 375 预设后容器实测宽度就是 375。
 
 ### 体积基线
 

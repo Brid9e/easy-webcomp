@@ -73,15 +73,6 @@ describe('buildComponents', () => {
     })
   })
 
-  it('source 带上源码模块的默认导出', () => {
-    const mod = { default: { marker: 'the component' } }
-    const [entry] = buildComponents(
-      { 'src/workspaces/demo/components/a/Component.vue': mod },
-      {},
-    )
-
-    expect(entry?.source).toBe(mod.default)
-  })
 })
 
 describe('buildWorkspaceTitles', () => {
@@ -100,9 +91,9 @@ describe('buildGroups', () => {
   it('按空间分组，标题来自 titles，缺标题时回落空间 id', () => {
     const groups = buildGroups(
       [
-        { name: 'a', workspace: 'demo', framework: 'vue', meta: undefined, source: {} },
-        { name: 'b', workspace: 'demo', framework: 'react', meta: undefined, source: {} },
-        { name: 'c', workspace: 'other', framework: 'vue', meta: undefined, source: {} },
+        { name: 'a', workspace: 'demo', framework: 'vue', meta: undefined },
+        { name: 'b', workspace: 'demo', framework: 'react', meta: undefined },
+        { name: 'c', workspace: 'other', framework: 'vue', meta: undefined },
       ],
       new Map([['demo', '演示空间']]),
     )

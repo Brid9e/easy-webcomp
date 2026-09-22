@@ -4,12 +4,12 @@ import { expect, test } from '@playwright/test'
 // 不同源，所以这里写绝对地址。
 const DEBUG_URL = 'http://localhost:5274/'
 
-test('调试页：WC 模式渲染、预设改宽、源码模式可用', async ({ page }) => {
+test('调试页：元素渲染进 shadow root、预设改宽', async ({ page }) => {
   await page.goto(DEBUG_URL)
 
   await page.locator('nav.picker button', { hasText: 'hello-vue' }).click()
 
-  // WC 模式：元素已升级，且内容渲染进 shadow root
+  // 元素已升级，且内容渲染进 shadow root
   await expect
     .poll(() =>
       page.evaluate(
@@ -28,14 +28,4 @@ test('调试页：WC 模式渲染、预设改宽、源码模式可用', async ({
       ),
     )
     .toBe(375)
-
-  // 源码模式走的是另一条挂载链路（VueMount + componentStyle 补齐），单独验一次
-  await page.getByRole('button', { name: '源码模式' }).click()
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.querySelector('.stage-body > div')?.shadowRoot?.textContent ?? '',
-      ),
-    )
-    .toContain('Vue 组件：World')
 })

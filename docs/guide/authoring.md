@@ -73,7 +73,7 @@ export default defineComponentMeta({
 
 `props` 的 `type` 目前支持 `string` / `number` / `boolean`，交互面板按它渲染 text / number / checkbox 三种控件。布尔属性的 attribute 名用 `attr` 显式指定（不指定的话 `autoLoad` 会推导成 `auto-load`，结果一样，写出来更明确）。
 
-`shadow: true` 是默认值。`style.scss` 交给桥接层按 Shadow DOM 投递，因此组件里不要写 `<style scoped>`，否则样式只存在于源码模式。
+`shadow: true` 是默认值。`style.scss` 交给桥接层按 Shadow DOM 投递，因此组件里不要写 `<style scoped>`，那份样式不会被打进产物。
 
 ## 派发事件
 

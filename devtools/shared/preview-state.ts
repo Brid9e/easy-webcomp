@@ -48,8 +48,6 @@ export function usePropControls(meta: Ref<ComponentMeta | undefined>): PropContr
   // 传字符串会原样落进组件（`count` 变成 `'7'`，Vue 报 prop 类型警告），传 `''` 表示布尔为真更是
   // 直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 false）。
   //
-  // 源码模式与 WC 模式用的是同一份值：Vue / React 组件收到的 props 与 WC 收到的 property 在此没有差别。
-  //
   // 只定型 string / number / boolean 三种。PropType 里的 object / array / function 走 `else`
   // 分支，会被当成文本框里的字符串原样传过去 —— 这三种属性目前在面板里没有可用的编辑方式，
   // 遇到时应当先补一个编辑控件（以及取值方式），而不是在这里猜测怎么解析。
@@ -68,7 +66,6 @@ export function usePropControls(meta: Ref<ComponentMeta | undefined>): PropContr
 
 export interface EventLog {
   entries: Ref<EventEntry[]>
-  log: (name: string, detail: unknown) => void
   wcHandlers: ComputedRef<Record<string, (e: Event) => void>>
 }
 
@@ -81,8 +78,7 @@ export function useEventLog(eventNames: Ref<string[] | undefined>): EventLog {
     entries.value = entries.value.slice(0, 20)
   }
 
-  // 源码模式不用它：VueMount / ReactMount 把全部事件都交给同一个 onEvent 回调，与事件名无关。
-  // WC 模式必须在宿主元素上逐个绑 —— 不绑就没有监听者，这就是原来只写死 @ew-select 时
+  // 事件必须在宿主元素上逐个绑 —— 不绑就没有监听者，这就是原来只写死 @ew-select 时
   // meta.events 里其他事件收不到的原因。
   const wcHandlers = computed<Record<string, (e: Event) => void>>(() =>
     Object.fromEntries(
@@ -93,5 +89,5 @@ export function useEventLog(eventNames: Ref<string[] | undefined>): EventLog {
     ),
   )
 
-  return { entries, log, wcHandlers }
+  return { entries, wcHandlers }
 }

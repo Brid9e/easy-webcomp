@@ -17,13 +17,13 @@ const meta = computed(() => entry.value?.meta)
 
 // 属性值与事件日志由 App 持有：主区要渲染它们，右栏要编辑 / 展示它们，必须是同一份
 const { propDefs, values, booleanValues, model } = usePropControls(meta)
-const { entries: events, log, wcHandlers } = useEventLog(computed(() => meta.value?.events))
+const { entries: events, wcHandlers } = useEventLog(computed(() => meta.value?.events))
 </script>
 
 <template>
   <div class="app">
     <ComponentPicker v-model="selected" />
-    <DebugStage :entry="entry" :model="model" :wc-handlers="wcHandlers" :on-event="log" />
+    <DebugStage :entry="entry" :model="model" :wc-handlers="wcHandlers" />
     <aside class="side">
       <PropPanel :prop-defs="propDefs" :values="values" :boolean-values="booleanValues" />
       <EventLog :entries="events" />

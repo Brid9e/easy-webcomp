@@ -6,7 +6,7 @@ import { defineConfig } from 'vitepress'
 // 相对路径，不能用 @devtools 别名：VitePress 把本文件单独打成 esbuild 临时模块，
 // 裸说明符一律 external 交给 Node 从 node_modules 解析 —— 既不认 tsconfig paths 也不认
 // vite.resolve.alias（别名只作用于配置加载之后的内容构建），会 ERR_MODULE_NOT_FOUND。
-// 下一行的 ./workspaces 同理。别名本身仍然要有，它服务内容构建期的 glob 与 @devtools/mount/*。
+// 下一行的 ./workspaces 同理。别名本身仍然要有，它服务内容构建期的 glob 与 @devtools/*。
 import { wcModePlugin } from '../../devtools/shared/wc-mode'
 import { listWorkspaces, readWorkspaceMeta } from './workspaces'
 

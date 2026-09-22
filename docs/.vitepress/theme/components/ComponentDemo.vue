@@ -1,51 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { componentByName } from '@devtools/component-index'
 import { useEventLog, usePropControls } from '@devtools/preview-state'
-import ReactMount from '@devtools/mount/ReactMount.vue'
-import VueMount from '@devtools/mount/VueMount.vue'
-import { loadWcModule, registerWcElement } from '@devtools/wc-registry'
+import { registerWcElement } from '@devtools/wc-registry'
 
 const props = defineProps<{ name: string }>()
 
 const entry = computed(() => componentByName(props.name))
 const meta = computed(() => entry.value?.meta)
-const framework = computed(() => entry.value?.framework ?? 'react')
-const sourceComponent = computed(() => entry.value?.source)
 const tag = computed(() => meta.value?.tag ?? '')
 
 const { propDefs, values, booleanValues, model } = usePropControls(meta)
-const { entries: events, log, wcHandlers } = useEventLog(computed(() => meta.value?.events))
+const { entries: events, wcHandlers } = useEventLog(computed(() => meta.value?.events))
 
-// 文档站的读者是组件消费者，他们实际拿到的是 WC
-const mode = ref<'source' | 'wc'>('wc')
-
+// 文档站的读者是组件消费者，他们实际拿到的是 WC —— 预览也就只走这一条路，
+// 复用组件自己的 index.ts（UI 库样式内联、Pinia 按实例装都在里面）。
 async function enableWc(): Promise<void> {
   if (!tag.value) return
   await registerWcElement(props.name, tag.value)
 }
 
-// 源码模式不 import index.ts，组件引的 UI 库样式只能从 element 上补回来 —— 所以两种模式都要取
-const styles = ref('')
-
-function loadStyles(): void {
-  void loadWcModule(props.name)
-    .then((mod) => {
-      styles.value = mod?.styles ?? ''
-    })
-    .catch((err) => console.error('[ew] 加载 WC 模块失败：', err))
-}
-
-watch(mode, (next) => {
-  if (next === 'wc') void enableWc()
-})
-
 // 必须挂在 onMounted，不能用 watch 的 immediate —— <ClientOnly> 挡的是它 slot 里的内容，
 // 本组件的 setup 在 SSR 期照样执行，immediate 会在 Node 里 import 到顶层就 `extends HTMLElement`
 // 的运行时模块，直接 `HTMLElement is not defined` 炸掉构建。
 onMounted(() => {
-  loadStyles()
-  if (mode.value === 'wc') void enableWc()
+  void enableWc()
 })
 </script>
 
@@ -79,39 +58,10 @@ onMounted(() => {
       </div>
 
       <div class="panel">
-        <div class="panel-head">
-          <h3>预览</h3>
-          <div class="mode-switch">
-            <button type="button" :class="{ active: mode === 'wc' }" @click="mode = 'wc'">
-              WC 模式
-            </button>
-            <button type="button" :class="{ active: mode === 'source' }" @click="mode = 'source'">
-              源码模式
-            </button>
-          </div>
-        </div>
+        <h3>预览</h3>
 
-        <div :key="mode" class="canvas">
-          <template v-if="mode === 'source'">
-            <VueMount
-              v-if="framework === 'vue'"
-              :name="name"
-              :styles="styles"
-              :component="sourceComponent as never"
-              :props-data="model"
-              :on-event="log"
-            />
-            <ReactMount
-              v-else
-              :name="name"
-              :styles="styles"
-              :component="sourceComponent as never"
-              :props-data="model"
-              :on-event="log"
-            />
-          </template>
-
-          <component :is="tag" v-else v-bind="model" v-on="wcHandlers" />
+        <div class="canvas">
+          <component :is="tag" v-bind="model" v-on="wcHandlers" />
         </div>
       </div>
 
@@ -150,35 +100,6 @@ onMounted(() => {
 .panel h3 {
   margin: 0 0 12px;
   font-size: var(--ew-font-size-md);
-}
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.panel-head h3 {
-  margin: 0;
-}
-.mode-switch button {
-  padding: 4px 10px;
-  border: 1px solid var(--vp-c-divider);
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
-  font: inherit;
-  font-size: var(--ew-font-size-sm);
-  cursor: pointer;
-}
-.mode-switch button:first-child {
-  border-radius: var(--ew-radius-sm) 0 0 var(--ew-radius-sm);
-}
-.mode-switch button:last-child {
-  border-left: none;
-  border-radius: 0 var(--ew-radius-sm) var(--ew-radius-sm) 0;
-}
-.mode-switch button.active {
-  background: var(--vp-c-brand-1);
-  border-color: var(--vp-c-brand-1);
-  color: #fff;
 }
 .field {
   display: flex;
