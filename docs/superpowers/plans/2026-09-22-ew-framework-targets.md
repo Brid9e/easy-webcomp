@@ -232,6 +232,11 @@ describe('findPrefixViolations', () => {
     expect(findPrefixViolations(css, 'my-list')).toEqual([])
   })
 
+  it('去重后按出现顺序返回', () => {
+    const css = '.b { a: 1 }\n.a { a: 1 }\n.b { c: 2 }'
+    expect(findPrefixViolations(css, 'my-list')).toEqual(['b', 'a'])
+  })
+
   // Sass 产物含非 ASCII 时会在最前面补 @charset，它没有 block，不切成一条独立语句的话
   // 会把紧随其后的第一条规则整条吞掉。my-list 编译出来就带这行。
   it('@charset 开头时第一条规则照样被扫', () => {
@@ -239,9 +244,39 @@ describe('findPrefixViolations', () => {
     expect(findPrefixViolations(css, 'ok')).toEqual(['bad'])
   })
 
-  it('去重后按出现顺序返回', () => {
-    const css = '.b { a: 1 }\n.a { a: 1 }\n.b { c: 2 }'
-    expect(findPrefixViolations(css, 'my-list')).toEqual(['b', 'a'])
+  // 属性选择器里的点不是类名。不跳过 [...] 的话这里会报出一个根本不存在的类 ".pdf"。
+  it('属性选择器里的值不算类名', () => {
+    expect(findPrefixViolations('.ew-my-list [href$=".pdf"] { a: 1 }', 'my-list')).toEqual([])
+  })
+
+  // 声明值里带花括号时，值的内容会漏进 buffer 被当选择器 —— 引号内要跳过
+  it('声明值里带花括号不会漏出假的类名', () => {
+    expect(findPrefixViolations('.ew-my-list::after { content: "{.fake{" }', 'my-list')).toEqual([])
+  })
+
+  // 引号里的 \" 是转义，不是字符串收尾。状态机不认转义就会在第二个引号处提前出栈，
+  // 之后的整个文件全被当成「还在字符串里」跳过 —— 守卫于是静默漏报后面所有选择器。
+  it('字符串里的转义双引号不会让后续选择器被跳过', () => {
+    const css = '.ew-ok { content: "\\"" }\n.bad-class { a: 1 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
+  it('字符串里的转义单引号不会让后续选择器被跳过', () => {
+    const css = ".ew-ok::after { content: 'it\\'s' }\n.bad-class { a: 1 }"
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
+  it('属性选择器值里的转义引号同样不吞掉后续选择器', () => {
+    const css = '[data-y="a\\"b"] .bad-class { a: 1 }'
+    expect(findPrefixViolations(css, 'ok')).toEqual(['bad-class'])
+  })
+
+  it('ant- 前缀与 el- 一样放行', () => {
+    expect(findPrefixViolations('.ant-form-item { max-width: 100%; }', 'my-table')).toEqual([])
+  })
+
+  it('用破折号分隔的同命名空间类名放行', () => {
+    expect(findPrefixViolations('.ew-my-list-filters { a: 1 }', 'my-list')).toEqual([])
   })
 })
 ```
@@ -268,8 +303,14 @@ pnpm run test -- style-prefix
  * 这种情形，构建必须拦住它，而不是靠人自觉。
  */
 
-/** 非本组件但允许出现的类名前缀：UI 库自己的类名 */
-const LIBRARY_PREFIXES = ['el-']
+/**
+ * 非本组件但允许出现的类名前缀：UI 库自己的类名。
+ *
+ * `el-` 是 Element Plus，`ant-` 覆盖 ant-design-vue 与 antd —— 脚手架支持的三个 UI 库全在这。
+ * 组件里写 `.el-form-item { ... }` 覆盖库样式是既有模式，三个库应当一视同仁。
+ * （antd 的 prefixCls 理论上可被 ConfigProvider 改写，那样仍然会报；真遇到再说，别为它放开规则。）
+ */
+const LIBRARY_PREFIXES = ['el-', 'ant-']
 
 /** 去掉注释，避免注释里的花括号干扰配对 */
 function stripComments(css: string): string {
@@ -285,11 +326,45 @@ function stripComments(css: string): string {
  * `{`，不清的话它会和紧随其后的第一条规则粘成一个以 `@` 开头的 buffer，把那条规则整条
  * 跳过。Sass 在产物含非 ASCII 时会自动补 `@charset`，所以这不是假想的情况。选择器里
  * 不可能出现 `;`，无条件清是安全的。
+ *
+ * `[...]` 与引号内的内容要跳过，理由不是洁癖而是误报：`[href$=".pdf"]` 里的 `.pdf` 会被
+ * 类名正则当成一个类名报出来，文案还会一本正经地说「出现类名 ".pdf"」——那个类根本不存在。
+ * 同一条规则也顺带挡住 `content: "{.fake{"` 这种值里带花括号、把声明内容漏进 buffer 的情况。
  */
 function selectorsOf(css: string): string[] {
   const out: string[] = []
   let buffer = ''
+  let quote: string | null = null
+  let inAttribute = false
+  // 引号内要认 `\` 转义。不认的话 `content: "\""` 会把第二个引号当成收尾，状态机
+  // 从此一直以为「还在字符串里」，文件剩下的选择器全部被跳过 —— 静默的全量漏报。
+  let escaped = false
+
   for (const char of stripComments(css)) {
+    if (quote !== null) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === quote) {
+        quote = null
+      }
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    if (char === '[') {
+      inAttribute = true
+      continue
+    }
+    if (char === ']') {
+      inAttribute = false
+      continue
+    }
+    if (inAttribute) continue
+
     if (char === '{') {
       const text = buffer.trim()
       if (text !== '' && !text.startsWith('@')) out.push(text)
@@ -337,7 +412,7 @@ export function findPrefixViolations(css: string, name: string): string[] {
 pnpm run test -- style-prefix
 ```
 
-预期：PASS（10 条）。
+预期：PASS（17 条）。
 
 - [ ] **Step 5: 修掉 demo 里两处撞车**
 
@@ -433,10 +508,12 @@ function checkStylePrefixes(components: ComponentInfo[]): void {
     // 冲突，它的类名也无法用前缀约束（见框架产物设计文档）。跳过。
     if (source.includes('@import "tailwindcss"')) continue
 
+    // compile 是 sass 的现代 API，只认 loadPaths。上面 cssConfig 多写的 includePaths 是给
+    // VitePress 内嵌的 Vite 5（旧 API）用的，那条管线不跑这个检查，所以这里对齐根构建即可。
     const { css } = compile(path, { loadPaths: [workspacesDir] })
     for (const token of findPrefixViolations(css, c.name)) {
       failures.push(
-        `${c.workspace}/${c.name} 的样式里出现类名 ".${token}"，应以 ".ew-${c.name}" 为前缀`,
+        `${relative(root, path)} 里出现类名 ".${token}"，应以 ".ew-${c.name}" 为前缀`,
       )
     }
   }
@@ -447,7 +524,7 @@ function checkStylePrefixes(components: ComponentInfo[]): void {
 }
 ```
 
-import 区加：
+import 区加（`relative` 与既有的 `dirname` / `join` / `resolve` 同一个 `node:path` import）：
 
 ```ts
 import { findPrefixViolations } from './style-prefix.ts'
@@ -475,7 +552,7 @@ pnpm run build
 pnpm run build
 ```
 
-预期：FAIL，报 `demo/hello-vue 的样式里出现类名 ".ew-hello"，应以 ".ew-hello-vue" 为前缀`。**改回来**。
+预期：FAIL，报 `src/workspaces/demo/components/hello-vue/style.scss 里出现类名 ".ew-hello"，应以 ".ew-hello-vue" 为前缀`。**改回来**（用 Edit 工具改回，不要用 `git checkout --`）。
 
 - [ ] **Step 8: 提交**
 
@@ -1718,7 +1795,7 @@ git commit -m "docs: 框架产物的用法、样式来源与类名命名约定"
 pnpm run verify
 ```
 
-七个阶段依次要绿：`typecheck` → `test`（115 → **153**：Task 1 加 9、Task 2 加 10、Task 3 加 2、Task 4 加 17）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
+七个阶段依次要绿：`typecheck` → `test`（115 → **160**：Task 1 加 9、Task 2 加 17、Task 3 加 2、Task 4 加 17）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
 
 > **与 spec §9 的一处偏离：** spec 写的是「在文档站里引 `dist/framework/vue.js` 渲染一个组件，跑一条 e2e」。实际做成了 jsdom 集成测试（`check:framework`）+ 一个 import-map 的独立 e2e 页面。原因是文档站页面要在**构建期**解析 `dist/framework/vue.js`，而 `verify` 里 `typecheck` 与 `docs:build` 都排在 `build` 之前 —— 干净 clone 上 `dist` 还不存在，页面直接构建失败。换成独立 fixture 页后覆盖的内容一样（真实浏览器 + 真实产物），且不再给文档站加一条「必须先构建」的隐性前置。
 
