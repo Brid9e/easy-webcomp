@@ -137,6 +137,10 @@ VitePress 默认主题的 hero + features 布局。四个 feature 卡片：Vue �
 
 **SSR 保护内置在组件里**：`ComponentDemo.vue` 的模板根部裹 `<ClientOnly>`。这样 md 作者不用记得加，写 `<ComponentDemo name="x" />` 就是安全的。代价是静态 HTML 里面板区域为空，客户端接管后出现（第 8 节）。
 
+**但 `<ClientOnly>` 挡的只是它 slot 里的内容**（实施期间实测纠正）：`ComponentDemo` 自身的 `setup` 在 SSR 期照样执行，被挡住的只有 `VueMount` / `ReactMount` / `<ctc-*>` 那棵子树。因此本组件的 `setup` 里不能碰 DOM、不能 import 桥接层——**WC 的注册必须挂在 `onMounted` 上，不能用 `watch(..., { immediate: true })`**。这不是风格偏好：`immediate` 会在 Node 里动态 import 到 `virtual:ctc-wc-index`，而它在**模块顶层**求值 `class CtcElement extends HTMLElement`，构建直接以 `HTMLElement is not defined` 失败。同一道理适用于日后任何往面板里加的东西。
+
+**面板走 property 通道**（实施期间实测纠正）：Vue 给自定义元素打 `v-bind` 时，只要 key 在元素上存在已定义的属性就走 property 而非 attribute——而桥接层给每个声明过的 prop 都装了 accessor。所以面板传的值必须是**已定型的**：`count` 传 `'7'` 会原样落进组件并触发 Vue 的 prop 类型警告，`autoLoad` 传 `''` 表示真更是直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 `false`）。这一条同时修掉了一期 playground 里一直存在、但没有任何测试覆盖到的同类缺陷。
+
 ## 8. SSR 约束
 
 VitePress 默认 SSG：每个 md 页在构建期于 Node 里渲染一次。`HTMLElement`、`customElements`、`attachShadow`、`document` 在 Node 里都不存在。
@@ -145,8 +149,8 @@ VitePress 默认 SSG：每个 md 页在构建期于 Node 里渲染一次。`HTML
 
 处理方式：
 
-- **`ComponentDemo.vue` 根部裹 `<ClientOnly>`** —— SSR 阶段整个面板不渲染，我们的组件代码一行都不执行。
-- **`virtual:ctc-wc/*` 天然安全** —— 它只在 `enableWc()` 里被动态 `import()`，而 `enableWc()` 由 client 侧的 `watch` 触发，SSR 期不会走到。
+- **`ComponentDemo.vue` 根部裹 `<ClientOnly>`** —— SSR 阶段面板那棵子树不渲染。但注意它挡不住 `ComponentDemo` 自己的 `setup`（见第 7 节的实测纠正）：`setup` 里只能做纯计算，任何 DOM 访问与桥接层 import 都必须等到 `onMounted`。
+- **`virtual:ctc-wc/*` 天然安全** —— 它只在 `enableWc()` 里被动态 `import()`，而 `enableWc()` 由 `onMounted` 触发，SSR 期不会走到。**若改用 `watch(..., { immediate: true })`，这道保险立刻失效** —— 实测就是这样炸的。
 - **布局档位**：md 页在 `<ClientOnly>` 里渲染的默认槽是空的，所以面板高度在 hydration 前为 0，接管的瞬间会跳一下。可接受（文档站的 demo 区域本就不参与首屏布局）；如果实测难看到无法忍受，再给面板加 `min-height` 占位。
 
 **验证手段**：`pnpm run docs:build` 必须在 CI 意义上稳定通过。这是唯一能防住「哪天有人在面板外碰了 `document`」的关卡，因此纳入 `pnpm run verify`（第 12 节）。

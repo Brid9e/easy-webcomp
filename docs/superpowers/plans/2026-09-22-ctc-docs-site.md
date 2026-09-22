@@ -592,7 +592,7 @@ git commit -m "docs: renderer 与主题迁入文档站，验证 React 插件可�
 
 ```vue
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import ReactMount from './ReactMount.vue'
 import VueMount from './VueMount.vue'
 
@@ -670,15 +670,16 @@ watch(
   { immediate: true },
 )
 
-const wcAttributes = computed<Record<string, unknown>>(() => {
+// Vue 给自定义元素打 v-bind 时，只要该 key 在元素上是已定义的属性，就走 property 通道而不是
+// attribute 通道 —— 而桥接层给每个声明过的 prop 都装了 accessor。所以这里必须传**已定型**的值：
+// 传字符串会原样落进组件（`count` 变成 `'7'`，Vue 报 prop 类型警告），传 `''` 表示布尔为真更是
+// 直接失效（Vue 的 Boolean prop 转换把 `''` 一律当 false）。
+const wcProps = computed<Record<string, unknown>>(() => {
   const result: Record<string, unknown> = {}
   for (const [name, def] of propDefs.value) {
-    const attr = name.replace(/([A-Z])/g, '-$1').toLowerCase()
-    if (def.type === 'boolean') {
-      if (booleanValues[name]) result[attr] = ''
-    } else if (def.type === 'string' || def.type === 'number') {
-      result[attr] = values[name]
-    }
+    if (def.type === 'boolean') result[name] = booleanValues[name]
+    else if (def.type === 'number') result[name] = Number(values[name] || 0)
+    else result[name] = values[name]
   }
   return result
 })
@@ -702,13 +703,16 @@ async function enableWc(): Promise<void> {
   if (!customElements.get(tag.value)) customElements.define(tag.value, mod.Element)
 }
 
-watch(
-  mode,
-  (next) => {
-    if (next === 'wc') void enableWc()
-  },
-  { immediate: true },
-)
+watch(mode, (next) => {
+  if (next === 'wc') void enableWc()
+})
+
+// 必须挂在 onMounted，不能用 watch 的 immediate —— <ClientOnly> 挡的是它 slot 里的内容，
+// 本组件的 setup 在 SSR 期照样执行，immediate 会在 Node 里 import 到顶层就 `extends HTMLElement`
+// 的运行时模块，直接 `HTMLElement is not defined` 炸掉构建。
+onMounted(() => {
+  if (mode.value === 'wc') void enableWc()
+})
 </script>
 
 <template>
@@ -778,7 +782,7 @@ watch(
           <component
             :is="tag"
             v-else
-            v-bind="wcAttributes"
+            v-bind="wcProps"
             @ctc-select="handleEvent('select', ($event as CustomEvent).detail)"
           />
         </div>
