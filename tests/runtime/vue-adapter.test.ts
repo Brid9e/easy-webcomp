@@ -3,7 +3,7 @@ import { defineComponent, h, inject, type Plugin } from 'vue'
 import { createElementClass } from '../../src/runtime/element'
 import { resetRegistry } from '../../src/runtime/registry'
 import { resetStyleCache } from '../../src/runtime/style'
-import { useEmit, vueAdapter } from '../../src/runtime/vue'
+import { useVueEmit, vueAdapter } from '../../src/runtime/vue'
 
 let counter = 0
 function uniqueTag(): string {
@@ -14,7 +14,7 @@ function uniqueTag(): string {
 const Probe = defineComponent({
   props: { name: { type: String, default: 'World' } },
   setup(props) {
-    const emit = useEmit()
+    const emit = useVueEmit()
     return () =>
       h(
         'button',
@@ -73,7 +73,7 @@ describe('vueAdapter', () => {
     expect(el.shadowRoot?.querySelector('.probe')?.textContent).toBe('Hello, Changed')
   })
 
-  it('useEmit 派发出冒泡到 window 的 CustomEvent', async () => {
+  it('useVueEmit 派发出冒泡到 window 的 CustomEvent', async () => {
     const tag = uniqueTag()
     const el = mountVue(tag)
     await tick()

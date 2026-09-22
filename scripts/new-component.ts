@@ -293,11 +293,11 @@ function componentTemplate(spec: ComponentSpec, id: string, uiLabel?: string): s
 
 function plainVueComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
-import { useEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME}/vue'
 
 const props = defineProps<{ label?: string }>()
 
-const emit = useEmit()
+const emit = useVueEmit()
 
 function handleClick(): void {
   emit('select', { source: '${spec.name}', label: props.label ?? '${spec.name}' })
@@ -316,11 +316,11 @@ function elementPlusComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
 // <script setup> 里 import 进来的组件自动可用，模板写 <ElButton> 或 <el-button> 都行
 import { ElButton } from 'element-plus'
-import { useEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME}/vue'
 
 const props = defineProps<{ label?: string }>()
 
-const emit = useEmit()
+const emit = useVueEmit()
 
 function handleClick(): void {
   emit('select', { source: '${spec.name}', label: props.label ?? '${spec.name}' })
@@ -336,11 +336,11 @@ function handleClick(): void {
 function antDesignVueComponent(spec: ComponentSpec): string {
   return `<script setup lang="ts">
 import { Button } from 'ant-design-vue'
-import { useEmit } from '${RUNTIME}/vue'
+import { useVueEmit } from '${RUNTIME}/vue'
 
 const props = defineProps<{ label?: string }>()
 
-const emit = useEmit()
+const emit = useVueEmit()
 
 function handleClick(): void {
   emit('select', { source: '${spec.name}', label: props.label ?? '${spec.name}' })
@@ -354,14 +354,14 @@ function handleClick(): void {
 }
 
 function plainReactComponent(spec: ComponentSpec, id: string): string {
-  return `import { useEmit } from '${RUNTIME}/react'
+  return `import { useReactEmit } from '${RUNTIME}/react'
 
 export interface ${id}Props {
   label?: string
 }
 
 export default function ${id}({ label = '${spec.name}' }: ${id}Props) {
-  const emit = useEmit()
+  const emit = useReactEmit()
 
   return (
     <button
@@ -378,14 +378,14 @@ export default function ${id}({ label = '${spec.name}' }: ${id}Props) {
 
 function antdComponent(spec: ComponentSpec, id: string): string {
   return `import { Button } from 'antd'
-import { useEmit } from '${RUNTIME}/react'
+import { useReactEmit } from '${RUNTIME}/react'
 
 export interface ${id}Props {
   label?: string
 }
 
 export default function ${id}({ label = '${spec.name}' }: ${id}Props) {
-  const emit = useEmit()
+  const emit = useReactEmit()
 
   return (
     <Button type="primary" onClick={() => emit('select', { source: '${spec.name}', label })}>

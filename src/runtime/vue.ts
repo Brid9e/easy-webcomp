@@ -7,11 +7,9 @@ import {
   type Plugin,
   type ShallowRef,
 } from 'vue'
-import type { ElementAdapter } from './types'
+import type { ElementAdapter, EmitFn } from './types'
 
 export const EW_EMIT_KEY: unique symbol = Symbol('ew-emit')
-
-export type EmitFn = (name: string, detail?: unknown) => void
 
 export interface VueAdapterOptions {
   /**
@@ -55,10 +53,10 @@ export function vueAdapter(
   }
 }
 
-export function useEmit(): EmitFn {
+export function useVueEmit(): EmitFn {
   const emit = inject<EmitFn | null>(EW_EMIT_KEY, null)
   if (!emit) {
-    console.warn('[ew] useEmit() 在 EW_EMIT_KEY 未注入的上下文中被调用，事件不会被派发。')
+    console.warn('[ew] useVueEmit() 在 EW_EMIT_KEY 未注入的上下文中被调用，事件不会被派发。')
     return () => {}
   }
   return emit

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useEmit } from '../../../../runtime/vue'
+import { useVueEmit } from '../../../../runtime/vue'
 
 const props = defineProps<{
   name?: string
@@ -8,7 +8,7 @@ const props = defineProps<{
   autoLoad?: boolean
 }>()
 
-const emit = useEmit()
+const emit = useVueEmit()
 
 const label = computed(() => `Vue 组件：${props.name ?? 'World'} × ${props.count ?? 0}`)
 

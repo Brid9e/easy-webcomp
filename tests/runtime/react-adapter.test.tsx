@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { createElementClass } from '../../src/runtime/element'
-import { reactAdapter, useEmit } from '../../src/runtime/react'
+import { reactAdapter, useReactEmit } from '../../src/runtime/react'
 import { resetRegistry } from '../../src/runtime/registry'
 import { resetStyleCache } from '../../src/runtime/style'
 
@@ -20,7 +20,7 @@ interface ProbeProps {
 }
 
 function Probe({ name = 'World' }: ProbeProps) {
-  const emit = useEmit()
+  const emit = useReactEmit()
   return (
     <button type="button" className="probe" onClick={() => emit('select', { name })}>
       {`Hello, ${name}`}
@@ -92,7 +92,7 @@ describe('reactAdapter', () => {
     expect(el.shadowRoot?.querySelector('.probe')?.textContent).toBe('Hello, Changed')
   })
 
-  it('useEmit 派发出冒泡到 window 的 CustomEvent', async () => {
+  it('useReactEmit 派发出冒泡到 window 的 CustomEvent', async () => {
     const tag = uniqueTag()
     defineProbe(tag)
     const el = document.createElement(tag)

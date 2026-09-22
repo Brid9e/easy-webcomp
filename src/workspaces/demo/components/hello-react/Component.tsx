@@ -1,4 +1,4 @@
-import { useEmit } from '../../../../runtime/react'
+import { useReactEmit } from '../../../../runtime/react'
 
 export interface HelloReactProps {
   name?: string
@@ -7,7 +7,7 @@ export interface HelloReactProps {
 }
 
 export default function HelloReact({ name = 'World', count = 0 }: HelloReactProps) {
-  const emit = useEmit()
+  const emit = useReactEmit()
 
   return (
     <button

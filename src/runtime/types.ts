@@ -1,3 +1,5 @@
+export type EmitFn = (name: string, detail?: unknown) => void
+
 export type PropType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'function'
 
 export interface PropDefinition {
@@ -21,7 +23,7 @@ export interface ElementAdapter {
   mount(
     host: HTMLElement | ShadowRoot,
     props: Record<string, unknown>,
-    emit: (name: string, detail: unknown) => void,
+    emit: EmitFn,
   ): unknown
   update(instance: unknown, props: Record<string, unknown>): void
   unmount(instance: unknown): void
