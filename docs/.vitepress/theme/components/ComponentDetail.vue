@@ -13,8 +13,9 @@ defineProps<{ ws: string; name: string }>()
 </template>
 
 <style scoped>
+/* 文档站外壳走 --vp-*：--ew-* 不响应站点明暗切换 */
 .hint {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
   font-size: var(--ew-font-size-sm);
 }
 </style>

@@ -161,7 +161,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div :key="mode">
+        <div :key="mode" class="canvas">
           <template v-if="mode === 'source'">
             <VueMount
               v-if="framework === 'vue'"
@@ -205,11 +205,20 @@ onMounted(() => {
 .demo {
   margin: 16px 0;
 }
+/* 面板是文档站外壳，一律走 --vp-*：--ew-* 不随站点明暗重映射 */
 .panel {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid var(--ew-color-border);
+  border: 1px solid var(--vp-c-divider);
   border-radius: var(--ew-radius-md);
+}
+
+/* 预览区刻意留白：组件自身配色基于浅色，跟着站点变暗会让它深字压深底 */
+.canvas {
+  padding: 16px;
+  border-radius: var(--ew-radius-sm);
+  background: var(--ew-color-bg);
+  color: var(--ew-color-text);
 }
 .panel h3 {
   margin: 0 0 12px;
@@ -225,8 +234,9 @@ onMounted(() => {
 }
 .mode-switch button {
   padding: 4px 10px;
-  border: 1px solid var(--ew-color-border);
-  background: var(--ew-color-bg);
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
   font: inherit;
   font-size: var(--ew-font-size-sm);
   cursor: pointer;
@@ -239,8 +249,8 @@ onMounted(() => {
   border-radius: 0 var(--ew-radius-sm) var(--ew-radius-sm) 0;
 }
 .mode-switch button.active {
-  background: var(--ew-color-primary);
-  border-color: var(--ew-color-primary);
+  background: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
   color: #fff;
 }
 .field {
@@ -251,10 +261,10 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 .field small {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
 }
 .empty {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
   font-size: var(--ew-font-size-sm);
 }
 ul {

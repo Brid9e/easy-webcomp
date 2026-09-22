@@ -64,33 +64,34 @@ const workspaces = computed(() =>
   gap: 16px;
   margin-top: 24px;
 }
+/* 文档站外壳一律走 --vp-*：--ew-* 那套不随站点明暗重映射，暗色下是深字压深底 */
 .ws-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 20px;
-  border: 1px solid var(--ew-color-border);
+  border: 1px solid var(--vp-c-divider);
   border-radius: var(--ew-radius-md);
-  color: var(--ew-color-text);
+  color: var(--vp-c-text-1);
   text-decoration: none;
   transition: border-color 0.2s;
 }
 .ws-card:hover {
-  border-color: var(--ew-color-primary);
+  border-color: var(--vp-c-brand-1);
 }
 .ws-title {
   font-size: var(--ew-font-size-lg);
   font-weight: 600;
 }
 .ws-desc {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
   font-size: var(--ew-font-size-sm);
 }
 .ws-count {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
   font-size: var(--ew-font-size-sm);
 }
 .empty {
-  color: var(--ew-color-text-secondary);
+  color: var(--vp-c-text-2);
 }
 </style>
