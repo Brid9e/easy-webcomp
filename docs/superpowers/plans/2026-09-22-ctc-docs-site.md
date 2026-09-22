@@ -47,7 +47,9 @@
 - Create: `docs/index.md`
 - Create: `docs/.vitepress/config.mts`
 
-本任务刻意**不写 nav / sidebar** —— VitePress 的 dead-link 检查会把指向不存在页面的链接判为构建失败，所以导航必须等页面落地后再逐条加（Task 7 加「组件」，Task 8 加「指南」）。此前的站点是合法的（默认主题的无导航形态）。
+本任务刻意**不写 nav / sidebar / hero actions** —— 它们的指向目标还不存在，写了就是浏览器里的 404。这些条目在页面落地时逐条补：Task 7 加「组件」，Task 8 加「指南」与首页 hero 按钮。
+
+> **实测修正（2026-09-22）**：VitePress 的 dead-link 检查**不覆盖 `themeConfig`（nav / sidebar / hero actions）**，只覆盖 markdown 正文里的链接。所以配上去不会让 `docs:build` 失败，只会在浏览器里静默 404 —— 这比构建报错更难发现。导航条目一律等页面先落地。
 
 - [ ] **Step 1: 安装 VitePress 1.6.4**
 
@@ -80,13 +82,6 @@ hero:
   name: CTC Web Components
   text: 写一个组件，交付一个 Web Component
   tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素 —— npm 与 CDN 双通道，加组件零配置。
-  actions:
-    - theme: brand
-      text: 快速开始
-      link: /guide/
-    - theme: alt
-      text: 组件总览
-      link: /components/
 
 features:
   - title: Vue 或 React 任选
@@ -1117,7 +1112,7 @@ import { listComponents } from './components'
 pnpm run docs:build
 ```
 
-预期：`build complete`。两个组件都已写 md，侧边栏应指向 `/components/hello-react` 与 `/components/hello-vue`，dead-link 检查通过。
+预期：`build complete`。注意 `build complete` **不代表侧边栏链接是对的** —— dead-link 检查不覆盖 `themeConfig`，链接对不对要在下一步用浏览器确认。
 
 - [ ] **Step 5: 人工验证导航**
 
@@ -1329,7 +1324,23 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ctc-hell
 ESM 产物体积随打包器而定，不在基线对比范围内。
 ````
 
-- [ ] **Step 5: config.mts 加指南导航**
+- [ ] **Step 5: config.mts 加指南导航，并把首页 hero 按钮补回来**
+
+Task 1 因为目标页不存在而省掉了 hero 的 `actions`，现在 `docs/guide/index.md` 与 `docs/components/index.md` 都在了，补回 `docs/index.md` 的 frontmatter：
+
+```yaml
+hero:
+  name: CTC Web Components
+  text: 写一个组件，交付一个 Web Component
+  tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素 —— npm 与 CDN 双通道，加组件零配置。
+  actions:
+    - theme: brand
+      text: 快速开始
+      link: /guide/
+    - theme: alt
+      text: 组件总览
+      link: /components/
+```
 
 `themeConfig` 改成：
 
@@ -1362,12 +1373,20 @@ ESM 产物体积随打包器而定，不在基线对比范围内。
 pnpm run docs:build
 ```
 
-预期：`build complete`。dead-link 检查会顺带验证四页确实存在、首页的两个按钮也没指错。
+预期：`build complete`。dead-link 检查覆盖的是**指南正文里的相对链接**（`/guide/authoring` 这些），不覆盖 nav / sidebar / hero —— 按钮和导航条目要用浏览器确认。
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 7: 人工确认导航与首页按钮**
 
 ```bash
-git add docs/guide docs/.vitepress/config.mts
+pnpm run docs:dev
+```
+
+预期：首页两个 hero 按钮分别跳到指南首页与组件总览；顶栏「指南」「组件」都在；指南四页在左侧边栏里可点。
+
+- [ ] **Step 8: 提交**
+
+```bash
+git add docs/index.md docs/guide docs/.vitepress/config.mts
 git commit -m "docs: 指南四页与导航"
 ```
 

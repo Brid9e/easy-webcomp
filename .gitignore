@@ -27,3 +27,4 @@ pnpm-debug.log*
 src/.generated/
 test-results/
 playwright-report/
+docs/.vitepress/cache/

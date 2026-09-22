@@ -17,7 +17,8 @@
     "resolveJsonModule": true,
     "noEmit": true,
     "useDefineForClassFields": true,
+    "paths": { "@src/*": ["./src/*"] },
     "types": ["vite/client", "node"]
   },
-  "include": ["*.config.ts", "src", "playground", "tests", "scripts"]
+  "include": ["*.config.ts", "src", "docs", "playground", "tests", "scripts"]
 }

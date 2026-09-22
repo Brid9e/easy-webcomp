@@ -20,6 +20,9 @@
   },
   "scripts": {
     "dev": "vite --config vite.playground.config.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "build": "tsx scripts/build.ts",
     "build:esm": "tsx scripts/build.ts --only=esm",
     "build:cdn": "tsx scripts/build.ts --only=cdn",
@@ -27,7 +30,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "verify": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run test:e2e"
+    "verify": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run docs:build && pnpm run test:e2e"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -45,6 +48,7 @@
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
+    "vitepress": "1.6.4",
     "vitest": "^3.0.0",
     "vue-tsc": "^2.2.0"
   }
