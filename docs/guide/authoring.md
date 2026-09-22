@@ -36,7 +36,7 @@ src/workspaces/<空间名>/components/<组件名>/
 ## meta.ts
 
 ```ts
-import { defineComponentMeta } from '../../../../runtime/types'
+import { defineComponentMeta } from '@ew/runtime'
 
 export default defineComponentMeta({
   tag: 'ew-hello-vue',
@@ -57,9 +57,9 @@ export default defineComponentMeta({
 ## 派发事件
 
 ```ts
-import { useEmit } from '../../../../runtime/vue'   // React 组件改为 '../../../../runtime/react'
+import { useVueEmit } from '@ew/runtime'   // React 组件改为 useReactEmit
 
-const emit = useEmit()
+const emit = useVueEmit()
 emit('select', { id: 1 })                      // → 派发 ew-select 事件
 ```
 
