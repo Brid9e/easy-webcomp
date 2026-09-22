@@ -327,7 +327,7 @@ function handleClick(): void {
 </script>
 
 <template>
-  <button class="ew-root" type="button" @click="handleClick">
+  <button class="ew-${spec.name}" type="button" @click="handleClick">
     {{ props.label ?? '${spec.name}' }}
   </button>
 </template>
@@ -388,7 +388,7 @@ export default function ${id}({ label = '${spec.name}' }: ${id}Props) {
   return (
     <button
       type="button"
-      className="ew-root"
+      className="ew-${spec.name}"
       onClick={() => emit('select', { source: '${spec.name}', label })}
     >
       {label}

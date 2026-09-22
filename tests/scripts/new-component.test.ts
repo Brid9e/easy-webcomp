@@ -91,6 +91,18 @@ describe('createComponent · 基础骨架', () => {
     // @use 必须在任何规则之前，排在 :host 后面 Sass 会直接报错
     expect(scss.indexOf(':host')).toBeGreaterThan(0)
   })
+
+  it('Vue 组件根元素用 ew-<组件名> 作类名，不用共享的 ew-root', () => {
+    createComponent(root, spec())
+    expect(read('my-card', 'Component.vue')).toContain('class="ew-my-card"')
+    expect(read('my-card', 'Component.vue')).not.toContain('ew-root')
+  })
+
+  it('React 组件同理', () => {
+    createComponent(root, spec({ framework: 'react' }))
+    expect(read('my-card', 'Component.tsx')).toContain('className="ew-my-card"')
+    expect(read('my-card', 'Component.tsx')).not.toContain('ew-root')
+  })
 })
 
 describe('createComponent · 校验', () => {
