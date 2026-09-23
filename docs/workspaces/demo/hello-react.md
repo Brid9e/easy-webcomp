@@ -18,7 +18,7 @@ CDN：
 npm ESM：
 
 ```ts
-import 'easy-webcomp/hello-react/define'
+import '@ew/demo/hello-react/define'
 ```
 
 ## 属性

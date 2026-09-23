@@ -18,7 +18,7 @@ CDN：
 npm ESM：
 
 ```ts
-import 'easy-webcomp/hello-vue/define'
+import '@ew/demo/hello-vue/define'
 ```
 
 ## 属性

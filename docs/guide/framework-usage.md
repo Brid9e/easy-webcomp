@@ -6,7 +6,7 @@
 
 ```vue
 <script setup lang="ts">
-import { MyList } from 'easy-webcomp/vue'
+import { MyList } from '@ew/self-monitor/vue'
 import 'easy-webcomp/element-plus.css'
 import 'easy-webcomp/tokens.css'
 </script>
@@ -19,7 +19,7 @@ import 'easy-webcomp/tokens.css'
 ## React
 
 ```tsx
-import { MyList } from 'easy-webcomp/react'
+import { MyList } from '@ew/self-monitor/react'
 import 'easy-webcomp/element-plus.css'
 import 'easy-webcomp/tokens.css'
 

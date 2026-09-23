@@ -76,9 +76,9 @@ function discoverComponents(): DiscoveredComponent[] {
 
 /**
  * 解析必须交给**原生 node**，不能让 tsx 代劳：tsx 的解析器带扩展名兜底，会把
- * `./*: ./dist/esm/*.jsx` 这类错误映射「补救」成实际存在的 .js 再返回，于是守卫永远绿。
+ * `./*: ./esm/*.jsx` 这类错误映射「补救」成实际存在的 .js 再返回，于是守卫永远绿。
  * 实测同一个错误映射，tsx 下 `import.meta.resolve` 与 `createRequire().resolve` 都返回
- * `dist/esm/hello-vue.js`，只有原生 node 如实返回 `.jsx`。消费方跑的正是原生 node / 打包器，
+ * `<空间>/esm/hello-vue.js`，只有原生 node 如实返回 `.jsx`。消费方跑的正是原生 node / 打包器，
  * 所以以它为准。
  *
  * `cwd` 决定 self-reference 认哪个包：根包的 exports 在仓库根解析，空间包的
