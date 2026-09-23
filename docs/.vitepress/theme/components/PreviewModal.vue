@@ -2,7 +2,7 @@
 import { onBeforeUnmount, watch } from 'vue'
 import ComponentPreview from './ComponentPreview.vue'
 
-const props = defineProps<{ name: string; open: boolean }>()
+const props = defineProps<{ name: string; ws: string; open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 function onKeydown(event: KeyboardEvent): void {
@@ -39,9 +39,10 @@ onBeforeUnmount(() => {
             <code class="title">{{ name }}</code>
             <button type="button" class="close" aria-label="关闭" @click="emit('close')">✕</button>
           </header>
-          <!-- 弹框里的预览是给上手玩的，不做任何 pointer-events 限制 -->
+          <!-- 弹框里是给上手玩的，走真实元素（live），不用卡片那张静态图；
+               也不做任何 pointer-events 限制 -->
           <div class="stage">
-            <ComponentPreview :name="name" />
+            <ComponentPreview :name="name" :ws="ws" live />
           </div>
         </div>
       </div>

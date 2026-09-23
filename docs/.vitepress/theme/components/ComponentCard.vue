@@ -21,7 +21,7 @@ const open = ref(false)
   <div class="wrap">
     <VPLink :href="href" class="card">
       <div class="well">
-        <ComponentPreview :name="name" />
+        <ComponentPreview :name="name" :ws="ws" />
       </div>
       <div class="bar">
         <span class="name">{{ name }}</span>
@@ -63,7 +63,7 @@ const open = ref(false)
       </svg>
     </button>
 
-    <PreviewModal :name="name" :open="open" @close="open = false" />
+    <PreviewModal :name="name" :ws="ws" :open="open" @close="open = false" />
   </div>
 </template>
 
