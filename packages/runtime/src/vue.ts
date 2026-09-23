@@ -38,7 +38,7 @@ export function vueAdapter(
   return {
     mount(host, props, emit) {
       const propsRef = shallowRef<Record<string, unknown>>({ ...props })
-      // 断开不一定等于销毁（keep-alive），组件靠它区分「被藏起来」与「还在台上」
+      // 断开不一定等于销毁（keep-alive），组件靠它区分「已失活」与「在显示」
       const activeRef = shallowRef(true)
       const app = createApp({
         render: () => h(getComponent() as never, propsRef.value),

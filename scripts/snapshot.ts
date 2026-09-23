@@ -14,7 +14,7 @@ const FIXTURE = `${BASE}/tests/snapshot/fixture.html`
 
 /**
  * 时间钉死。my-list 的 updatedAt 是 `Date.now() - i * 7h` 现算的，不钉的话那列每次
- * 截图都不同 —— PNG 提交进 git，每次跑都产生一堆没有意义的二进制 diff。
+ * 截图都不同：PNG 提交进 git，每次运行都会产生大量无意义的二进制 diff。
  *
  * 用 setFixedTime 而不是 install：只让 `Date.now()` 定住，放行 setTimeout，
  * 组件里那段模拟网络的延迟照常推进。
@@ -64,7 +64,7 @@ async function discover(): Promise<Target[]> {
 
 /**
  * 静态服务在 4180 上。先探一次：端口被别的进程占着时，起服务会 EADDRINUSE 静默退出，
- * 而我们的探活请求会打到**那个别人的服务**上 —— 它的 /tests/... 通常 404，于是变成
+ * 而探活请求会打到**那个其他进程的服务**上：它的 /tests/... 通常 404，于是变成
  * 一个看不出原因的超时。先问清楚，把「端口被占」直接报出来。
  */
 async function assertPortFree(): Promise<void> {
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
   const spaces = [...new Set(targets.map((t) => t.workspace))]
   const missing = spaces.filter((ws) => !existsSync(join(root, 'dist/cdn', ws, 'index.js')))
   if (missing.length > 0) {
-    throw new Error(`缺少 CDN 产物：dist/cdn/{${missing.join(',')}}/index.js —— 先跑 pnpm run build`)
+    throw new Error(`缺少 CDN 产物：dist/cdn/{${missing.join(',')}}/index.js，请先执行 pnpm run build`)
   }
 
   await assertPortFree()
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
     await page.goto(FIXTURE)
 
     // 按空间加载 CDN 产物 —— 一个空间一个 IIFE，正好是「CDN 按空间打包」的顺带好处。
-    // 只有目标组件那个空间的文件真正被引到，别的空间不会被拖进来。
+    // 只有目标组件所在空间的文件真正被引到，其他空间不会被一并引入。
     for (const ws of spaces) {
       await page.addScriptTag({ url: `/dist/cdn/${ws}/index.js` })
     }
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
       const file = join(OUT_DIR, t.workspace, `${t.name}.png`)
       mkdirSync(dirname(file), { recursive: true })
       // 截组件外面那个留白盒子自身的包围盒：图 = 组件 + 四周各 16px。
-      // 不截整块视口（试过 16:9 的统一画布）—— 那样按钮只占画布的一小块，缩进卡片成个小点，
+      // 不截整块视口（试过 16:9 的统一画布）：那样按钮只占画布的一小块，缩进卡片后成为一个小点，
       // my-list 高过画布还会被裁掉下半截（分页没了）。比例不统一没关系：卡片是按高度贴合的，
       // 网格照样齐。
       await page.locator('.shot-box').screenshot({ path: file })

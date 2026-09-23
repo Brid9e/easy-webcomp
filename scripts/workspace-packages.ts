@@ -86,8 +86,8 @@ export function workspacePackageJson(input: WorkspacePackageInput): Record<strin
   }
 
   // 组件里写 <style> 块（目前只用于 @use 第三方样式表，如 Element Plus 的 theme-chalk 局部）
-  // 时，那份 CSS 走 Vite 的抽取管线，会被单独出一个文件而不是随模块注入 —— 框架路径的
-  // applyGlobalStyles 只认 style.scss，够不到它。所以得由宿主显式引一次。
+  // 时，那份 CSS 走 Vite 的抽取管线，会被单独出一个文件而不是随模块注入：框架路径的
+  // applyGlobalStyles 只认 style.scss，无法作用于它。所以需要由宿主显式引入一次。
   //
   // **后缀必须留在键名里。** 消费方的 tsc 是靠 vite/client 里那句 `declare module '*.css'`
   // 认出这个模块的，而那条声明匹配的是说明符文本；`@ew/<空间>/css` 不以 .css 结尾，

@@ -119,9 +119,9 @@ describe('createElementClass', () => {
     expect(el.shadowRoot?.querySelector('style')?.textContent).toBe('.x { color: red; }')
   })
 
-  // 元素被移出文档再放回来（切页签、被框架挪动、v-if 重挂）会走第二轮 connectedCallback。
+  // 元素被移出文档再放回来（切页签、被框架移动、v-if 重挂）会走第二轮 connectedCallback。
   // 这时 shadow root 已经存在，再 attachShadow 一次会抛 NotSupportedError，
-  // 回调从这里中断：既不 applyStyles 也不 mount，元素就永久空着。
+  // 回调从这里中断：既不 applyStyles 也不 mount，元素将永久为空。
   it('断开后重新插入能再次挂载，并复用已是自己的那个 shadow root', () => {
     const tag = uniqueTag()
     defineComponent({ tag })

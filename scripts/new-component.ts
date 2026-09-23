@@ -46,15 +46,15 @@ interface AddonDef {
 }
 
 /**
- * 关掉 Shadow DOM 是 UI 库逼的，不是偷懒：Element Plus 把主题变量定义在 `:root` 上，
+ * 关掉 Shadow DOM 是 UI 库的限制所致，而非省略：Element Plus 把主题变量定义在 `:root` 上，
  * shadow root 里 `:root` 不匹配任何元素；它的 Select / DatePicker / Tooltip / Modal 又
  * Teleport 到 `document.body`，落在 shadow 外面。antd 与 Ant Design Vue v4 是 CSS-in-JS，
- * 样式注入 `document.head`，而文档级样式表管不到 shadow DOM 内容。三条路都堵死，
- * 只能让这类组件回到 light DOM —— 代价是它自己的样式也不再隔离。
+ * 样式注入 `document.head`，而文档级样式表不作用于 shadow DOM 内容。三条路都不通，
+ * 只能让这类组件回到 light DOM，代价是它自己的样式也不再隔离。
  */
-const UI_SHADOW_NOTE = `  // 关掉 Shadow DOM 是 UI 库逼的：Element Plus 的主题变量在 :root 上、浮层 Teleport 到
-  // document.body，antd / Ant Design Vue 的样式运行时注入 document.head —— 都够不到 shadow
-  // root 里面。代价是本组件样式不再隔离，会落到 document.head 影响整页。
+const UI_SHADOW_NOTE = `  // 关掉 Shadow DOM 是 UI 库的限制所致：Element Plus 的主题变量在 :root 上、浮层 Teleport 到
+  // document.body，antd / Ant Design Vue 的样式运行时注入 document.head，三者都无法作用于 shadow
+  // root 内部。代价是本组件样式不再隔离，会落到 document.head 影响整页。
 `
 
 export const ADDONS: Record<AddonKey, AddonDef> = {
@@ -156,7 +156,7 @@ export function resolveAddons(spec: ComponentSpec): Array<[AddonKey, AddonDef]> 
     )
   }
   // Tailwind 的 preflight 会重置整页。组件自带 shadow 时它只影响组件自己，可一旦和 UI 库
-  // 同选就得关 shadow，preflight 立刻变成全站级副作用 —— 拦在这里，别让它悄悄发生。
+  // 同选就得关 shadow，preflight 立刻变成全站级副作用，因此在此处拦截。
   if (uiLibs.length > 0 && spec.addons.includes('tailwind')) {
     throw new Error(
       '[new:component] Tailwind 与 UI 库不能同选：UI 库要求关掉 shadow，Tailwind 的 preflight 会因此落到整页',

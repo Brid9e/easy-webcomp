@@ -38,7 +38,7 @@ export function createElementClass(
     }
 
     connectedCallback(): void {
-      // 实例还在，说明上一轮断开时我们把它挂起了（keep-alive）—— 直接唤回来。
+      // 实例仍在，说明上一轮断开时被挂起了（keep-alive），直接恢复。
       // 重新 mount 会把内层那份状态扔掉，而这正是挂起要保的东西。
       if (this._instance !== null) {
         adapter.setActive?.(this._instance, true)
@@ -53,9 +53,9 @@ export function createElementClass(
         }
       }
 
-      // 元素被移出文档再放回来会走第二轮 connectedCallback（切页签、被宿主框架挪动、
+      // 元素被移出文档再放回来会走第二轮 connectedCallback（切页签、被宿主框架移动、
       // v-if 重挂都会）。shadow root 这时已经存在，再 attachShadow 一次会抛
-      // NotSupportedError 并从这里中断 —— 既不投样式也不 mount，元素永久空着。
+      // NotSupportedError 并从这里中断：既不投样式也不 mount，元素将永久为空。
       // 复用已有的那个；样式只认自己投过的那个 root，重复投会一直往
       // adoptedStyleSheets 上堆（每轮一份，无上限）。
       const useShadow = useShadowDefault && !this.hasAttribute('disable-shadow')
@@ -75,12 +75,12 @@ export function createElementClass(
       liveInstances.delete(this)
       if (this._instance === null) return
 
-      // keep-alive：宿主（Vue 的 KeepAlive、或任何「把 DOM 挪走而不是销毁」的容器）只是把
-      // 元素移进了一个游离容器，元素会回来。这时不卸载 —— 一卸，内层 app 与它那份 pinia 就
-      // 没了，回来是新实例、必然重新请求。改为通知组件失活，让它自己停掉隐藏期间的轮询。
+      // keep-alive：宿主（Vue 的 KeepAlive、或任何「将 DOM 移出文档而非销毁」的容器）只是把
+      // 元素移进了一个游离容器，元素会回来。这时不卸载：一旦卸载，内层 app 与它那份 pinia 就
+      // 一并丢失，切回时得到新实例，必然重新请求。改为通知组件失活，让它自己停掉隐藏期间的轮询。
       //
-      // 代价：元素被真正销毁时（v-if 撤掉、缓存淘汰）DOM 是从游离容器里被摘走的，我们那时
-      // 已经处于断开状态，收不到第二次信号，这份实例会一直挂着。所以这个属性默认不带。
+      // 代价：元素被真正销毁时（v-if 撤掉、缓存淘汰）DOM 是从游离容器中被摘走的，桥接层那时
+      // 已处于断开状态，收不到第二次信号，这份实例会一直驻留。因此该属性默认不启用。
       if (this.hasAttribute('keep-alive')) {
         adapter.setActive?.(this._instance, false)
         return

@@ -27,7 +27,7 @@ describe('hostClassOf', () => {
 describe('vueWrapperSource', () => {
   const source = vueWrapperSource(component())
 
-  it('从组件目录直接引源码，不经过 index.ts（那会把 createElementClass 拖进来）', () => {
+  it('从组件目录直接引源码，不经过 index.ts（那会把 createElementClass 一并引入）', () => {
     expect(source).toContain("from '../../workspaces/demo/components/hello-vue/Component.vue'")
     expect(source).not.toContain("index'")
   })
@@ -58,7 +58,7 @@ describe('vueWrapperSource', () => {
     expect(source).toContain('provide(EW_EMIT_KEY, (name: string, detail?: unknown) => emit(name, detail))')
   })
 
-  // 挂载时注入是设计前提：挪到模块顶层，未用到的组件就没法把它摇掉
+  // 挂载时注入是设计前提：移到模块顶层，未用到的组件就无法把它 tree-shake 掉
   it('applyGlobalStyles 在 setup 里调用，不在模块顶层', () => {
     expect(source).toMatch(/setup\([\s\S]*applyGlobalStyles\(css\)/)
     expect(source).not.toMatch(/^applyGlobalStyles\(css\)/m)

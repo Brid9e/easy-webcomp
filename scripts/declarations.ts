@@ -7,8 +7,8 @@
  * 就地内联：下面那三个接口是 packages/runtime/src/types.ts 里同名接口的副本。
  *
  * 代价是这份形状与 @ew/runtime 是两份，可能漂。兜底放在
- * tests/integration/consumer-types.test.ts —— 那条用例真跑一次 tsc，声明丢了、形状对不上
- * 都会红。比起引入一个构建期依赖，这样更便宜，也更贴合本仓库「产物自己描述自己」的做法。
+ * tests/integration/consumer-types.test.ts：那条用例会真实执行一次 tsc，声明丢失或形状不符
+ * 都会失败。比起引入一个构建期依赖，这样代价更低，也更贴合本仓库「产物自己描述自己」的做法。
  */
 
 import { toIdentifier } from '@ew/utils'
@@ -17,7 +17,7 @@ import { propsInterface, type FrameworkComponent } from './framework-entries.ts'
 /**
  * @ew/runtime 的公开类型在产物里的副本。interface 是结构化的，两份同名接口彼此可赋值，
  * 所以消费方拿 `@ew/runtime` 那边的值传进来不会报错 —— 但它们**不 export**：
- * 导出让 `export * as MyList` 的命名空间凭空多出 `ComponentMeta` 这类运行时并不存在的名字。
+ * 导出会使 `export * as MyList` 的命名空间多出 `ComponentMeta` 这类运行时并不存在的名字。
  */
 const RUNTIME_TYPES = `type PropType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'function'
 

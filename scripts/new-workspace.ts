@@ -18,8 +18,8 @@ export default defineWorkspace({
 
 /**
  * 空间级共享样式的落点：变量与 mixin 放在这里，组件以 `@use '<空间>/styles'` 取用。
- * 文件本身不产生任何 CSS，但注释里的用法得留着 —— 这是使用者唯一能发现这条约定
- * 的地方，否则它就是一个没人知道存在的空文件。demo/styles/index.scss 是同内容。
+ * 文件本身不产生任何 CSS，但注释里的用法必须保留：这是使用者唯一能发现这条约定
+ * 的地方，否则它就是一个无人知晓存在的空文件。demo/styles/index.scss 是同内容。
  */
 function stylesTemplate(name: string): string {
   return `// ${name} 空间的共享样式：变量与 mixin 写这里，组件按需取用。
@@ -27,7 +27,7 @@ function stylesTemplate(name: string): string {
 //   @use '${name}/styles' as styles;
 //   .foo { padding: styles.$gutter; @include styles.focus-ring; }
 //
-// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径 —— 组件挪到更深层级也不用改。
+// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径：组件移到更深层级也不用改。
 
 $gutter: 8px;
 

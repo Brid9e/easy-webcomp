@@ -5,8 +5,8 @@
     <title>EW 框架产物冒烟</title>
     <link rel="stylesheet" href="/src/tokens/tokens.css" />
     <!--
-      产物里是裸说明符（`vue`，以及 my-list 拖进来的 `element-plus` / `pinia`），静态服务器
-      接不住。手写 import map 也不行 —— 它得覆盖 element-plus 的整棵传递依赖
+      产物里是裸说明符（`vue`，以及 my-list 引入的 `element-plus` / `pinia`），静态服务器
+      无法承载。手写 import map 也不行：它得覆盖 element-plus 的整棵传递依赖
       （lodash-es / @vueuse/core / dayjs / @floating-ui/dom …），而真实消费方是让打包器干
       这件事的。所以这个页面由 playwright.config.ts 里那台 root 指向仓库根的 Vite 提供，
       跑的是「消费方 dev server 加载本包产物」这条真实路径。

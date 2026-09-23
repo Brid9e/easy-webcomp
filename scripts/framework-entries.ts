@@ -105,7 +105,7 @@ ${mapping}
 
 export function ${id}(props: ${id}Props): ReturnType<typeof createElement> {
   // 挂载时注入而不是模块顶层：未用到的组件会被 tree-shake 掉，样式不跟着进包。
-  // useLayoutEffect 而非 useEffect —— 在 paint 之前同步跑完，首帧就带样式。
+  // useLayoutEffect 而非 useEffect：在 paint 之前同步执行完毕，首帧即带样式。
   useLayoutEffect(() => applyGlobalStyles(css), [])
 
   const emit = (name: string, detail?: unknown): void => {

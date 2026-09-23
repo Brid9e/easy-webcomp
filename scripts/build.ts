@@ -187,8 +187,8 @@ function writeGeneratedEntries(
   }
 
   // 每个空间一份 side-effect 桶，CDN 的 `<空间>/index.js` 拿它当单入口。
-  // 跨空间那份（原来的 ew-all）不再生成 —— 把两个空间的运行时揉进同一个 bundle，
-  // 等于让一个空间的 vue / element-plus 版本服从另一个空间，正是空间拆分要避免的事。
+  // 跨空间那份（原来的 ew-all）不再生成：把两个空间的运行时合并进同一个 bundle，
+  // 会使其中一个空间的 vue / element-plus 版本受另一个空间约束，正是空间拆分要避免的事。
   for (const workspace of workspacesOf(components)) {
     const mine = components.filter((c) => c.workspace === workspace)
     const lines = mine.map((c, i) => `import { register as r${i} } from '${entryPath(c)}'`)
@@ -224,10 +224,10 @@ const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
 
 /**
  * 空间共享样式在 src/workspaces/<空间>/styles/index.scss，组件里以 `@use '<空间>/styles'` 取用。
- * 有了它才不必写 `../../` —— 相对路径的层数跟组件所在位置绑死，挪目录就断。
+ * 有了它才不必写 `../../`：相对路径的层数由组件所在位置决定，移动目录即失效。
  *
  * 两个键名都写：Vite 6+ 的现代 Sass API 认 loadPaths，Vite 5 用的旧 API 只认 includePaths，
- * 且互不识别（旧 API 收到 loadPaths 会当没看见）。本仓库两代并存 —— 根构建跑 Vite 7，
+ * 且互不识别（旧 API 收到 loadPaths 会当没看见）。本仓库两代并存：根构建跑 Vite 7，
  * VitePress 1.6 内嵌的是 Vite 5 —— 只写一个就会有一条管线断掉。
  */
 const cssConfig = {
@@ -292,7 +292,7 @@ const cdnDefine = { 'process.env.NODE_ENV': JSON.stringify('production') }
 
 async function buildCdn(components: ComponentInfo[]): Promise<void> {
   // 进函数先把整棵 CDN 树清掉。下面每个空间、每个组件都共用 outDir 且关着 emptyOutDir
-  // （关了才对 —— 否则同一空间里后一个构建会把前一个清掉），代价是删掉的组件会留尸。
+  // （关闭才是正确行为，否则同一空间里后一个构建会把前一个清掉），代价是已删除的组件会在产物目录中残留。
   // 全量构建时 main() 已经清过 dist，但 --only=cdn 不走那条路，所以这里必须自己清。
   rmSync(join(root, 'dist', 'cdn'), { recursive: true, force: true })
 
@@ -355,7 +355,7 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
  * 宿主自己带一份的依赖，打进产物就是第二份实例：
  * - `vue` / `react`：两份会让 provide/inject 与 hooks 双双失效；
  * - `element-plus` / `pinia`：宿主已引时，组件里这份是另一个实例 —— 宿主的
- *   ElConfigProvider、主题配置够不到它，pinia 更是两个 active pinia，症状极难查。
+ *   ElConfigProvider、主题配置无法作用于它，pinia 更是两个 active pinia，症状极难排查。
  *
  * 按**前缀**匹配而不是全等：组件会 import `element-plus/es/locale/lang/zh-cn` 这类子路径。
  * `axios` 故意不在表里 —— 它是组件自己的取数依赖，宿主没有也不该被要求装。
@@ -372,8 +372,8 @@ const elementPlusCssSpec = 'element-plus/dist/index.css'
  * 组件库样式单独出一个入口，让「宿主已有 EP」的项目可以不引。
  *
  * 必须裹 `@layer`：EP 的 `:root` 里除了 `--el-*` 还带一句 `color-scheme: light`，
- * 不分层注入会把宿主的深色主题连同原生控件一起翻成浅色。分层之后它是一份默认值，
- * 宿主自己写的未分层规则永远赢；宿主完全没引 EP 时这层才顶上来。
+ * 不分层注入会把宿主的深色主题连同原生控件一并转为浅色。分层之后它是一份默认值，
+ * 宿主自己写的未分层规则优先级更高；宿主完全未引入 EP 时这层才生效。
  * 与 packages/runtime/src/style.ts 里那份 head 副本是同一个理由。
  *
  * 落在 dist 根而不是某个空间下：它是 Element Plus 的**全量**样式，与空间无关。
@@ -445,8 +445,8 @@ async function buildFramework(
  * 把框架产物里抽出来的样式表提到空间根目录，并删掉 ESM 那份。
  *
  * 同一份 CSS 被抽到三处是管线的副产物而不是设计 —— 抽取跟着模块图走，有几条构建就落几份。
- * 但对消费方来说只有框架那份够得着：WC 模式下组件渲染在 shadow root 里，外部 CSS 进不去，
- * ESM 那份谁也拿不到。所以只留一份放在空间根上，由 package.json 的 "./styles.css" 导出。
+ * 但对消费方来说只有框架那份能取到：WC 模式下组件渲染在 shadow root 中，外部 CSS 无法进入，
+ * ESM 那份没有任何消费方能拿到。所以只留一份放在空间根上，由 package.json 的 "./styles.css" 导出。
  *
  * CDN 那份（`dist/cdn/<空间>/<组件>.css`）不动：它是 URL 寻址的，与空间包的入口无关，
  * 而且单组件 IIFE 旁边没有 JS 入口能替它把样式带进去。
@@ -461,11 +461,11 @@ function hoistCss(workspaces: readonly string[]): void {
 }
 
 /**
- * 根包的 exports 收缩成三条：ESM 与 framework 都按空间搬走了，根上只剩 tokens.css、
- * element-plus.css 与 CDN。**不保留聚合的 `./vue` / `./react`** —— 那个桶正是本设计要
- * 消灭的东西（引 HelloVue 会连 element-plus 一起拖进来）。
+ * 根包的 exports 收缩成三条：ESM 与 framework 都已按空间拆分出去，根上只剩 tokens.css、
+ * element-plus.css 与 CDN。**不保留聚合的 `./vue` / `./react`**：那个桶正是本设计要
+ * 消除的对象（引用 HelloVue 会把 element-plus 一并引入）。
  *
- * 不需要任何产物就能算出来，所以 --only 下也照跑（与拆分前 writeExportsField 的行为一致）。
+ * 不需要任何产物就能算出来，所以 --only 下也同样执行（与拆分前 writeExportsField 的行为一致）。
  *
  * 各键由 Node 的 exports 解析规则兜底，不需要额外顺序：精确键（`./tokens.css`）优先于
  * pattern，pattern 之间比 `*` 之前那段 base 的长短。`./cdn/<空间>/<组件>` 落 `./cdn/*`

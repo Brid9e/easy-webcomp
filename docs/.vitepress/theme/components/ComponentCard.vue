@@ -92,7 +92,7 @@ const open = ref(false)
 }
 
 /* 预览井：给组件一块固定高度的画布，超出裁掉。
-   pointer-events: none 让点击穿到整卡的链接上 —— 卡片是「进详情页」的入口，
+   pointer-events: none 让点击穿透到整卡的链接上：卡片是「进详情页」的入口，
    要上手玩请点右上角全屏或直接进详情页。 */
 .well {
   display: flex;
@@ -147,7 +147,7 @@ const open = ref(false)
   transition: opacity 0.2s;
 }
 
-/* 平时藏起来，免得盖住组件本身的视觉；键盘聚焦时要露出来，否则像是不可用 */
+/* 默认隐藏，避免遮挡组件内容；键盘聚焦时显示，否则看起来像不可用 */
 .wrap:hover .expand,
 .expand:focus-visible {
   opacity: 1;

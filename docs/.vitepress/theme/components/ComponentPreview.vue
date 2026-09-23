@@ -26,8 +26,8 @@ const tag = computed(
   () => Object.entries(metaModules).find(([path]) => dirName(path) === props.name)?.[1].default.tag,
 )
 
-// 截图缺失（新组件还没跑 `pnpm run snapshot`）时回退到真实元素。卡片宁可重一点，
-// 也不能开一个天窗。
+// 截图缺失（新组件尚未执行 `pnpm run snapshot`）时回退到真实元素。
+// 卡片宁可多承担一次运行时开销，也不应出现空白区域。
 const shotFailed = ref(false)
 const shot = computed(() => (props.ws ? withBase(`/snapshots/${props.ws}/${props.name}.png`) : ''))
 const useLive = computed(() => Boolean(props.live) || shotFailed.value || !props.ws)
@@ -74,7 +74,7 @@ watch(useLive, (live) => {
 
 <style scoped>
 /* 井是固定 140px 高、约 300px 宽，而截图按组件实际尺寸出（my-list 那种整页表格有 1160×652），
-   靠这里等比缩进去整个塞下 —— 换成真实元素就只会被 overflow: hidden 裁掉大半。
+   靠这里等比缩小以完整容纳；换成真实元素就只会被 overflow: hidden 裁掉大半。
    图是白底、井也是白底，边界看不出来。 */
 .shot {
   max-width: 100%;

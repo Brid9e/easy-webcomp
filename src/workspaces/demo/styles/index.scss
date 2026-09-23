@@ -3,7 +3,7 @@
 //   @use 'demo/styles' as styles;
 //   .foo { padding: styles.$gutter; @include styles.focus-ring; }
 //
-// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径 —— 组件挪到更深层级也不用改。
+// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径：组件移到更深层级也不用改。
 
 $gutter: 8px;
 

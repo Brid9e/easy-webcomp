@@ -1,7 +1,7 @@
 /**
  * 组件样式的类名必须落在自己的命名空间里。
  *
- * 这条检查存在的唯一理由是「不影响其他组件」这句承诺 —— shadow 模式下各写各的没人管，
+ * 这条检查存在的唯一理由是「不影响其他组件」这句承诺：shadow 模式下各写各的、互不干扰，
  * 一旦落到 light DOM（框架产物，或组件自己的 disable-shadow 模式），同页两个组件用了
  * 同一个类名就是直接互相覆盖。demo 里的 hello-vue 与 hello-react 共用 `.ew-hello` 正是
  * 这种情形，构建必须拦住它，而不是靠人自觉。
@@ -32,7 +32,7 @@ function stripComments(css: string): string {
  * 不可能出现 `;`，无条件清是安全的。
  *
  * `[...]` 与引号内的内容要跳过，理由不是洁癖而是误报：`[href$=".pdf"]` 里的 `.pdf` 会被
- * 类名正则当成一个类名报出来，文案还会一本正经地说「出现类名 ".pdf"」——那个类根本不存在。
+ * 类名正则当成一个类名报出来，文案还会错误地报出「出现类名 ".pdf"」，而那个类并不存在。
  * 同一条规则也顺带挡住 `content: "{.fake{"` 这种值里带花括号、把声明内容漏进 buffer 的情况。
  */
 function selectorsOf(css: string): string[] {
@@ -41,7 +41,7 @@ function selectorsOf(css: string): string[] {
   let quote: string | null = null
   let inAttribute = false
   // 引号内要认 `\` 转义。不认的话 `content: "\""` 会把第二个引号当成收尾，状态机
-  // 从此一直以为「还在字符串里」，文件剩下的选择器全部被跳过 —— 静默的全量漏报。
+  // 此后一直认为「仍在字符串内」，文件剩下的选择器全部被跳过，造成静默的全量漏报。
   let escaped = false
 
   for (const char of stripComments(css)) {

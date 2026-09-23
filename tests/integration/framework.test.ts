@@ -10,8 +10,8 @@ declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
 }
 
-// 只清 body，不清 head：样式去重表是 dist 产物里的一个模块级 Set，用例够不着它，
-// 清掉 head 只会在下一条用例里造出「Set 说注入过、DOM 里却没有」的假红。
+// 只清 body，不清 head：样式去重表是 dist 产物里的一个模块级 Set，用例访问不到它，
+// 清掉 head 只会在下一条用例里造出「Set 认为注入过、DOM 里却没有」的假红。
 beforeEach(() => {
   document.body.innerHTML = ''
 })

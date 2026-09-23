@@ -78,8 +78,8 @@ function discoverComponents(): DiscoveredComponent[] {
  * 解析必须交给**原生 node**，不能让 tsx 代劳：tsx 的解析器带扩展名兜底，会把
  * `./*: ./esm/*.jsx` 这类错误映射「补救」成实际存在的 .js 再返回，于是守卫永远绿。
  * 实测同一个错误映射，tsx 下 `import.meta.resolve` 与 `createRequire().resolve` 都返回
- * `<空间>/esm/hello-vue.js`，只有原生 node 如实返回 `.jsx`。消费方跑的正是原生 node / 打包器，
- * 所以以它为准。
+ * `<空间>/esm/hello-vue.js`，只有原生 node 如实返回 `.jsx`。消费方使用的正是原生 node / 打包器，
+ * 因此以它为准。
  *
  * `cwd` 决定 self-reference 认哪个包：根包的 exports 在仓库根解析，空间包的
  * exports 要在 `dist/<空间>/` 里解析 —— 不换 cwd 的话 `@ew/demo/vue` 根本找不到。
@@ -116,7 +116,7 @@ process.stdout.write(JSON.stringify(out))
 function stripSpecifiers(code: string): string {
   // 前缀约束 `(?<!["'\w])` 不能省：只写 `\b(?:from|import)\s*["']` 会在字符串字面量内部
   // 误命中 —— axios 的禁用请求头清单里 `"from",\n  "host"` 会匹配成 `from ",\n  "`。
-  // 这里是「抹掉」，误命中不会反推出垃圾包名，但会把不该动的文本吃掉，标记计数就可能漏。
+  // 这里是「抹掉」，误命中不会反推出垃圾包名，但会误伤不该改动的文本，标记计数就可能漏计。
   // workspace-packages.ts 的 bareSpecifiersOf 用同一条前缀约束，两处必须同步。
   return code.replace(/(?<!["'\w])(?:from|import)\s*["'][^"'\s]*["']/g, '')
 }
@@ -338,7 +338,7 @@ function checkDeclarations(components: DiscoveredComponent[], failures: string[]
  * 所以期望清单也得跟着条件生成 —— 无条件要 `@ew/self-monitor/react` 会假红。
  */
 function checkExports(components: DiscoveredComponent[], failures: string[]): void {
-  // 根包：ESM 与 framework 都按空间搬走了，只剩 tokens.css / element-plus.css / CDN
+  // 根包：ESM 与 framework 都已按空间拆分出去，只剩 tokens.css / element-plus.css / CDN
   verifySpecs(
     [
       `${PKG}/tokens.css`,
