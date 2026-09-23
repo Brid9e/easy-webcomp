@@ -127,7 +127,8 @@ export function componentDeps(name: string): ComponentDep[] {
 
 /**
  * 依赖标签要的全部东西：包名、版本、图标。卡片与详情页头画的是同一行，映射就写一次 ——
- * 图标在这里查好，模板里再调 libIcon() 得连写三遍（判空、取 viewBox、取 path）。
+ * 图标在这里查好，两个模板里就不必各判一次空。libIcon 不认识这个包时给的是占位图标，
+ * 所以 icon 一定有值。
  */
 export function componentDepsWithIcons(name: string) {
   return componentDeps(name).map((dep) => ({ ...dep, icon: libIcon(dep.name) }))

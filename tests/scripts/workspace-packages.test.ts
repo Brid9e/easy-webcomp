@@ -34,6 +34,20 @@ import { c } from "@ew/runtime";
     expect(bareSpecifiersOf('import{a}from"vue";import"pinia";')).toEqual(['pinia', 'vue'])
   })
 
+  it('动态 import 也认得出 —— 懒加载的包漏了就不会显示在依赖标签上', () => {
+    expect(bareSpecifiersOf('const m = await import("echarts");')).toEqual(['echarts'])
+    expect(bareSpecifiersOf("import( 'dayjs' )")).toEqual(['dayjs'])
+  })
+
+  it('同一个包静态、动态都引，只算一个', () => {
+    const code = 'import type { ECharts } from "echarts";\nconst m = () => import("echarts");'
+    expect(bareSpecifiersOf(code)).toEqual(['echarts'])
+  })
+
+  it('字符串字面量里的 import(...) 不算 —— 同一条前缀约束也挡住它', () => {
+    expect(bareSpecifiersOf(`const snippet = "import('lodash')";`)).toEqual([])
+  })
+
   it('字符串字面量里的 "from" 不算导入 —— axios 的禁用请求头清单里就有', () => {
     // 真实踩到过：`"from",\n  "host"` 被 `\b(?:from|import)\s*["']` 当成 `from ",\n  "`，
     // 于是反推出一个叫 ",\n  " 的包，构建失败。

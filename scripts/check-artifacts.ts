@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { usesTailwind } from './tailwind.ts'
+import { specifierPatterns } from './workspace-packages.ts'
 import { workspaceIdsOf } from './workspaces.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -116,11 +117,10 @@ process.stdout.write(JSON.stringify(out))
  * 抹掉说明符之后，健康产物是 0，真被 external 漏掉的产物仍是非 0。
  */
 function stripSpecifiers(code: string): string {
-  // 前缀约束 `(?<!["'\w])` 不能省：只写 `\b(?:from|import)\s*["']` 会在字符串字面量内部
-  // 误命中 —— axios 的禁用请求头清单里 `"from",\n  "host"` 会匹配成 `from ",\n  "`。
-  // 这里是「抹掉」，误命中不会反推出垃圾包名，但会误伤不该改动的文本，标记计数就可能漏计。
-  // workspace-packages.ts 的 bareSpecifiersOf 用同一条前缀约束，两处必须同步。
-  return code.replace(/(?<!["'\w])(?:from|import)\s*["'][^"'\s]*["']/g, '')
+  // 形态与 workspace-packages.ts 的 bareSpecifiersOf 同源（specifierPatterns），连前缀约束
+  // 一起共用：那边靠它反推依赖，这边靠它把说明符从计数里抹掉。这里误命中的代价是误伤
+  // 不该改动的文本、标记漏计 —— 那正是它会去查的那类产物问题，所以两处不能各写一份。
+  return specifierPatterns().reduce((text, pattern) => text.replace(pattern, ''), code)
 }
 
 /**

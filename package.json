@@ -18,6 +18,7 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "snapshot": "tsx scripts/snapshot.ts",
+    "icons:sync": "tsx scripts/icons.ts",
     "new:workspace": "tsx scripts/new-workspace.ts",
     "new:component": "tsx scripts/new-component.ts",
     "build": "tsx scripts/build.ts",

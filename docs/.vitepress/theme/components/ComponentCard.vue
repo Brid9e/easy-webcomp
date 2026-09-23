@@ -42,7 +42,7 @@ const open = ref(false)
           <span v-if="deps.length > 0" class="ew-deps">
             <span v-for="dep in deps" :key="dep.name" class="ew-dep">
               <!-- alt 留空：包名就在旁边，读屏再念一遍图标名是噪音 -->
-              <img v-if="dep.icon" class="ew-dep-icon" :src="dep.icon" alt="" />
+              <img class="ew-dep-icon" :src="dep.icon" alt="" />
               <span class="ew-dep-name">{{ dep.name }}</span>
               <span class="ew-dep-version">{{ dep.version }}</span>
             </span>

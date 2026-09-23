@@ -34,26 +34,46 @@ function packageRootOf(specifier: string): string {
 }
 
 /**
- * 从产物代码里抽出裸说明符的包名，去重排序。
+ * 说明符的两种写法，捕获组 1 都是裸说明符本身：
  *
- * **不能只写 `\b(?:from|import)\s*["']`** —— 那会在字符串字面量内部误命中。实测踩到过：
- * axios 的禁用请求头清单里有 `"from"` 与 `"host"` 两个字符串，`"from",\n  "host"` 被当成
- * 一句 `from ",\n  "`，于是反推出一个叫 `,\n  ` 的包，构建直接失败。所以加两条约束：
- * from/import 前面不是引号也不是标识符字符（`(?<!["'\w])`），且捕获到的说明符里没有空白。
+ *   静态  `from "vue"` / `import "vue"`
+ *   动态  `import("echarts")`
+ *
+ * **动态那条不能省。** 懒加载是常见写法（`const m = await import('echarts')`），只认静态形态
+ * 会让这类包在文档站的依赖标签上根本不出现，也不进产物清单的 peerDependencies。
+ *
+ * **前缀约束 `(?<!["'\w])` 不能省** —— 只写 `\b(?:from|import)\s*["']` 会在字符串字面量内部
+ * 误命中。实测踩到过：axios 的禁用请求头清单里有 `"from"` 与 `"host"` 两个字符串，
+ * `"from",\n  "host"` 被当成一句 `from ",\n  "`，于是反推出一个叫 `,\n  ` 的包，构建直接失败。
+ * 于是两条约束：from/import 前面不是引号也不是标识符字符，且捕获到的说明符里没有空白。
  * 压缩产物里真实的导入长 `}from"vue"`，前一个字符是 `}`，照样认得出。
+ *
+ * 返回副本而不是共用：带 `g` 的正则带 `lastIndex` 状态，在模块之间传同一份会互相踩。
+ */
+export function specifierPatterns(): RegExp[] {
+  return [
+    /(?<!["'\w])(?:from|import)\s*["']([^"'\s]+)["']/g,
+    /(?<!["'\w])import\s*\(\s*["']([^"'\s]+)["']\s*\)/g,
+  ].map((pattern) => new RegExp(pattern.source, pattern.flags))
+}
+
+/**
+ * 从源码或产物里抽出裸说明符的包名，去重排序。
  *
  * 相对路径与绝对路径不是包，丢掉。
  *
- * check-artifacts.ts 的 stripSpecifiers 用**同一条**前缀约束 —— 那边抹掉说明符好数运行时
- * 标记，这边留下说明符好反推依赖。两处必须同步，否则同一个误命中会在一处被忽略、在另一处
- * 又被抹掉。
+ * check-artifacts.ts 的 stripSpecifiers 读**同一份** specifierPatterns：那边抹掉说明符好数
+ * 运行时标记，这边留下说明符好反推依赖。同一个误命中在一处被忽略、在另一处又被抹掉，
+ * 两边的结论就会各错各的。
  */
 export function bareSpecifiersOf(code: string): string[] {
   const found = new Set<string>()
-  for (const match of code.matchAll(/(?<!["'\w])(?:from|import)\s*["']([^"'\s]+)["']/g)) {
-    const specifier = match[1]
-    if (specifier.startsWith('.') || specifier.startsWith('/')) continue
-    found.add(packageRootOf(specifier))
+  for (const pattern of specifierPatterns()) {
+    for (const match of code.matchAll(pattern)) {
+      const specifier = match[1]
+      if (specifier.startsWith('.') || specifier.startsWith('/')) continue
+      found.add(packageRootOf(specifier))
+    }
   }
   return [...found].sort()
 }
