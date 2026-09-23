@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -343,8 +343,8 @@ function checkExports(components: DiscoveredComponent[], failures: string[]): vo
     [
       `${PKG}/tokens.css`,
       `${PKG}/element-plus.css`,
-      ...components.map((c) => `${PKG}/cdn/${c.name}`),
-      `${PKG}/cdn/ew-all`,
+      ...components.map((c) => `${PKG}/cdn/${c.workspace}/${c.name}`),
+      ...[...new Set(components.map((c) => c.workspace))].map((w) => `${PKG}/cdn/${w}/index`),
     ],
     root,
     failures,
@@ -383,44 +383,81 @@ function verifySpecs(specs: string[], cwd: string, failures: string[]): void {
   }
 }
 
-function main(): void {
-  const failures: string[] = []
-  const components = discoverComponents()
-  const frameworkOf = new Map(components.map((c) => [c.name, c.framework]))
-
-  for (const file of readdirSync(cdnDir).filter((f) => f.endsWith('.js'))) {
-    const name = file.slice(0, -3)
-    const code = readFileSync(join(cdnDir, file), 'utf8')
-
-    // ew-all 是聚合产物，本来就该两个框架都在
-    if (name === 'ew-all') {
-      for (const [fw, marker] of Object.entries(MARKER)) {
-        if (count(code, marker) < 1) {
-          failures.push(`ew-all.js 里找不到 ${fw} 的标记 ${marker}，两个框架应当都在`)
-        }
-      }
-      continue
-    }
-
-    const mine = frameworkOf.get(name)
-    if (!mine) {
-      failures.push(`找不到组件 "${name}" 的源码目录，无法判断框架`)
-      continue
-    }
-
-    for (const [fw, marker] of Object.entries(MARKER) as Array<[Framework, string]>) {
-      const hits = count(code, marker)
-      if (fw === mine && hits !== 1) {
-        failures.push(
-          `${file} 里 ${fw} 标记 ${marker} 出现 ${hits} 次，应为 1 次（0 = 自己的框架没打进去，>1 = 装了两份）`,
-        )
-      }
-      if (fw !== mine && hits !== 0) {
-        failures.push(`${file} 是 ${mine} 组件，却含 ${fw} 标记 ${marker} ${hits} 次 —— 桶没被摇干净`)
-      }
+/**
+ * CDN 产物的框架隔离守卫。两种产物两种规则：
+ *
+ * - 单组件文件只含自己那个框架，且标记**恰好 1 次**（0 = 自己的没打进去，>1 = 装了两份）
+ * - 空间 index 含本空间**真有的**每个框架（至少 1 次），且**不含没有的**框架 ——
+ *   demo 两个框架都有、self-monitor 只有 vue，对后者硬要 react 标记会假红
+ */
+function checkCdn(components: DiscoveredComponent[], failures: string[]): void {
+  // 残留守卫：跨空间的 ew-all 与被平铺到 dist/cdn 根下的文件都不该存在了
+  for (const entry of readdirSync(cdnDir)) {
+    if (!statSync(join(cdnDir, entry)).isDirectory()) {
+      failures.push(`dist/cdn/${entry} 不该存在 —— CDN 产物一律落在 dist/cdn/<空间>/ 下`)
     }
   }
 
+  const byWorkspace = new Map<string, DiscoveredComponent[]>()
+  for (const c of components) {
+    byWorkspace.set(c.workspace, [...(byWorkspace.get(c.workspace) ?? []), c])
+  }
+
+  const frameworks = Object.entries(MARKER) as Array<[Framework, string]>
+
+  for (const [workspace, mine] of byWorkspace) {
+    const dir = join(cdnDir, workspace)
+    if (!existsSync(dir)) {
+      failures.push(`缺少 CDN 空间目录 dist/cdn/${workspace}`)
+      continue
+    }
+
+    for (const c of mine) {
+      const rel = `dist/cdn/${workspace}/${c.name}.js`
+      const file = join(dir, `${c.name}.js`)
+      if (!existsSync(file)) {
+        failures.push(`缺少 CDN 产物 ${rel}`)
+        continue
+      }
+      const code = readFileSync(file, 'utf8')
+      for (const [fw, marker] of frameworks) {
+        const hits = count(code, marker)
+        if (fw === c.framework && hits !== 1) {
+          failures.push(
+            `${rel} 里 ${fw} 标记 ${marker} 出现 ${hits} 次，应为 1 次（0 = 自己的框架没打进去，>1 = 装了两份）`,
+          )
+        }
+        if (fw !== c.framework && hits !== 0) {
+          failures.push(`${rel} 是 ${c.framework} 组件，却含 ${fw} 标记 ${marker} ${hits} 次 —— 桶没被摇干净`)
+        }
+      }
+    }
+
+    const rel = `dist/cdn/${workspace}/index.js`
+    const file = join(dir, 'index.js')
+    if (!existsSync(file)) {
+      failures.push(`缺少 CDN 空间入口 ${rel}`)
+      continue
+    }
+    const code = readFileSync(file, 'utf8')
+    const present = new Set(mine.map((c) => c.framework))
+    for (const [fw, marker] of frameworks) {
+      const hits = count(code, marker)
+      if (present.has(fw) && hits < 1) {
+        failures.push(`${rel} 里找不到 ${fw} 标记 ${marker}，该空间有 ${fw} 组件，它应当在`)
+      }
+      if (!present.has(fw) && hits !== 0) {
+        failures.push(`${rel} 含 ${fw} 标记 ${marker} ${hits} 次，但该空间没有 ${fw} 组件 —— 桶没被摇干净`)
+      }
+    }
+  }
+}
+
+function main(): void {
+  const failures: string[] = []
+  const components = discoverComponents()
+
+  checkCdn(components, failures)
   checkFramework(components, failures)
   checkPackages(components, failures)
   checkDeclarations(components, failures)
