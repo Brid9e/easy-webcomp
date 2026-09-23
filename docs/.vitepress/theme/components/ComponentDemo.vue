@@ -11,7 +11,7 @@ const meta = computed(() => entry.value?.meta)
 const tag = computed(() => meta.value?.tag ?? '')
 
 const { propDefs, values, booleanValues, model } = usePropControls(meta)
-const { entries: events, wcHandlers } = useEventLog(computed(() => meta.value?.events))
+const { wcHandlers } = useEventLog(computed(() => meta.value?.events))
 
 // 文档站的读者是组件消费者，他们实际拿到的是 WC —— 预览也就只走这一条路，
 // 复用组件自己的 index.ts（UI 库样式内联、Pinia 按实例装都在里面）。
@@ -63,16 +63,8 @@ onMounted(() => {
         <div class="canvas">
           <component :is="tag" v-bind="model" v-on="wcHandlers" />
         </div>
-      </div>
 
-      <div class="panel">
-        <h3>事件日志</h3>
-        <p v-if="events.length === 0" class="empty">点击组件试试</p>
-        <ul v-else>
-          <li v-for="(e, i) in events" :key="i">
-            <code>ew-{{ e.name }}</code> · {{ e.at }} · {{ JSON.stringify(e.detail) }}
-          </li>
-        </ul>
+        <p class="hint">事件输出在浏览器控制台</p>
       </div>
     </div>
   </ClientOnly>
@@ -111,13 +103,33 @@ onMounted(() => {
 .field small {
   color: var(--vp-c-text-2);
 }
-.empty {
+
+/*
+ * VitePress 的 base.css 把 input 的边框、内边距、背景一并归零（实测 border: 0 none、
+ * padding: 0、background: transparent），右边那一列就成了一行看不出能改的裸文字。
+ * 这里把框补回来 —— 颜色走 --vp-*，明暗主题才不会一个样。
+ * 排除 checkbox：那个是原生控件，本来就有外观，再画一圈框反而怪。
+ */
+.field input:not([type='checkbox']) {
+  width: 160px;
+  padding: 3px 8px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--ew-radius-sm);
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: var(--ew-font-size-sm);
+}
+
+.field input:not([type='checkbox']):focus {
+  border-color: var(--vp-c-brand-1);
+  outline: none;
+}
+.empty,
+.hint {
   color: var(--vp-c-text-2);
   font-size: var(--ew-font-size-sm);
 }
-ul {
-  margin: 0;
-  padding-left: 18px;
-  font-size: var(--ew-font-size-sm);
+.hint {
+  margin: 8px 0 0;
 }
 </style>

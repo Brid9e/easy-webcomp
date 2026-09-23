@@ -69,13 +69,20 @@ export interface EventLog {
   wcHandlers: ComputedRef<Record<string, (e: Event) => void>>
 }
 
-/** 事件日志。`wcHandlers` 是 WC 模式要的 `v-on` 映射 —— 事件名得自己拼 `ew-` 前缀。 */
+/**
+ * 事件日志。`wcHandlers` 是 WC 模式要的 `v-on` 映射 —— 事件名得自己拼 `ew-` 前缀。
+ *
+ * 每来一次事件都往控制台打一行：文档站的预览区不画日志面板了，控制台是那里唯一的去处。
+ * 打算在这里而不是在调用方：事件名怎么加前缀、`detail` 从哪儿取，只有 `wcHandlers` 知道，
+ * 分出去写第二份迟早会跟它对不上。调试页照旧渲染右栏那份列表，两边并存。
+ */
 export function useEventLog(eventNames: Ref<string[] | undefined>): EventLog {
   const entries = ref<EventEntry[]>([])
 
   function log(name: string, detail: unknown): void {
     entries.value.unshift({ name, detail, at: new Date().toLocaleTimeString() })
     entries.value = entries.value.slice(0, 20)
+    console.log(`ew-${name}`, detail)
   }
 
   // 事件必须在宿主元素上逐个绑 —— 不绑就没有监听者，这就是原来只写死 @ew-select 时
