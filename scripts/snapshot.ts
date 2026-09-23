@@ -154,7 +154,10 @@ async function main(): Promise<void> {
       // 不截整块视口（试过 16:9 的统一画布）：那样按钮只占画布的一小块，缩进卡片后成为一个小点，
       // my-list 高过画布还会被裁掉下半截（分页没了）。比例不统一没关系：卡片是按高度贴合的，
       // 网格照样齐。
-      await page.locator('.shot-box').screenshot({ path: file })
+      //
+      // omitBackground 让页面未绘制处保留为透明，产出 RGBA 而不是 RGB。
+      // 它要求 fixture 自身不设背景（见 tests/snapshot/fixture.html），否则截到的仍是那片底色。
+      await page.locator('.shot-box').screenshot({ path: file, omitBackground: true })
       console.log(`[snapshot] ${t.workspace}/${t.name}.png`)
     }
   } finally {

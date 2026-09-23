@@ -101,9 +101,8 @@ const open = ref(false)
   height: 140px;
   overflow: hidden;
   border-bottom: 1px solid var(--vp-c-divider);
-  /* 这一块是刻意留白的「画布」，两套主题下都是白的 —— 组件自身的配色基于浅色，
-     跟着站点变暗只会让组件显得脏。外壳才是跟着主题走的。 */
-  background: var(--ew-color-bg);
+  /* 不设背景：截图自带透明通道，与页面底色连成一片。
+     曾在这里垫一层 --ew-color-bg（白），那会让每张缩略图变成一个白方块。 */
   pointer-events: none;
 }
 

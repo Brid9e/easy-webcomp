@@ -75,7 +75,7 @@ watch(useLive, (live) => {
 <style scoped>
 /* 井是固定 140px 高、约 300px 宽，而截图按组件实际尺寸出（my-list 那种整页表格有 1160×652），
    靠这里等比缩小以完整容纳；换成真实元素就只会被 overflow: hidden 裁掉大半。
-   图是白底、井也是白底，边界看不出来。 */
+   截图是透明的，井也不设背景，因此图像边界不可见。 */
 .shot {
   max-width: 100%;
   max-height: 100%;
