@@ -29,6 +29,17 @@ import { c } from "@ew/runtime";
   it('同一个包出现多次只算一个', () => {
     expect(bareSpecifiersOf('export { a } from "vue";\nimport { b } from "vue";')).toEqual(['vue'])
   })
+
+  it('压缩产物的 }from"vue" 形态照样认得出', () => {
+    expect(bareSpecifiersOf('import{a}from"vue";import"pinia";')).toEqual(['pinia', 'vue'])
+  })
+
+  it('字符串字面量里的 "from" 不算导入 —— axios 的禁用请求头清单里就有', () => {
+    // 真实踩到过：`"from",\n  "host"` 被 `\b(?:from|import)\s*["']` 当成 `from ",\n  "`，
+    // 于是反推出一个叫 ",\n  " 的包，构建失败。
+    const code = 'const forbidden = [\n  "age",\n  "from",\n  "host"\n];'
+    expect(bareSpecifiersOf(code)).toEqual([])
+  })
 })
 
 describe('workspacePackageJson', () => {

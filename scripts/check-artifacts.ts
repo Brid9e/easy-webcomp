@@ -94,7 +94,11 @@ process.stdout.write(JSON.stringify(out))
  * 抹掉说明符之后，健康产物是 0，真被 external 漏掉的产物仍是非 0。
  */
 function stripSpecifiers(code: string): string {
-  return code.replace(/\b(?:from|import)\s*["'][^"']*["']/g, '')
+  // 前缀约束 `(?<!["'\w])` 不能省：只写 `\b(?:from|import)\s*["']` 会在字符串字面量内部
+  // 误命中 —— axios 的禁用请求头清单里 `"from",\n  "host"` 会匹配成 `from ",\n  "`。
+  // 这里是「抹掉」，误命中不会反推出垃圾包名，但会把不该动的文本吃掉，标记计数就可能漏。
+  // workspace-packages.ts 的 bareSpecifiersOf 用同一条前缀约束，两处必须同步。
+  return code.replace(/(?<!["'\w])(?:from|import)\s*["'][^"'\s]*["']/g, '')
 }
 
 /**

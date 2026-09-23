@@ -34,12 +34,21 @@ function packageRootOf(specifier: string): string {
 /**
  * 从产物代码里抽出裸说明符的包名，去重排序。
  *
- * 正则与 check-artifacts.ts 的 stripSpecifiers 同源 —— 那边抹掉说明符好数运行时标记，
- * 这边留下说明符好反推依赖。相对路径与绝对路径不是包，丢掉。
+ * **不能只写 `\b(?:from|import)\s*["']`** —— 那会在字符串字面量内部误命中。实测踩到过：
+ * axios 的禁用请求头清单里有 `"from"` 与 `"host"` 两个字符串，`"from",\n  "host"` 被当成
+ * 一句 `from ",\n  "`，于是反推出一个叫 `,\n  ` 的包，构建直接失败。所以加两条约束：
+ * from/import 前面不是引号也不是标识符字符（`(?<!["'\w])`），且捕获到的说明符里没有空白。
+ * 压缩产物里真实的导入长 `}from"vue"`，前一个字符是 `}`，照样认得出。
+ *
+ * 相对路径与绝对路径不是包，丢掉。
+ *
+ * check-artifacts.ts 的 stripSpecifiers 用**同一条**前缀约束 —— 那边抹掉说明符好数运行时
+ * 标记，这边留下说明符好反推依赖。两处必须同步，否则同一个误命中会在一处被忽略、在另一处
+ * 又被抹掉。
  */
 export function bareSpecifiersOf(code: string): string[] {
   const found = new Set<string>()
-  for (const match of code.matchAll(/\b(?:from|import)\s*["']([^"']+)["']/g)) {
+  for (const match of code.matchAll(/(?<!["'\w])(?:from|import)\s*["']([^"'\s]+)["']/g)) {
     const specifier = match[1]
     if (specifier.startsWith('.') || specifier.startsWith('/')) continue
     found.add(packageRootOf(specifier))
