@@ -27,6 +27,9 @@ import { onMounted, ref } from 'vue'
 import { useVueEmit } from '@ew/runtime'
 import type { MyListItem } from './api'
 import { useMyListStore } from './store'
+import { throttle } from 'lodash' // 测试包图标自动获取
+
+throttle(() => {})
 
 const props = defineProps<{ label?: string }>()
 
