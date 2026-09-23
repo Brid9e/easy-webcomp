@@ -165,6 +165,19 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello
 <ew-hello-vue name="World" disable-shadow></ew-hello-vue>
 ```
 
+## 保持状态（keep-alive）
+
+组件被移出文档时默认销毁。宿主用 KeepAlive 缓存页签、或只是把它挪个位置时，这会让状态白白丢掉
+（切回来必重新请求）。给元素加 `keep-alive` 即断开不销毁：
+
+```html
+<ew-my-list keep-alive></ew-my-list>
+```
+
+组件可读激活信号，在隐藏期间停掉轮询与请求：`useVueActive()`（Vue）/ `useReactActive()`（React）。
+代价是挂起的元素继续持着框架实例与整棵 DOM，所以默认关。细节见
+[docs/guide/lifecycle.md](docs/guide/lifecycle.md)。
+
 ## 验证
 
 ```bash
