@@ -23,14 +23,13 @@ const meta = computed<WorkspaceMetaShape>(
   () => Object.entries(metaModules).find(([p]) => segments(p).at(-2) === props.ws)?.[1].default ?? {},
 )
 
+// 只枚举组件名，不判框架：卡片上区分 Vue/React 的是依赖标签里第一枚（框架包），
+// 那份数据由组件自己的源码扫出来，比从文件后缀推断更贴近「作者引了什么」。
 const components = computed(() =>
   Object.keys(componentModules)
     .filter((p) => segments(p).at(-4) === props.ws)
-    .map((p) => ({
-      name: segments(p).at(-2) ?? '',
-      framework: p.endsWith('.vue') ? ('vue' as const) : ('react' as const),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name)),
+    .map((p) => segments(p).at(-2) ?? '')
+    .sort((a, b) => a.localeCompare(b)),
 )
 </script>
 
@@ -43,13 +42,7 @@ const components = computed(() =>
     放入五个文件即可，不需要改任何配置。
   </p>
   <div v-else class="grid">
-    <ComponentCard
-      v-for="c in components"
-      :key="c.name"
-      :ws="ws"
-      :name="c.name"
-      :framework="c.framework"
-    />
+    <ComponentCard v-for="name in components" :key="name" :ws="ws" :name="name" />
   </div>
 </template>
 

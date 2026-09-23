@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
-
-interface MetaShape {
-  tag: string
-}
+import { componentTag } from './component-tag'
 
 const props = defineProps<{
   name: string
@@ -14,17 +11,7 @@ const props = defineProps<{
   live?: boolean
 }>()
 
-// tag 走 glob 而不是 virtual 模块：virtual 模块会在顶层 import 运行时，而运行时顶层就
-// `extends HTMLElement`，SSR 期在 Node 里直接炸。glob 只读 meta.ts，是纯数据。
-const metaModules = import.meta.glob('@src/workspaces/*/components/*/meta.ts', {
-  eager: true,
-}) as Record<string, { default: MetaShape }>
-
-const dirName = (path: string) => path.split('/').at(-2) ?? ''
-
-const tag = computed(
-  () => Object.entries(metaModules).find(([path]) => dirName(path) === props.name)?.[1].default.tag,
-)
+const tag = computed(() => componentTag(props.name))
 
 // 截图缺失（新组件尚未执行 `pnpm run snapshot`）时回退到真实元素。
 // 卡片宁可多承担一次运行时开销，也不应出现空白区域。

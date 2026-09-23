@@ -66,10 +66,20 @@ export function componentDeps(name: string): ComponentDep[] {
     for (const specifier of bareSpecifiersOf(code)) found.add(specifier)
   }
 
-  const deps = [...found]
+  const sorted = [...found]
     // @ew/* 是工具链自己的包，随产物内联，消费者不需要单独安装
     .filter((dep) => !dep.startsWith('@ew/'))
     .sort()
+
+  // 框架包排最前：卡片不再单独画 Vue/React 徽标，第一枚标签就要回答「这是哪个框架写的组件」。
+  // 它必然在列表里（framework 有值时 frameworkDeps 已把它塞进 found），index > 0 只是判「已在首位」。
+  if (framework) {
+    const packageName = frameworkDeps[framework][0]
+    const at = sorted.indexOf(packageName)
+    if (at > 0) sorted.unshift(...sorted.splice(at, 1))
+  }
+
+  const deps = sorted
     .map((dep): ComponentDep => {
       const version = versions[dep]
       return version === undefined ? { name: dep } : { name: dep, version }
