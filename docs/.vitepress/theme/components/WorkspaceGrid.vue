@@ -9,11 +9,11 @@ interface WorkspaceMetaShape {
 
 const props = defineProps<{ ws: string }>()
 
-const metaModules = import.meta.glob('@src/workspaces/*/workspace.ts', { eager: true }) as Record<
+const metaModules = import.meta.glob('@packages/workspaces/*/workspace.ts', { eager: true }) as Record<
   string,
   { default: WorkspaceMetaShape }
 >
-const componentModules = import.meta.glob('@src/workspaces/*/components/*/Component.{vue,tsx}', {
+const componentModules = import.meta.glob('@packages/workspaces/*/components/*/Component.{vue,tsx}', {
   eager: true,
 })
 
@@ -38,7 +38,7 @@ const components = computed(() =>
   <p v-if="meta.description" class="desc">{{ meta.description }}</p>
 
   <p v-if="components.length === 0" class="empty">
-    这个工作空间下还没有组件。在 <code>src/workspaces/{{ ws }}/components/</code> 下新建一个目录、
+    这个工作空间下还没有组件。在 <code>packages/workspaces/{{ ws }}/components/</code> 下新建一个目录、
     放入五个文件即可，不需要改任何配置。
   </p>
   <div v-else class="grid">

@@ -4,8 +4,12 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Option } from '@clack/prompts'
 import { toIdentifier } from '@ew/utils'
+import { isWorkspace, workspaceIdsOf } from './workspaces.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+/** 空间都挂在 `packages/workspaces/` 下，一个空间一个包 */
+const workspacesDirOf = (targetRoot: string) => join(targetRoot, 'packages/workspaces')
 
 export const NAME_RE = /^[a-z][a-z0-9-]*$/
 
@@ -14,6 +18,7 @@ export type Framework = 'vue' | 'react'
 export type AddonKey =
   | 'pinia'
   | 'axios'
+  | 'echarts'
   | 'element-plus'
   | 'ant-design-vue'
   | 'antd'
@@ -72,6 +77,14 @@ export const ADDONS: Record<AddonKey, AddonDef> = {
     devDependencies: [],
     files: () => ({ 'api.ts': apiTemplate() }),
   },
+  // 只加依赖，不生成文件：图表的初始化/Renderer/响应式尺寸都和用法绑得很紧，
+  // 生成一份示例代码反而要先删掉大半。依赖进了空间清单，构建期的版本反推也就认得它。
+  echarts: {
+    label: 'ECharts 图表',
+    frameworks: ['vue', 'react'],
+    dependencies: ['echarts'],
+    devDependencies: [],
+  },
   'element-plus': {
     label: 'Element Plus',
     frameworks: ['vue'],
@@ -110,8 +123,17 @@ function assertName(name: string): void {
 }
 
 function assertWorkspace(targetRoot: string, workspace: string): void {
-  if (!existsSync(join(targetRoot, 'src/workspaces', workspace, 'workspace.ts'))) {
-    throw new Error(`[new:component] 工作空间不存在：src/workspaces/${workspace}`)
+  const workspacesDir = workspacesDirOf(targetRoot)
+  if (!isWorkspace(workspacesDir, workspace)) {
+    throw new Error(`[new:component] 工作空间不存在：packages/workspaces/${workspace}`)
+  }
+  // 组件的依赖要装进空间自己的 package.json（结尾的 pnpm --filter 靠它定位），
+  // 构建期取版本也读它。缺了就不是「提示一下」能过去的，直接拦在这里。
+  if (!existsSync(join(workspacesDir, workspace, 'package.json'))) {
+    throw new Error(
+      `[new:component] 空间 ${workspace} 没有 package.json，` +
+        '补一份（可参考 packages/workspaces/demo/package.json）再来建组件',
+    )
   }
 }
 
@@ -121,8 +143,8 @@ function assertWorkspace(targetRoot: string, workspace: string): void {
  * 文件，报错更便宜。
  */
 function assertGloballyUnique(targetRoot: string, name: string): void {
-  const workspacesDir = join(targetRoot, 'src/workspaces')
-  for (const ws of readdirSync(workspacesDir)) {
+  const workspacesDir = workspacesDirOf(targetRoot)
+  for (const ws of workspaceIdsOf(workspacesDir)) {
     const componentsDir = join(workspacesDir, ws, 'components')
     if (!existsSync(componentsDir)) continue
     for (const existing of readdirSync(componentsDir)) {
@@ -155,13 +177,8 @@ export function resolveAddons(spec: ComponentSpec): Array<[AddonKey, AddonDef]> 
       `[new:component] 只能选一个 UI 库，收到：${uiLibs.map(([k]) => k).join(', ')}`,
     )
   }
-  // Tailwind 的 preflight 会重置整页。组件自带 shadow 时它只影响组件自己，可一旦和 UI 库
-  // 同选就得关 shadow，preflight 立刻变成全站级副作用，因此在此处拦截。
-  if (uiLibs.length > 0 && spec.addons.includes('tailwind')) {
-    throw new Error(
-      '[new:component] Tailwind 与 UI 库不能同选：UI 库要求关掉 shadow，Tailwind 的 preflight 会因此落到整页',
-    )
-  }
+  // Tailwind 与 UI 库可以同选：preflight 那份全局 reset 由 styleTemplate 在检测到 UI 库时
+  // 去掉（改成只引 theme + utilities），冲突在这个文件里就消化掉了，不必拦在门口。
 
   return resolved
 }
@@ -178,12 +195,12 @@ export function createComponent(targetRoot: string, spec: ComponentSpec): Create
   // 选了 UI 库就必须关 shadow —— 库的样式进不了 shadow root，理由写在 UI_SHADOW_NOTE
   const shadow = uiAddon === undefined
 
-  const dir = join(targetRoot, 'src/workspaces', spec.workspace, 'components', spec.name)
+  const dir = join(workspacesDirOf(targetRoot), spec.workspace, 'components', spec.name)
   const ext = styleExtOf(spec)
   // 空间没建 styles/ 就不写 @use。这是给 self-monitor 这类还没跟上的空间留的降级，
   // 写进去只会得到一行解析不了的 @use，把构建打红。
   const hasSharedStyles = existsSync(
-    join(targetRoot, 'src/workspaces', spec.workspace, 'styles/index.scss'),
+    join(workspacesDirOf(targetRoot), spec.workspace, 'styles/index.scss'),
   )
   mkdirSync(dir, { recursive: true })
 
@@ -194,7 +211,7 @@ export function createComponent(targetRoot: string, spec: ComponentSpec): Create
       uiAddon?.label,
     ),
     'meta.ts': metaTemplate(spec, tag, shadow),
-    [`style.${ext}`]: styleTemplate(spec, ext, hasSharedStyles),
+    [`style.${ext}`]: styleTemplate(spec, ext, hasSharedStyles, uiAddon !== undefined),
     'index.ts': indexTemplate(spec, id, uiAddon, ext),
     'define.ts': defineTemplate(),
   }
@@ -243,20 +260,37 @@ function styleExtOf(spec: ComponentSpec): 'css' | 'scss' {
   return spec.addons.includes('tailwind') ? 'css' : 'scss'
 }
 
+/**
+ * Tailwind 的样式入口。`@source` 指到组件源码，工具类是从模板里扫出来的。
+ *
+ * 单用时引整包 `tailwindcss`（含 preflight）；与 UI 库同选时换成 preflight-free 的
+ * theme + utilities 两层 —— UI 库要求关掉 shadow，整份 CSS 这时落到 document.head，
+ * 而 preflight 是一份全局 reset，会把宿主页面的标题、列表、按钮一起抹平。theme 提供
+ * 变量、utilities 提供工具类，两者都不动宿主已有的元素样式。
+ */
+function tailwindStyleEntry(spec: ComponentSpec, hasUiLib: boolean): string {
+  const source = `@source "./Component.${spec.framework === 'vue' ? 'vue' : 'tsx'}";`
+  return hasUiLib
+    ? `@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+${source}
+
+`
+    : `@import "tailwindcss";
+${source}
+
+`
+}
+
 function styleTemplate(
   spec: ComponentSpec,
   ext: 'css' | 'scss',
   hasSharedStyles: boolean,
+  hasUiLib: boolean,
 ): string {
   // Tailwind 的 @import 必须排在文件最前，@use 必须排在所有规则之前。
   // 两者不会同现（选了 Tailwind 就是 .css），所以顺序不必再调和。
-  const tailwind =
-    ext === 'css'
-      ? `@import "tailwindcss";
-@source "./Component.${spec.framework === 'vue' ? 'vue' : 'tsx'}";
-
-`
-      : ''
+  const tailwind = ext === 'css' ? tailwindStyleEntry(spec, hasUiLib) : ''
   const use =
     ext === 'scss' && hasSharedStyles ? `@use '${spec.workspace}/styles' as styles;\n\n` : ''
   return `${tailwind}${use}:host {
@@ -467,9 +501,7 @@ http.interceptors.response.use(
 // ────────────────────────────────── CLI ──────────────────────────────────
 
 function listWorkspaceIds(targetRoot: string): string[] {
-  const workspacesDir = join(targetRoot, 'src/workspaces')
-  if (!existsSync(workspacesDir)) return []
-  return readdirSync(workspacesDir).filter((id) => statSync(join(workspacesDir, id)).isDirectory())
+  return workspaceIdsOf(workspacesDirOf(targetRoot))
 }
 
 /** 按框架过滤配套设施 —— 不列出不可能的组合（比如 React 下的 pinia） */
@@ -554,11 +586,16 @@ async function main(): Promise<void> {
   }
 
   const result = createComponent(root, spec)
-  console.log(`\n[new:component] 已创建 src/workspaces/${spec.workspace}/components/${spec.name}/`)
+  console.log(`\n[new:component] 已创建 packages/workspaces/${spec.workspace}/components/${spec.name}/`)
 
+  // 依赖装进组件所属的空间而不是根包：一个空间一个包，版本来源与产物清单都读那份。
+  // --filter 指向包名，pnpm 自己找到目录。
+  const filter = ['--filter', `@ew/${spec.workspace}`]
   // -D 与普通依赖必须分两次跑：一个 pnpm add 写不了两个 section
-  if (result.dependencies.length > 0) run('pnpm', ['add', ...result.dependencies])
-  if (result.devDependencies.length > 0) run('pnpm', ['add', '-D', ...result.devDependencies])
+  if (result.dependencies.length > 0) run('pnpm', [...filter, 'add', ...result.dependencies])
+  if (result.devDependencies.length > 0) {
+    run('pnpm', [...filter, 'add', '-D', ...result.devDependencies])
+  }
 
   if (spec.addons.includes('pinia')) {
     console.log(

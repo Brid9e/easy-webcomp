@@ -12,7 +12,7 @@ function metaOf(tag: string): ComponentMeta {
 
 describe('buildComponents', () => {
   // glob 的 key 前缀随使用者配置而变（别名 / 相对 / 绝对），段位下标不能跟着变
-  it.each(['@src', '../src', '/repo/src', 'src'])(
+  it.each(['@packages', '../packages', '/repo/packages', 'packages'])(
     'key 前缀写作 %s 时，组件名与空间名取法不变',
     (prefix) => {
       const [entry] = buildComponents(
@@ -27,8 +27,8 @@ describe('buildComponents', () => {
   it('按源码文件后缀判框架', () => {
     const built = buildComponents(
       {
-        'src/workspaces/demo/components/a/Component.tsx': { default: {} },
-        'src/workspaces/demo/components/b/Component.vue': { default: {} },
+        'packages/workspaces/demo/components/a/Component.tsx': { default: {} },
+        'packages/workspaces/demo/components/b/Component.vue': { default: {} },
       },
       {},
     )
@@ -42,10 +42,10 @@ describe('buildComponents', () => {
   it('缺 meta.ts 的组件仍在列表里，只是没有 tag 与属性', () => {
     const built = buildComponents(
       {
-        'src/workspaces/demo/components/has-meta/Component.vue': { default: {} },
-        'src/workspaces/demo/components/no-meta/Component.vue': { default: {} },
+        'packages/workspaces/demo/components/has-meta/Component.vue': { default: {} },
+        'packages/workspaces/demo/components/no-meta/Component.vue': { default: {} },
       },
-      { 'src/workspaces/demo/components/has-meta/meta.ts': { default: metaOf('ew-has') } },
+      { 'packages/workspaces/demo/components/has-meta/meta.ts': { default: metaOf('ew-has') } },
     )
 
     const byName = Object.fromEntries(built.map((c) => [c.name, c.meta]))
@@ -58,12 +58,12 @@ describe('buildComponents', () => {
   it('跨空间也能按名字配上各自的 meta', () => {
     const built = buildComponents(
       {
-        'src/workspaces/a/components/alpha/Component.vue': { default: {} },
-        'src/workspaces/b/components/beta/Component.vue': { default: {} },
+        'packages/workspaces/a/components/alpha/Component.vue': { default: {} },
+        'packages/workspaces/b/components/beta/Component.vue': { default: {} },
       },
       {
-        'src/workspaces/a/components/alpha/meta.ts': { default: metaOf('ew-alpha') },
-        'src/workspaces/b/components/beta/meta.ts': { default: metaOf('ew-beta') },
+        'packages/workspaces/a/components/alpha/meta.ts': { default: metaOf('ew-alpha') },
+        'packages/workspaces/b/components/beta/meta.ts': { default: metaOf('ew-beta') },
       },
     )
 
@@ -78,8 +78,8 @@ describe('buildComponents', () => {
 describe('buildWorkspaceTitles', () => {
   it('取 workspace.ts 的 title，取不到回落目录名', () => {
     const titles = buildWorkspaceTitles({
-      'src/workspaces/demo/workspace.ts': { default: { title: '演示空间' } },
-      'src/workspaces/bare/workspace.ts': { default: {} },
+      'packages/workspaces/demo/workspace.ts': { default: { title: '演示空间' } },
+      'packages/workspaces/bare/workspace.ts': { default: {} },
     })
 
     expect(titles.get('demo')).toBe('演示空间')

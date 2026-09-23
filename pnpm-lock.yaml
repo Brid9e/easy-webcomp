@@ -7,25 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      axios:
-        specifier: ^1.20.0
-        version: 1.20.0
-      element-plus:
-        specifier: ^2.14.6
-        version: 2.14.6(vue@3.5.43(typescript@5.9.3))
-      pinia:
-        specifier: ^4.0.3
-        version: 4.0.3(@vue/devtools-api@7.7.10)(typescript@5.9.3)(vue@3.5.43(typescript@5.9.3))
-      react:
-        specifier: ^19.0.0
-        version: 19.3.0
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.3.0(react@19.3.0)
-      vue:
-        specifier: ^3.5.0
-        version: 3.5.43(typescript@5.9.3)
     devDependencies:
       '@clack/prompts':
         specifier: ^1.8.1
@@ -60,6 +41,12 @@ importers:
       jsdom:
         specifier: ^25.0.0
         version: 25.0.1
+      react:
+        specifier: ^19.0.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.0(react@19.3.0)
       sass:
         specifier: ^1.104.1
         version: 1.104.1
@@ -81,6 +68,9 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@26.6.2)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(sass@1.104.1)(tsx@4.23.15)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.43(typescript@5.9.3)
       vue-tsc:
         specifier: ^2.2.0
         version: 2.2.12(typescript@5.9.3)
@@ -104,6 +94,53 @@ importers:
         version: 3.5.43(typescript@5.9.3)
 
   packages/utils: {}
+
+  packages/workspaces/demo:
+    dependencies:
+      '@ew/runtime':
+        specifier: workspace:*
+        version: link:../../runtime
+      '@ew/utils':
+        specifier: workspace:*
+        version: link:../../utils
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.0(react@19.3.0)
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.43(typescript@5.9.3)
+
+  packages/workspaces/self-monitor:
+    dependencies:
+      '@ew/runtime':
+        specifier: workspace:*
+        version: link:../../runtime
+      '@ew/utils':
+        specifier: workspace:*
+        version: link:../../utils
+      axios:
+        specifier: ^1.20.0
+        version: 1.20.0
+    devDependencies:
+      element-plus:
+        specifier: ^2.14.6
+        version: 2.14.6(vue@3.5.43(typescript@5.9.3))
+      pinia:
+        specifier: ^4.0.3
+        version: 4.0.3(@vue/devtools-api@7.7.10)(typescript@5.9.3)(vue@3.5.43(typescript@5.9.3))
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.43(typescript@5.9.3)
 
 packages:
 

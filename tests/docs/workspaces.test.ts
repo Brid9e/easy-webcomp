@@ -10,19 +10,28 @@ import { listWorkspaces, readWorkspaceMeta } from '../../docs/.vitepress/workspa
 
 let root: string
 
+const wsRoot = () => join(root, 'packages/workspaces')
+
+/** workspace.ts 是空间的身份：光有 components/ 目录不算，所以每个都补上 */
+function makeWorkspace(ws: string): void {
+  mkdirSync(join(wsRoot(), ws), { recursive: true })
+  writeFileSync(join(wsRoot(), ws, 'workspace.ts'), 'export default {}\n')
+}
+
 function makeComponent(ws: string, name: string, files: string[]): void {
-  mkdirSync(join(root, 'src/workspaces', ws, 'components', name), { recursive: true })
+  makeWorkspace(ws)
+  mkdirSync(join(wsRoot(), ws, 'components', name), { recursive: true })
   for (const file of files) {
-    writeFileSync(join(root, 'src/workspaces', ws, 'components', name, file), '')
+    writeFileSync(join(wsRoot(), ws, 'components', name, file), '')
   }
 }
 
-const scan = () => listWorkspaces(join(root, 'src/workspaces'), join(root, 'docs/workspaces'))
+const scan = () => listWorkspaces(wsRoot(), join(root, 'docs/workspaces'))
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'ew-ws-'))
   // 临时目录里放一个 package.json 复刻真实项目的模块类型：项目根是 "type": "module"，
-  // src/workspaces/<id>/workspace.ts 因此被 tsx 当 ESM 加载，mod.default 就是清单本身。
+  // packages/workspaces/<id>/workspace.ts 因此被 tsx 当 ESM 加载，mod.default 就是清单本身。
   // 少了它，tsx 会把清单当 CJS 转译，mod.default 变成 { default: {...} }（多包一层）。
   writeFileSync(join(root, 'package.json'), '{"type":"module"}\n')
   mkdirSync(join(root, 'docs/workspaces'), { recursive: true })
@@ -43,8 +52,13 @@ describe('listWorkspaces', () => {
   })
 
   it('没有 components 目录的空间返回空数组', () => {
-    mkdirSync(join(root, 'src/workspaces/empty'), { recursive: true })
+    makeWorkspace('empty')
     expect(scan()).toEqual([{ id: 'empty', components: [] }])
+  })
+
+  it('只有 components 目录、没有 workspace.ts 的目录不算空间', () => {
+    mkdirSync(join(wsRoot(), 'not-a-space/components/a-vue'), { recursive: true })
+    expect(scan()).toEqual([])
   })
 
   it('docs/workspaces/<ws>/<name>.md 存在时 documented 为 true', () => {
@@ -79,34 +93,34 @@ describe('listWorkspaces', () => {
     expect(scan).toThrow(/全局唯一/)
   })
 
-  it('忽略 src/workspaces 顶层的散文件', () => {
-    mkdirSync(join(root, 'src/workspaces'), { recursive: true })
-    writeFileSync(join(root, 'src/workspaces/define.ts'), '')
+  it('忽略 packages/workspaces 顶层的散文件', () => {
+    mkdirSync(wsRoot(), { recursive: true })
+    writeFileSync(join(wsRoot(), 'stray.ts'), '')
     makeComponent('demo', 'a-vue', ['Component.vue'])
     expect(scan().map((w) => w.id)).toEqual(['demo'])
   })
 
   it('忽略 components 目录下的非目录条目', () => {
     makeComponent('demo', 'a-vue', ['Component.vue'])
-    writeFileSync(join(root, 'src/workspaces/demo/components/.gitkeep'), '')
+    writeFileSync(join(wsRoot(), 'demo/components/.gitkeep'), '')
     expect(scan()[0]?.components.map((c) => c.name)).toEqual(['a-vue'])
   })
 })
 
 describe('readWorkspaceMeta', () => {
   it('读到 title 与 description', async () => {
-    mkdirSync(join(root, 'src/workspaces/demo'), { recursive: true })
+    makeWorkspace('demo')
     writeFileSync(
-      join(root, 'src/workspaces/demo/workspace.ts'),
+      join(wsRoot(), 'demo/workspace.ts'),
       "export default { title: '演示组件', description: '示例集合' }\n",
     )
-    await expect(readWorkspaceMeta('demo', join(root, 'src/workspaces'))).resolves.toEqual({
+    await expect(readWorkspaceMeta('demo', wsRoot())).resolves.toEqual({
       title: '演示组件',
       description: '示例集合',
     })
   })
 
   it('清单缺失时返回空对象而不是抛错', async () => {
-    await expect(readWorkspaceMeta('missing', join(root, 'src/workspaces'))).resolves.toEqual({})
+    await expect(readWorkspaceMeta('missing', wsRoot())).resolves.toEqual({})
   })
 })

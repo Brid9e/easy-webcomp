@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { gzipSync } from 'node:zlib'
+import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import react from '@vitejs/plugin-react'
@@ -31,9 +32,11 @@ import {
 } from './framework-entries.ts'
 import { findPrefixViolations } from './style-prefix.ts'
 import { bareSpecifiersOf, workspacePackageJson } from './workspace-packages.ts'
+import { usesTailwind } from './tailwind.ts'
+import { workspaceIdsOf } from './workspaces.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const workspacesDir = join(root, 'src/workspaces')
+const workspacesDir = join(root, 'packages/workspaces')
 const generatedDir = join(root, 'src/.generated')
 
 interface ComponentInfo {
@@ -49,11 +52,8 @@ function discoverComponents(): ComponentInfo[] {
   const seen = new Map<string, string>()
   const components: ComponentInfo[] = []
 
-  for (const workspace of readdirSync(workspacesDir)) {
-    const wsDir = join(workspacesDir, workspace)
-    if (!statSync(wsDir).isDirectory()) continue
-
-    const componentsDir = join(wsDir, 'components')
+  for (const workspace of workspaceIdsOf(workspacesDir)) {
+    const componentsDir = join(workspacesDir, workspace, 'components')
     if (!existsSync(componentsDir)) continue
 
     for (const name of readdirSync(componentsDir)) {
@@ -115,7 +115,7 @@ function checkStylePrefixes(components: ComponentInfo[]): void {
     const source = readFileSync(path, 'utf8')
     // Tailwind 的 preflight 是一份全局 reset，与「不影响其他组件」在 light DOM 下天然
     // 冲突，它的类名也无法用前缀约束。跳过。
-    if (source.includes('@import "tailwindcss"')) continue
+    if (usesTailwind(source)) continue
 
     // compile 是 sass 的现代 API，只认 loadPaths。上面 cssConfig 多写的 includePaths 是给
     // VitePress 内嵌的 Vite 5（旧 API）用的，那条管线不跑这个检查，所以这里对齐根构建即可。
@@ -146,7 +146,7 @@ async function loadFrameworkComponents(
     const stylePath = join(c.dir, c.styleFile)
     // Tailwind 的 preflight 是全局 reset，与 light DOM 下「不影响其他组件」天然冲突，
     // 它的类名也无法用前缀约束 —— 这类组件不出框架产物，只出 WC。
-    if (readFileSync(stylePath, 'utf8').includes('@import "tailwindcss"')) {
+    if (usesTailwind(readFileSync(stylePath, 'utf8'))) {
       console.log(`[build] ${c.name} 用了 Tailwind，跳过框架产物`)
       continue
     }
@@ -174,9 +174,9 @@ function writeGeneratedEntries(
   mkdirSync(generatedDir, { recursive: true })
   mkdirSync(join(generatedDir, 'framework'), { recursive: true })
 
-  // 生成文件在 src/.generated/，故相对路径要从 src/ 往下写
+  // 生成文件在 src/.generated/，故相对路径要从 src/ 往上退两级再进 packages/
   const entryPath = (c: ComponentInfo) =>
-    `../workspaces/${c.workspace}/components/${c.name}/index`
+    `../../packages/workspaces/${c.workspace}/components/${c.name}/index`
 
   // 每个空间一个桶：空间包的 `.` 入口只拉本空间的组件
   for (const workspace of workspacesOf(components)) {
@@ -223,7 +223,7 @@ const sharedPlugins = () => [vue(), react(), tailwind()]
 const vueAlias = { vue: 'vue/dist/vue.runtime.esm-bundler.js' }
 
 /**
- * 空间共享样式在 src/workspaces/<空间>/styles/index.scss，组件里以 `@use '<空间>/styles'` 取用。
+ * 空间共享样式在 packages/<空间>/styles/index.scss，组件里以 `@use '<空间>/styles'` 取用。
  * 有了它才不必写 `../../`：相对路径的层数由组件所在位置决定，移动目录即失效。
  *
  * 两个键名都写：Vite 6+ 的现代 Sass API 认 loadPaths，Vite 5 用的旧 API 只认 includePaths，
@@ -369,6 +369,25 @@ function isFrameworkExternal(id: string): boolean {
 const elementPlusCssSpec = 'element-plus/dist/index.css'
 
 /**
+ * element-plus 现在只装在使用它的空间里，根包不再依赖它 —— `import.meta.resolve` 那种
+ * 以本文件为基准的解析因此指不到东西。改从空间的 package.json 做 node 解析：那条路径与
+ * 组件里写 `import 'element-plus'` 完全一致，装了就能找到，没装就是同一个报错。
+ */
+function resolveElementPlusCss(): string {
+  for (const workspace of workspaceIdsOf(workspacesDir)) {
+    const pkgPath = join(workspacesDir, workspace, 'package.json')
+    if (!existsSync(pkgPath)) continue
+    const space = JSON.parse(readFileSync(pkgPath, 'utf8')) as SpaceManifest
+    const declared = { ...space.devDependencies, ...space.dependencies, ...space.peerDependencies }
+    if (declared['element-plus'] === undefined) continue
+    // createRequire(...).resolve 给的就是文件系统路径（CJS 解析的返回值），别再走
+    // fileURLToPath —— 那一步只服务 `import.meta.resolve` 那种返回 URL 的接口
+    return createRequire(pkgPath).resolve(elementPlusCssSpec)
+  }
+  throw new Error('[build] 没有任何空间依赖 element-plus，dist/element-plus.css 无从生成')
+}
+
+/**
  * 组件库样式单独出一个入口，让「宿主已有 EP」的项目可以不引。
  *
  * 必须裹 `@layer`：EP 的 `:root` 里除了 `--el-*` 还带一句 `color-scheme: light`，
@@ -381,7 +400,7 @@ const elementPlusCssSpec = 'element-plus/dist/index.css'
  * 多引一行 easy-webcomp/element-plus.css。
  */
 function writeElementPlusCss(): void {
-  const path = fileURLToPath(import.meta.resolve(elementPlusCssSpec))
+  const path = resolveElementPlusCss()
   const raw = readFileSync(path, 'utf8')
   // @charset 必须排在文件最前，裹进 @layer 块里就失效了 —— 提到块外
   const charset = /^@charset\s+"[^"]*";\s*/.exec(raw)?.[0] ?? ''
@@ -483,12 +502,33 @@ function writeRootExports(): void {
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
 }
 
+interface SpaceManifest {
+  version?: string
+  private?: boolean
+  dependencies?: Record<string, string>
+  peerDependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
+
+/** 空间自己的依赖清单（`packages/<空间>/package.json`），版本号也从这里取 */
+function readSpaceManifest(workspace: string): SpaceManifest {
+  const path = join(workspacesDir, workspace, 'package.json')
+  if (!existsSync(path)) {
+    throw new Error(
+      `[build] 空间 ${workspace} 没有 package.json。` +
+        '用 pnpm run new:workspace 建的会自带，手工搬过来的需要补一份',
+    )
+  }
+  return JSON.parse(readFileSync(path, 'utf8')) as SpaceManifest
+}
+
 /**
- * 给每个空间写一份 package.json。
+ * 给每个空间写一份 package.json（`dist/<空间>/package.json`）。
  *
  * 依赖从产物反推：`dist/<空间>/framework/*.js` 里那句 `import ... from "element-plus"`
  * 就是证据。不手写依赖表 —— 手写的表迟早与产物漂移，而漂移的症状（消费方解析不到说明符）
- * 要到别人装包时才暴露。
+ * 要到别人装包时才暴露。**版本号**取自 `packages/<空间>/package.json`：依赖装在哪里，
+ * 版本就从哪里读，两层清单各写各的版本迟早对不上。
  *
  * 用 pattern 而不是逐条列举组件：与根包那份不同，空间包的 package.json 落在被 gitignore
  * 的 dist/ 下、不入库，所以「两个人各加一个组件会撞冲突」这条理由在这里不成立，但 pattern
@@ -503,17 +543,15 @@ function writeWorkspacePackages(
   components: ComponentInfo[],
   frameworkComponents: FrameworkComponent[],
 ): void {
-  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
-    version?: string
-    private?: boolean
-    peerDependencies?: Record<string, string>
-    dependencies?: Record<string, string>
-  }
-  // 版本来源：peerDependencies 压过 dependencies。element-plus / pinia 只在 dependencies
-  // 里有版本，vue / react 两处都有，这条合并让三种情况都能取到。
-  const versions = { ...pkg.dependencies, ...pkg.peerDependencies }
-
   for (const workspace of workspacesOf(components)) {
+    const space = readSpaceManifest(workspace)
+    // 版本来源：后面那项压过前面那项。vue / react 在 peer 与 dev 里都写了，
+    // element-plus / pinia 只在 dev 里，axios 只在 dependencies 里 —— 这条合并让三种都取得到。
+    const versions = {
+      ...space.devDependencies,
+      ...space.dependencies,
+      ...space.peerDependencies,
+    }
     const dir = join(root, 'dist', workspace)
     const frameworks = (['vue', 'react'] as const).filter((framework) =>
       frameworkComponents.some((c) => c.workspace === workspace && c.framework === framework),
@@ -528,8 +566,8 @@ function writeWorkspacePackages(
 
     const manifest = workspacePackageJson({
       workspace,
-      version: pkg.version ?? '0.0.0',
-      private: pkg.private,
+      version: space.version ?? '0.0.0',
+      private: space.private,
       frameworks,
       // 从产物探测而不是扫源码里的 <style> 块：Vite 抽不抽得出 CSS 由模块图决定，
       // 源码里有个 <style> 不等于产物里有这个文件。位置由 hoistCss 定在空间根上。

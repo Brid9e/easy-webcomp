@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // 从 @playwright/test 取而不是 playwright：pnpm 不开提升，playwright 只是它的传递依赖，
 // 直接 import 会在严格 node_modules 下解析不到
 import { chromium } from '@playwright/test'
+import { workspaceIdsOf } from './workspaces.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT_DIR = join(root, 'docs/public/snapshots')
@@ -44,10 +45,10 @@ interface Target {
 
 /** 组件清单取自源码目录，与构建脚本同一处事实来源；tag 从 meta.ts 现读。 */
 async function discover(): Promise<Target[]> {
-  const workspacesDir = join(root, 'src/workspaces')
+  const workspacesDir = join(root, 'packages/workspaces')
   const found: Target[] = []
 
-  for (const workspace of readdirSync(workspacesDir)) {
+  for (const workspace of workspaceIdsOf(workspacesDir)) {
     const componentsDir = join(workspacesDir, workspace, 'components')
     if (!existsSync(componentsDir)) continue
 

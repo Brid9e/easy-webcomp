@@ -7,13 +7,56 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const NAME_RE = /^[a-z][a-z0-9-]*$/
 
 function template(name: string): string {
-  return `import { defineWorkspace } from '../define'
+  return `import { defineWorkspace } from '@ew/utils'
 
 export default defineWorkspace({
   title: '${name}',
   description: '',
 })
 `
+}
+
+/**
+ * 空间自己的依赖清单。一个空间一个包，包名固定 `@ew/<空间名>`。
+ *
+ * 两个框架都写上（peer 里 optional、dev 里各一份）：脚手架不知道这个空间以后会写哪种组件，
+ * 少写一个就要等到第一次建 React 组件时才炸，且报错在构建期而不是创建期。用不到的一方
+ * 之后删掉即可 —— 反过来补则要先看懂这条约定。
+ *
+ * `@ew/runtime` 与 `@ew/utils` 是硬依赖：组件的 index.ts 引前者、workspace.ts 引后者。
+ */
+function manifestTemplate(name: string): string {
+  return `${JSON.stringify(
+    {
+      name: `@ew/${name}`,
+      version: '0.1.0',
+      private: true,
+      type: 'module',
+      dependencies: {
+        '@ew/runtime': 'workspace:*',
+        '@ew/utils': 'workspace:*',
+      },
+      peerDependencies: {
+        react: '^19.0.0',
+        'react-dom': '^19.0.0',
+        vue: '^3.5.0',
+      },
+      peerDependenciesMeta: {
+        react: { optional: true },
+        'react-dom': { optional: true },
+        vue: { optional: true },
+      },
+      devDependencies: {
+        '@types/react': '^19.0.0',
+        '@types/react-dom': '^19.0.0',
+        react: '^19.0.0',
+        'react-dom': '^19.0.0',
+        vue: '^3.5.0',
+      },
+    },
+    null,
+    2,
+  )}\n`
 }
 
 /**
@@ -27,7 +70,7 @@ function stylesTemplate(name: string): string {
 //   @use '${name}/styles' as styles;
 //   .foo { padding: styles.$gutter; @include styles.focus-ring; }
 //
-// loadPaths 已指向 src/workspaces，所以写空间名而不是相对路径：组件移到更深层级也不用改。
+// loadPaths 已指向 packages/workspaces，所以写空间名而不是相对路径：组件移到更深层级也不用改。
 
 $gutter: 8px;
 
@@ -45,14 +88,15 @@ export function createWorkspace(targetRoot: string, name: string): string {
     )
   }
 
-  const wsDir = join(targetRoot, 'src/workspaces', name)
+  const wsDir = join(targetRoot, 'packages/workspaces', name)
   if (existsSync(wsDir)) {
-    throw new Error(`[new:workspace] 已存在：src/workspaces/${name}`)
+    throw new Error(`[new:workspace] 已存在：packages/workspaces/${name}`)
   }
 
   mkdirSync(join(wsDir, 'components'), { recursive: true })
   mkdirSync(join(wsDir, 'styles'), { recursive: true })
   writeFileSync(join(wsDir, 'workspace.ts'), template(name))
+  writeFileSync(join(wsDir, 'package.json'), manifestTemplate(name))
   writeFileSync(join(wsDir, 'components/.gitkeep'), '')
   writeFileSync(join(wsDir, 'styles/index.scss'), stylesTemplate(name))
   return wsDir
@@ -66,12 +110,13 @@ function main(): void {
 
   createWorkspace(root, name)
 
-  console.log(`[new:workspace] 已创建 src/workspaces/${name}/`)
+  console.log(`[new:workspace] 已创建 packages/workspaces/${name}/（包名 @ew/${name}）`)
   console.log('  下一步：')
-  console.log(`    1. 编辑 src/workspaces/${name}/workspace.ts 的 title 与 description`)
-  console.log(`    2. 空间共享的变量与 mixin 放 src/workspaces/${name}/styles/index.scss`)
-  console.log(`    3. 在 src/workspaces/${name}/components/ 下新建组件目录（五个文件，零配置）`)
+  console.log(`    1. 编辑 packages/workspaces/${name}/workspace.ts 的 title 与 description`)
+  console.log(`    2. 空间共享的变量与 mixin 放 packages/workspaces/${name}/styles/index.scss`)
+  console.log(`    3. 在 packages/workspaces/${name}/components/ 下新建组件目录（五个文件，零配置）`)
   console.log('    4. 重启 docs:dev 与 dev —— 页面清单与侧边栏在启动时就定好了')
+  console.log('    5. 跑一次 pnpm install，把这个空间挂进 workspace')
 }
 
 // 只有被当作脚本直接执行时才跑 CLI。被测试 import 时 process.argv[1] 是 vitest 的可执行文件。

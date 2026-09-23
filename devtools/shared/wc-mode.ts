@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Plugin } from 'vite'
 import { toIdentifier } from '@ew/utils'
+import { workspaceIdsOf } from '../../scripts/workspaces.ts'
 
 const COMPONENTS_PREFIX = 'virtual:ew-wc/'
 const INDEX_ID = 'virtual:ew-wc-index'
@@ -21,11 +22,8 @@ interface Located {
 function locateComponents(workspacesDir: string): Located[] {
   const found: Located[] = []
 
-  for (const workspace of readdirSync(workspacesDir)) {
-    const wsDir = join(workspacesDir, workspace)
-    if (!statSync(wsDir).isDirectory()) continue
-
-    const componentsDir = join(wsDir, 'components')
+  for (const workspace of workspaceIdsOf(workspacesDir)) {
+    const componentsDir = join(workspacesDir, workspace, 'components')
     if (!existsSync(componentsDir)) continue
 
     for (const name of readdirSync(componentsDir)) {

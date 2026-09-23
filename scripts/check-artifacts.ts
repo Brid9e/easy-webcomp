@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { usesTailwind } from './tailwind.ts'
+import { workspaceIdsOf } from './workspaces.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const cdnDir = join(root, 'dist/cdn')
@@ -46,10 +48,10 @@ interface DiscoveredComponent {
 
 /** 组件清单、框架与归属空间都取自源码目录，而不是文件名约定 —— 与构建脚本同一处事实来源 */
 function discoverComponents(): DiscoveredComponent[] {
-  const workspacesDir = join(root, 'src/workspaces')
+  const workspacesDir = join(root, 'packages/workspaces')
   const found: DiscoveredComponent[] = []
 
-  for (const ws of readdirSync(workspacesDir)) {
+  for (const ws of workspaceIdsOf(workspacesDir)) {
     const componentsDir = join(workspacesDir, ws, 'components')
     if (!existsSync(componentsDir)) continue
 
@@ -65,7 +67,7 @@ function discoverComponents(): DiscoveredComponent[] {
       const inFramework = !['style.scss', 'style.css']
         .map((f) => join(dir, f))
         .filter((p) => existsSync(p))
-        .some((p) => readFileSync(p, 'utf8').includes('@import "tailwindcss"'))
+        .some((p) => usesTailwind(readFileSync(p, 'utf8')))
 
       found.push({ name, workspace: ws, framework, inFramework })
     }

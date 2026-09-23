@@ -1,0 +1,32 @@
+{
+  "name": "@ew/self-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ew/runtime": "workspace:*",
+    "@ew/utils": "workspace:*",
+    "axios": "^1.20.0"
+  },
+  "peerDependencies": {
+    "element-plus": "^2.14.6",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "element-plus": {
+      "optional": true
+    },
+    "pinia": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "element-plus": "^2.14.6",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.0"
+  }
+}

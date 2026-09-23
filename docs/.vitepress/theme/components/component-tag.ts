@@ -8,7 +8,7 @@ interface MetaShape {
   tag: string
 }
 
-const metaModules = import.meta.glob('@src/workspaces/*/components/*/meta.ts', {
+const metaModules = import.meta.glob('@packages/workspaces/*/components/*/meta.ts', {
   eager: true,
 }) as Record<string, { default: MetaShape }>
 

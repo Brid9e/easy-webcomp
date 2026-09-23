@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import type { WorkspaceMeta } from '../../src/workspaces/define'
+import type { WorkspaceMeta } from '@ew/utils'
+import { workspaceIdsOf } from '../../scripts/workspaces'
 
 export const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -16,7 +17,7 @@ export interface WorkspaceInfo {
   components: ComponentInfo[]
 }
 
-const workspacesDirOf = () => join(rootDir, 'src/workspaces')
+const workspacesDirOf = () => join(rootDir, 'packages/workspaces')
 const docsDirOf = () => join(rootDir, 'docs/workspaces')
 
 function readComponent(dir: string, name: string, wsDocsDir: string): ComponentInfo {
@@ -44,31 +45,28 @@ export function listWorkspaces(
 ): WorkspaceInfo[] {
   const seen = new Map<string, string>()
 
-  return readdirSync(workspacesDir)
-    .filter((id) => statSync(join(workspacesDir, id)).isDirectory())
-    .map((id): WorkspaceInfo => {
-      const componentsDir = join(workspacesDir, id, 'components')
-      if (!existsSync(componentsDir)) return { id, components: [] }
+  return workspaceIdsOf(workspacesDir).map((id): WorkspaceInfo => {
+    const componentsDir = join(workspacesDir, id, 'components')
+    if (!existsSync(componentsDir)) return { id, components: [] }
 
-      const wsDocsDir = join(docsDir, id)
-      const components = readdirSync(componentsDir)
-        .filter((name) => statSync(join(componentsDir, name)).isDirectory())
-        .map((name): ComponentInfo => {
-          const owner = seen.get(name)
-          if (owner) {
-            throw new Error(
-              `[docs] 组件名 "${name}" 在 "${owner}" 与 "${id}" 下重复。` +
-                'tag 与 package exports 都不带空间前缀，组件名必须全局唯一',
-            )
-          }
-          seen.set(name, id)
-          return readComponent(join(componentsDir, name), name, wsDocsDir)
-        })
-        .sort((a, b) => a.name.localeCompare(b.name))
+    const wsDocsDir = join(docsDir, id)
+    const components = readdirSync(componentsDir)
+      .filter((name) => statSync(join(componentsDir, name)).isDirectory())
+      .map((name): ComponentInfo => {
+        const owner = seen.get(name)
+        if (owner) {
+          throw new Error(
+            `[docs] 组件名 "${name}" 在 "${owner}" 与 "${id}" 下重复。` +
+              'tag 与 package exports 都不带空间前缀，组件名必须全局唯一',
+          )
+        }
+        seen.set(name, id)
+        return readComponent(join(componentsDir, name), name, wsDocsDir)
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
 
-      return { id, components }
-    })
-    .sort((a, b) => a.id.localeCompare(b.id))
+    return { id, components }
+  })
 }
 
 /**

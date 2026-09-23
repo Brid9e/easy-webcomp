@@ -58,6 +58,7 @@ export default defineConfig(async () => ({
     resolve: {
       alias: {
         '@src': resolve(rootDir, 'src'),
+        '@packages': resolve(rootDir, 'packages'),
         '@devtools': resolve(rootDir, 'devtools/shared'),
       },
     },
@@ -67,12 +68,12 @@ export default defineConfig(async () => ({
     css: {
       preprocessorOptions: {
         scss: {
-          loadPaths: [resolve(rootDir, 'src/workspaces')],
-          includePaths: [resolve(rootDir, 'src/workspaces')],
+          loadPaths: [resolve(rootDir, 'packages/workspaces')],
+          includePaths: [resolve(rootDir, 'packages/workspaces')],
         },
       },
     },
-    plugins: [wcModePlugin(resolve(rootDir, 'src/workspaces')), react(), tailwind()],
+    plugins: [wcModePlugin(resolve(rootDir, 'packages/workspaces')), react(), tailwind()],
   },
   themeConfig: {
     nav: [

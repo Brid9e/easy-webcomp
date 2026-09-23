@@ -24,7 +24,7 @@ export function hostClassOf(name: string): string {
 
 /** 组件源码目录，相对于 src/.generated/framework/ */
 function sourcePath(c: FrameworkComponent): string {
-  return `../../workspaces/${c.workspace}/components/${c.name}`
+  return `../../../packages/workspaces/${c.workspace}/components/${c.name}`
 }
 
 function tsTypeOf(type: PropType): string {

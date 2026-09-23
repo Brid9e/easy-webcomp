@@ -18,7 +18,7 @@ export interface WorkspacePackageInput {
   hasCss?: boolean | undefined
   /** 从 dist/<空间>/framework/*.js 扫出来的包名，调用方去重后传入 */
   externals: readonly string[]
-  /** 版本来源：根包的 peerDependencies ⊕ dependencies */
+  /** 版本来源：`packages/<空间>/package.json` 的三段依赖合并 */
   versions: Readonly<Record<string, string>>
 }
 
@@ -104,7 +104,7 @@ export function workspacePackageJson(input: WorkspacePackageInput): Record<strin
     if (version === undefined) {
       throw new Error(
         `[build] ${packageNameOf(input.workspace)} 的产物引了 "${name}"，` +
-          '但根 package.json 的 peerDependencies / dependencies 里没有它的版本',
+          `但 packages/${input.workspace}/package.json 的 dependencies / peerDependencies / devDependencies 里没有它的版本`,
       )
     }
     peerDependencies[name] = version

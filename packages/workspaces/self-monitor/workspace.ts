@@ -1,4 +1,4 @@
-import { defineWorkspace } from '../define'
+import { defineWorkspace } from '@ew/utils'
 
 export default defineWorkspace({
   title: 'self-monitor(自行监测系统)',

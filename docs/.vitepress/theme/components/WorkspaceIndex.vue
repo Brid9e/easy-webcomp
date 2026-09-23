@@ -7,11 +7,11 @@ interface WorkspaceMetaShape {
   description?: string
 }
 
-const metaModules = import.meta.glob('@src/workspaces/*/workspace.ts', { eager: true }) as Record<
+const metaModules = import.meta.glob('@packages/workspaces/*/workspace.ts', { eager: true }) as Record<
   string,
   { default: WorkspaceMetaShape }
 >
-const componentModules = import.meta.glob('@src/workspaces/*/components/*/Component.{vue,tsx}', {
+const componentModules = import.meta.glob('@packages/workspaces/*/components/*/Component.{vue,tsx}', {
   eager: true,
 })
 

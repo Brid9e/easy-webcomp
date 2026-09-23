@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -6,17 +14,20 @@ import { createComponent, type ComponentSpec } from '../../scripts/new-component
 
 let root: string
 
+const wsDir = (name: string) => join(root, 'packages/workspaces', name)
+
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'ew-new-comp-'))
-  mkdirSync(join(root, 'src/workspaces/demo/components'), { recursive: true })
-  writeFileSync(join(root, 'src/workspaces/demo/workspace.ts'), 'export default {}\n')
+  mkdirSync(join(wsDir('demo'), 'components'), { recursive: true })
+  writeFileSync(join(wsDir('demo'), 'workspace.ts'), 'export default {}\n')
+  writeFileSync(join(wsDir('demo'), 'package.json'), '{"name":"@ew/demo"}\n')
 })
 
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-const dirOf = (name: string) => join(root, 'src/workspaces/demo/components', name)
+const dirOf = (name: string) => join(wsDir('demo'), 'components', name)
 const read = (name: string, file: string) => readFileSync(join(dirOf(name), file), 'utf8')
 
 function spec(overrides: Partial<ComponentSpec> = {}): ComponentSpec {
@@ -82,8 +93,8 @@ describe('createComponent · 基础骨架', () => {
   })
 
   it('空间有 styles/index.scss 时，@use 排在所有规则之前', () => {
-    mkdirSync(join(root, 'src/workspaces/demo/styles'), { recursive: true })
-    writeFileSync(join(root, 'src/workspaces/demo/styles/index.scss'), '$gutter: 8px;\n')
+    mkdirSync(join(wsDir('demo'), 'styles'), { recursive: true })
+    writeFileSync(join(wsDir('demo'), 'styles/index.scss'), '$gutter: 8px;\n')
 
     createComponent(root, spec())
     const scss = read('my-card', 'style.scss')
@@ -126,10 +137,17 @@ describe('createComponent · 校验', () => {
   })
 
   it('拒绝跨工作空间重名 —— 组件名必须全局唯一', () => {
-    mkdirSync(join(root, 'src/workspaces/other/components'), { recursive: true })
-    writeFileSync(join(root, 'src/workspaces/other/workspace.ts'), 'export default {}\n')
+    mkdirSync(join(wsDir('other'), 'components'), { recursive: true })
+    writeFileSync(join(wsDir('other'), 'workspace.ts'), 'export default {}\n')
+    writeFileSync(join(wsDir('other'), 'package.json'), '{"name":"@ew/other"}\n')
     createComponent(root, spec({ workspace: 'other' }))
     expect(() => createComponent(root, spec())).toThrow(/全局唯一/)
+  })
+
+  it('拒绝没有 package.json 的空间 —— 依赖没处装，版本也没处取', () => {
+    mkdirSync(join(wsDir('bare'), 'components'), { recursive: true })
+    writeFileSync(join(wsDir('bare'), 'workspace.ts'), 'export default {}\n')
+    expect(() => createComponent(root, spec({ workspace: 'bare' }))).toThrow(/没有 package.json/)
   })
 
   it('拒绝与框架不匹配的配套设施', () => {
@@ -153,11 +171,6 @@ describe('createComponent · 校验', () => {
     ).toThrow(/只能选一个 UI 库/)
   })
 
-  it('拒绝 Tailwind 与 UI 库同选 —— preflight 会落到整页', () => {
-    expect(() =>
-      createComponent(root, spec({ addons: ['element-plus', 'tailwind'] })),
-    ).toThrow(/不能同选/)
-  })
 })
 
 describe('createComponent · 配套设施', () => {
@@ -219,13 +232,47 @@ describe('createComponent · 配套设施', () => {
   })
 
   it('空间有共享样式时 Tailwind 也不加 @use —— @import 必须排在最前，两者会打架', () => {
-    mkdirSync(join(root, 'src/workspaces/demo/styles'), { recursive: true })
-    writeFileSync(join(root, 'src/workspaces/demo/styles/index.scss'), '$gutter: 8px;\n')
+    mkdirSync(join(wsDir('demo'), 'styles'), { recursive: true })
+    writeFileSync(join(wsDir('demo'), 'styles/index.scss'), '$gutter: 8px;\n')
 
     createComponent(root, spec({ addons: ['tailwind'] }))
     const css = read('my-card', 'style.css')
     expect(css).not.toContain('@use')
     expect(css.indexOf('@import "tailwindcss"')).toBe(0)
+  })
+
+  it('echarts 只加依赖，不生成任何文件', () => {
+    const result = createComponent(root, spec({ addons: ['echarts'] }))
+    expect(result.dependencies).toEqual(['echarts'])
+    expect(result.devDependencies).toEqual([])
+    expect(readdirSync(dirOf('my-card')).sort()).toEqual([
+      'Component.vue',
+      'define.ts',
+      'index.ts',
+      'meta.ts',
+      'style.scss',
+    ])
+  })
+
+  it('React 下也能选 echarts —— 两个框架都有', () => {
+    const result = createComponent(root, spec({ framework: 'react', addons: ['echarts'] }))
+    expect(result.dependencies).toEqual(['echarts'])
+  })
+
+  // preflight 是一份全局 reset：UI 库要求关 shadow，它落到 document.head 就会抹掉宿主页面的
+  // 标题与列表样式。改成只引 theme + utilities，同选才成立。
+  it('Tailwind 与 UI 库同选：去掉 preflight，改成 theme + utilities 两层', () => {
+    const result = createComponent(root, spec({ addons: ['element-plus', 'tailwind'] }))
+    const css = read('my-card', 'style.css')
+    expect(css).not.toContain('@import "tailwindcss"')
+    expect(css).toContain('@import "tailwindcss/theme.css" layer(theme);')
+    expect(css).toContain('@import "tailwindcss/utilities.css" layer(utilities);')
+    // @import 必须排在所有规则之前
+    expect(css.indexOf('@import "tailwindcss/theme.css"')).toBe(0)
+    // UI 库照旧关 shadow，两个选项都还生效
+    expect(read('my-card', 'meta.ts')).toContain('shadow: false')
+    expect(result.dependencies).toEqual(['element-plus'])
+    expect(result.devDependencies).toEqual(['@tailwindcss/vite', 'tailwindcss'])
   })
 
   it('React 的 @source 指向 Component.tsx', () => {

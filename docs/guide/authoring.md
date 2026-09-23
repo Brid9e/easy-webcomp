@@ -9,14 +9,17 @@ pnpm run new:workspace my-space
 ```
 
 ```
-src/workspaces/my-space/
+packages/workspaces/my-space/      # 包名 @ew/my-space
 ├── workspace.ts            # 展示名与描述，供文档站用
+├── package.json            # 空间的依赖清单，也是构建期取版本号的来源
 ├── styles/
 │   └── index.scss          # 空间共享的变量与 mixin，组件按需 @use
 └── components/             # 组件都放这里
 ```
 
-目录名就是工作空间 id，清单里不重复声明。**新建后必须重启 `docs:dev` 与 `pnpm dev`**：页面清单、侧边栏与 grid 都在启动时确定，运行时新增的目录不会被收录。
+目录名就是工作空间 id，清单里不重复声明。生成后跑一次 `pnpm install` 把它挂进 workspace。**新建后必须重启 `docs:dev` 与 `pnpm dev`**：页面清单、侧边栏与 grid 都在启动时确定，运行时新增的目录不会被收录。
+
+**一个空间一个包。** 组件用到的第三方库是这个空间的依赖，写在空间的 `package.json` 里；产物清单（`dist/<空间>/package.json`）的版本号也从这里读。`pnpm run new:component` 选完配套设施会把依赖直接装进对应空间，不必手工改根 `package.json`。
 
 工作空间不影响交付：tag、`npm` 子路径、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，两个空间下的同名组件会在构建时报错。
 
@@ -25,7 +28,7 @@ src/workspaces/my-space/
 在空间的 `components/` 下新建目录，放入五个文件即可，**不需要修改任何构建配置或路由**：
 
 ```
-src/workspaces/<空间名>/components/<组件名>/
+packages/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
 ├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
@@ -50,9 +53,11 @@ src/workspaces/<空间名>/components/<组件名>/
 }
 ```
 
-写空间名而不是 `../../styles` 是刻意为之：构建与文档站都把 `scss` 的解析路径指向了 `src/workspaces`，路径因此与组件所在层级解耦，组件目录移到更深一层也不需要改这行。
+写空间名而不是 `../../styles` 是刻意为之：构建与文档站都把 `scss` 的解析路径指向了 `packages/workspaces`，路径因此与组件所在层级解耦，组件目录移到更深一层也不需要改这行。
 
 **例外：选用 Tailwind 的组件生成的是 `style.css`。** `@tailwindcss/vite` 不处理 `.scss`，写进 `.scss` 的 `@import "tailwindcss"` 会被 Sass 当成待解析的 partial 而报错。这是工具链的硬约束，不是风格选择；Tailwind 组件也因此用不上 `@use`。
+
+Tailwind 可以与 UI 库同选。UI 库要求关掉 Shadow DOM，此时整份 CSS 落到 `document.head`，而 Tailwind 的 preflight 是一份全局 reset，会把宿主页面的标题、列表、按钮样式一并抹平 —— 所以同选时生成的入口是 preflight-free 的 `@import "tailwindcss/theme.css" layer(theme)` + `@import "tailwindcss/utilities.css" layer(utilities)`：主题变量与工具类照常可用，只是不动宿主已有的元素样式。
 
 ### `<style>` 块只用来引第三方样式表
 

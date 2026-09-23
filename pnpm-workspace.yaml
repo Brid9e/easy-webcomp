@@ -1,5 +1,9 @@
 packages:
+  # 工具链自己的包：runtime / utils
   - 'packages/*'
+  # 一个一个的空间，一个空间一个包。workspaces 这一层自身没有 package.json，
+  # pnpm 不会把它当成包，只有它下面带清单的目录才是
+  - 'packages/workspaces/*'
 
 # core-js 的 install 脚本只是打印捐赠提示，跳过它没有任何代价；
 # esbuild 必须放行，它要下载对应平台的二进制。

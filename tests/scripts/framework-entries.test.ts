@@ -29,12 +29,12 @@ describe('vueWrapperSource', () => {
   const source = vueWrapperSource(component())
 
   it('从组件目录直接引源码，不经过 index.ts（那会把 createElementClass 一并引入）', () => {
-    expect(source).toContain("from '../../workspaces/demo/components/hello-vue/Component.vue'")
+    expect(source).toContain("from '../../../packages/workspaces/demo/components/hello-vue/Component.vue'")
     expect(source).not.toContain("index'")
   })
 
   it('样式按 ?inline 引，并在模块顶层改写好 :host', () => {
-    expect(source).toContain("import rawCss from '../../workspaces/demo/components/hello-vue/style.scss?inline'")
+    expect(source).toContain("import rawCss from '../../../packages/workspaces/demo/components/hello-vue/style.scss?inline'")
     expect(source).toContain("rewriteHost(rawCss, '.ew-hello-vue-host')")
   })
 

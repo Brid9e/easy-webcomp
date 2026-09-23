@@ -7,7 +7,7 @@ import { defineConfig } from 'vite'
 import { wcModePlugin } from './shared/wc-mode'
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
-const workspacesDir = resolve(root, 'src/workspaces')
+const workspacesDir = resolve(root, 'packages/workspaces')
 
 export default defineConfig({
   // devtools/ 里没有 package.json，Vite 会一路往上找缓存目录，最后落在**仓库根**的
@@ -19,6 +19,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@src': resolve(root, 'src'),
+      '@packages': resolve(root, 'packages'),
       '@devtools': resolve(root, 'devtools/shared'),
     },
   },

@@ -12,7 +12,7 @@ pnpm dev            # 调试页：http://localhost:5273，单组件调试，容�
 pnpm docs:dev       # 文档站：http://localhost:5173
 ```
 
-调试页每次只渲染一个组件并占满视口。容器可拖拽，也可按 375 / 768 / 1024 / 铺满 取预设，右上角显示实时像素读数，用于观察组件在窄容器下的自适应表现。左栏选择组件，右栏修改属性、查看事件。它同样扫描 `src/workspaces/`，因此与文档站一样，**新增目录后需要重启**。
+调试页每次只渲染一个组件并占满视口。容器可拖拽，也可按 375 / 768 / 1024 / 铺满 取预设，右上角显示实时像素读数，用于观察组件在窄容器下的自适应表现。左栏选择组件，右栏修改属性、查看事件。它同样扫描 `packages/workspaces/`，因此与文档站一样，**新增目录后需要重启**。
 
 文档站位于 `docs/`，由 VitePress 驱动。每个组件一页，散文手写，交互面板由 `meta.ts` 驱动；未单独编写页面的组件会得到一个只含交互面板的详情页。
 
@@ -22,12 +22,13 @@ pnpm docs:dev       # 文档站：http://localhost:5173
 
 ## 工作空间
 
-组件必须属于某个工作空间，不存在隐式的默认空间。工作空间是一个目录加一份清单：
+组件必须属于某个工作空间，不存在隐式的默认空间。工作空间是一个目录加一份清单，**一个空间一个包**：
 
 ```
-src/workspaces/
-└── demo/
+packages/workspaces/
+└── demo/                       # 包名 @ew/demo
     ├── workspace.ts            # 展示名与描述，供文档站用
+    ├── package.json            # 空间的依赖清单，也是构建期取版本号的来源
     ├── styles/
     │   └── index.scss          # 空间共享的变量与 mixin，组件按需 @use
     └── components/
@@ -41,7 +42,9 @@ src/workspaces/
 pnpm run new:workspace <空间名>
 ```
 
-目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。**新建后需要重启 `docs:dev` 与 `pnpm dev`**：页面清单、侧边栏与 grid 都在启动时确定，运行时新增的目录不会被收录（新增组件同理）。
+目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。生成时自带 `package.json`（包名 `@ew/<空间名>`），跑一次 `pnpm install` 把它挂进 workspace。**新建后需要重启 `docs:dev` 与 `pnpm dev`**：页面清单、侧边栏与 grid 都在启动时确定，运行时新增的目录不会被收录（新增组件同理）。
+
+空间的依赖装在自己的 `package.json` 里：组件用到的库（UI 库、axios、echarts……）都是这个空间的依赖，版本号也从这里读，产物清单里写的 peerDependencies 因此与空间声明一致。`pnpm run new:component` 选完配套设施后会把依赖直接装进对应空间。
 
 工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，两个空间下的同名组件会使构建直接报错。
 
@@ -50,7 +53,7 @@ pnpm run new:workspace <空间名>
 先在某个工作空间下新建目录，放入五个文件即可，**不需要修改任何构建配置或路由**：
 
 ```
-src/workspaces/<空间名>/components/<组件名>/
+packages/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
 ├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
@@ -58,7 +61,7 @@ src/workspaces/<空间名>/components/<组件名>/
 └── define.ts         # 副作用入口，CDN 产物用
 ```
 
-样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里用 `@use '<空间>/styles' as styles;` 取用。写空间名而非相对路径是刻意为之：构建与文档站都把 SCSS 的解析路径指向 `src/workspaces`，路径因此与组件所在层级解耦，组件目录移到更深一层也不需要改这行。**例外：Tailwind 组件是 `style.css`**，因为 `@tailwindcss/vite` 不处理 `.scss`。
+样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里用 `@use '<空间>/styles' as styles;` 取用。写空间名而非相对路径是刻意为之：构建与文档站都把 SCSS 的解析路径指向 `packages/workspaces`，路径因此与组件所在层级解耦，组件目录移到更深一层也不需要改这行。**例外：Tailwind 组件是 `style.css`**，因为 `@tailwindcss/vite` 不处理 `.scss`。
 
 组件自身的样式写在 `style.scss`，由桥接层注入，消费方无需操作。`Component.vue` 里的 `<style>` 块只用于引入第三方样式表（例如宿主按需引入 Element Plus 时，组件用到的子组件样式），**不要加 `scoped`**：那份 CSS 会被抽成独立文件而非随模块注入，框架消费方需要显式 `import '@ew/<空间>/styles.css'`。细节见 [docs/guide/build.md](docs/guide/build.md#组件里的-style-块)。
 
