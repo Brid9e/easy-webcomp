@@ -1755,7 +1755,12 @@ git commit -m "test(e2e): 真实浏览器里跑 Vue 框架产物，页面由 roo
 
 - [ ] **Step 2: `build.md` 补框架产物**
 
-`docs/guide/build.md` 的产物路径表（第 9-14 行）里加一行：
+> 顺带把 `build:framework` 这条 script 补进 `package.json`（`--only` 早就接受 `framework` 了，
+> 只是没包一层 npm script，脚本块与 `build:esm` / `build:cdn` 不对称）。
+> `package.json` 本次不提交，交给合并方 —— 那份里还混着 self-monitor 在制品的依赖。
+
+`docs/guide/build.md` 的产物路径表（第 9-14 行）里加一行，顶部的命令块同步补上 `build` 的
+注释与 `build:framework`：
 
 ```markdown
 | `dist/framework/vue.js`、`dist/framework/react.js` | 原生 Vue / React 组件，见下节 |
@@ -1886,7 +1891,9 @@ pnpm run verify
 
 七个阶段依次要绿：`typecheck` → `test`（115 → **162**：Task 1 加 9、Task 2 加 17、Task 3 加 2、Task 4 加 19）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
 
-> **与 spec §9 的一处偏离：** spec 写的是「在文档站里引 `dist/framework/vue.js` 渲染一个组件，跑一条 e2e」。实际做成了 jsdom 集成测试（`check:framework`）+ 一个 import-map 的独立 e2e 页面。原因是文档站页面要在**构建期**解析 `dist/framework/vue.js`，而 `verify` 里 `typecheck` 与 `docs:build` 都排在 `build` 之前 —— 干净 clone 上 `dist` 还不存在，页面直接构建失败。换成独立 fixture 页后覆盖的内容一样（真实浏览器 + 真实产物），且不再给文档站加一条「必须先构建」的隐性前置。
+> **与 spec §9 的一处偏离：** spec 写的是「在文档站里引 `dist/framework/vue.js` 渲染一个组件，跑一条 e2e」。实际做成了 jsdom 集成测试（`check:framework`）+ 一个独立 fixture 页的 e2e。原因是文档站页面要在**构建期**解析 `dist/framework/vue.js`，而 `verify` 里 `typecheck` 与 `docs:build` 都排在 `build` 之前 —— 干净 clone 上 `dist` 还不存在，页面直接构建失败。换成独立 fixture 页后覆盖的内容一样（真实浏览器 + 真实产物），且不再给文档站加一条「必须先构建」的隐性前置。
+>
+> （该 fixture 页原计划用静态服务器 + import map，实测走不通，改为由 root 指向仓库根的 Vite 提供 —— 见 Task 7 开头的实测修正。）
 
 三项人工确认：
 
