@@ -14,7 +14,7 @@ pnpm run build:framework  # 只出框架产物
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
 | `dist/cdn/ew-all.js` | CDN 全量单文件 |
 | `dist/<空间>/framework/vue.js`、`react.js` | 原生 Vue / React 组件，见下节 |
-| `dist/<空间>/framework/styles.css` | 组件 `<style>` 块抽出来的样式，从 `@ew/<空间>/styles.css` 导出，见下节 |
+| `dist/<空间>/styles.css` | 组件 `<style>` 块抽出来的样式，由 `@ew/<空间>/styles.css` 导出，见下节 |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上，见下节 |
 | `dist/element-plus.css` | 组件库样式，可选引入 |
 
@@ -80,9 +80,13 @@ import '@ew/self-monitor/styles.css'
 
 - **不要加 `scoped`。** Vue 只会把 scope id 打到本组件自己 render 出来的元素（含子组件的根元素）上，而这类样式表的选择器命中的是第三方组件的**内部**元素，加了 `scoped` 之后绝大多数规则永远不会匹配 —— 而且不报错。组件自己的规则本来就该写 `style.scss`（那份受类名前缀检查约束），`<style>` 块只放第三方样式表，全局作用域正是它要的。
 - **这个文件是有条件产出的。** 该空间没有任何组件写 `<style>` 块时它根本不存在，exports 里也就没有 `./styles.css`。`check:artifacts` 双向查：产物里有就必须导出，导出了就必须存在。
-- **文件名固定为 `styles.css`，是显式指定的**（`build.lib.cssFileName`）。不指定的话 Vite 会退回根包的 `name` —— 产物里凭空出现一个叫 `easy-webcomp.css` 的文件（还是散在空间目录里的），根包一改名就静默跟着变。
+- **文件名固定为 `styles.css`**（`build.lib.cssFileName`）。不指定的话 Vite 会退回根包的 `name` —— 产物里凭空出现一个叫 `easy-webcomp.css` 的文件，根包一改名就静默跟着变。
 
-同一份 CSS 在 `esm/` 与 `cdn/` 下也有（同名 `styles.css`，CDN 侧是 `<组件>.css`）：CSS 抽取跟着模块图走，构建分几条管线它就在几处出现。只有 framework 那份被导出，另两份是过程产物。CDN 那份按组件名分而不是共用根包名，是因为逐组件构建共用 `dist/cdn` 且 `emptyOutDir: false`，共用一个名字时后一个组件会覆盖前一个。
+**只保留一份，放在空间根目录下。** CSS 抽取跟着模块图走，本来每条构建管线都会在自己的 outDir 里落一份（`esm/` 一份、`framework/` 一份），内容还完全一样。构建结束会把 framework 那份提到 `dist/<空间>/styles.css`、删掉 ESM 那份 —— WC 模式下组件渲染在 shadow root 里，外部 CSS 根本进不去，ESM 那份谁也拿不到，留着只是让消费方在两份同内容文件里挑。`check:artifacts` 会拦住构建目录里残留的那份。
+
+CDN 那份（`dist/cdn/<组件>.css`、`dist/cdn/ew-all.css`）是例外，照留：那是 URL 寻址的，跟空间目录无关，而且单组件 IIFE 旁边没有别的入口能替它把样式带进去，用 CDN 时得自己补一个 `<link>`。它按组件名分而不是共用根包名，是因为逐组件构建共用 `dist/cdn` 且 `emptyOutDir: false`，共用一个名字时后一个组件会覆盖前一个。
+
+**键名必须带 `.css` 后缀。** 消费方的 tsc 是靠 `vite/client` 里那句 `declare module '*.css'` 认出这个模块的，而那条声明匹配的是说明符文本 —— `@ew/<空间>/css` 不以 `.css` 结尾，匹配不上，即便 exports 指向的确实是个 `.css` 文件也报 TS2307。
 
 宿主已经引了完整 Element Plus 的话，直接用根包的 `easy-webcomp/element-plus.css` 更省事 —— 那是个全量入口，不必逐个组件地补。
 

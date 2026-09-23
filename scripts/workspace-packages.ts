@@ -89,12 +89,13 @@ export function workspacePackageJson(input: WorkspacePackageInput): Record<strin
   // 时，那份 CSS 走 Vite 的抽取管线，会被单独出一个文件而不是随模块注入 —— 框架路径的
   // applyGlobalStyles 只认 style.scss，够不到它。所以得由宿主显式引一次。
   //
-  // 键名不挂 framework/ 前缀，与 ./vue → ./framework/vue.js 保持一致：消费方引的是
-  // 「这个空间的样式」，文件落在哪儿是产物内部的事。
+  // **后缀必须留在键名里。** 消费方的 tsc 是靠 vite/client 里那句 `declare module '*.css'`
+  // 认出这个模块的，而那条声明匹配的是说明符文本；`@ew/<空间>/css` 不以 .css 结尾，
+  // 匹配不上，即便 exports 指向的确实是个 .css 文件也报 TS2307。实测过。
   //
   // 裸字符串而不是 { types, default }：CSS 没有声明文件，写 types 是编的。
   if (input.hasCss === true) {
-    exports['./styles.css'] = './framework/styles.css'
+    exports['./styles.css'] = './styles.css'
   }
 
   const peerDependencies: Record<string, string> = {}

@@ -303,11 +303,22 @@ function checkDeclarations(components: DiscoveredComponent[], failures: string[]
 
     // 反方向：产物里真有样式表就必须导出。少了这条，组件里加的 <style> 块会静默地
     // 只落在 dist 里 —— 构建、测试、e2e 全绿，消费方却拿不到那份样式。
-    const cssPath = join(dir, 'framework/styles.css')
-    if (existsSync(cssPath) && !Object.keys(pkg.exports ?? {}).includes('./styles.css')) {
+    if (
+      existsSync(join(dir, 'styles.css')) &&
+      !Object.keys(pkg.exports ?? {}).includes('./styles.css')
+    ) {
       failures.push(
-        `dist/${workspace}/framework/styles.css 存在，但 package.json 的 exports 里没有 "./styles.css"`,
+        `dist/${workspace}/styles.css 存在，但 package.json 的 exports 里没有 "./styles.css"`,
       )
+    }
+
+    // 样式表只该在空间根上有一份（build.ts 的 hoistCss）。Vite 本来会让它跟着模块图
+    // 落到每个构建目录里，留在那儿说明 hoistCss 没跑或被人改回去了：消费方看到的是
+    // 两份同内容文件里没被导出的那一份。
+    for (const stray of ['esm/styles.css', 'framework/styles.css']) {
+      if (existsSync(join(dir, stray))) {
+        failures.push(`dist/${workspace}/${stray} 不该存在 —— 样式表只保留空间根上那一份`)
+      }
     }
   }
 }
@@ -352,7 +363,7 @@ function checkExports(components: DiscoveredComponent[], failures: string[]): vo
         .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
         .map((framework) => `@ew/${workspace}/${framework}`),
       // 有条件才有：没组件写 <style> 块的空间根本不产这个文件
-      ...(existsSync(join(root, 'dist', workspace, 'framework/styles.css'))
+      ...(existsSync(join(root, 'dist', workspace, 'styles.css'))
         ? [`@ew/${workspace}/styles.css`]
         : []),
     ]

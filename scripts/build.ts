@@ -3,6 +3,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -426,6 +427,25 @@ async function buildFramework(
 }
 
 /**
+ * 把框架产物里抽出来的样式表提到空间根目录，并删掉 ESM 那份。
+ *
+ * 同一份 CSS 被抽到三处是管线的副产物而不是设计 —— 抽取跟着模块图走，有几条构建就落几份。
+ * 但对消费方来说只有框架那份够得着：WC 模式下组件渲染在 shadow root 里，外部 CSS 进不去，
+ * ESM 那份谁也拿不到。所以只留一份放在空间根上，由 package.json 的 "./styles.css" 导出。
+ *
+ * CDN 那份（`dist/cdn/<组件>.css`）不动：它是 URL 寻址的，跟空间目录无关，
+ * 而且单组件 IIFE 旁边没有 JS 入口能替它把样式带进去。
+ */
+function hoistCss(workspaces: readonly string[]): void {
+  for (const workspace of workspaces) {
+    const dir = join(root, 'dist', workspace)
+    const emitted = join(dir, 'framework', 'styles.css')
+    if (existsSync(emitted)) renameSync(emitted, join(dir, 'styles.css'))
+    rmSync(join(dir, 'esm', 'styles.css'), { force: true })
+  }
+}
+
+/**
  * 根包的 exports 收缩成三条：ESM 与 framework 都按空间搬走了，根上只剩 tokens.css、
  * element-plus.css 与 CDN。**不保留聚合的 `./vue` / `./react`** —— 那个桶正是本设计要
  * 消灭的东西（引 HelloVue 会连 element-plus 一起拖进来）。
@@ -496,8 +516,8 @@ function writeWorkspacePackages(
       private: pkg.private,
       frameworks,
       // 从产物探测而不是扫源码里的 <style> 块：Vite 抽不抽得出 CSS 由模块图决定，
-      // 源码里有个 <style> 不等于产物里有这个文件。
-      hasCss: existsSync(join(dir, 'framework', 'styles.css')),
+      // 源码里有个 <style> 不等于产物里有这个文件。位置由 hoistCss 定在空间根上。
+      hasCss: existsSync(join(dir, 'styles.css')),
       externals,
       versions,
     })
@@ -557,6 +577,8 @@ async function main(): Promise<void> {
     console.log('[build] 构建框架产物...')
     await buildFramework(components, frameworkComponents)
   }
+
+  hoistCss(workspacesOf(components))
 
   writeRootExports()
   // 空间包的依赖从 framework 产物反推，要全量构建的产物才成立 —— --only 时跳过，
