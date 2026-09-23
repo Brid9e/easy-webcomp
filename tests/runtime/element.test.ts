@@ -13,12 +13,20 @@ interface StubInstance {
   emit: (name: string, detail: unknown) => void
   updates: number
   unmounted: boolean
+  active: boolean
 }
 
 function stubAdapter(log: StubInstance[]): ElementAdapter {
   return {
     mount(host, props, emit) {
-      const instance: StubInstance = { host, props, emit, updates: 0, unmounted: false }
+      const instance: StubInstance = {
+        host,
+        props,
+        emit,
+        updates: 0,
+        unmounted: false,
+        active: true,
+      }
       log.push(instance)
       return instance
     },
@@ -29,6 +37,9 @@ function stubAdapter(log: StubInstance[]): ElementAdapter {
     },
     unmount(instance) {
       ;(instance as StubInstance).unmounted = true
+    },
+    setActive(instance, active) {
+      ;(instance as StubInstance).active = active
     },
   }
 }
@@ -123,6 +134,25 @@ describe('createElementClass', () => {
     document.body.appendChild(el)
     expect(log).toHaveLength(2)
     expect(log[1]?.host).toBe(shadow)
+  })
+
+  it('带 keep-alive 的元素断开时不卸载，只通知失活', () => {
+    const tag = uniqueTag()
+    defineComponent({ tag })
+    const el = mount(tag, { 'keep-alive': '' })
+    document.body.removeChild(el)
+    expect(log[0]?.unmounted).toBe(false)
+    expect(log[0]?.active).toBe(false)
+  })
+
+  it('带 keep-alive 的元素重新插入复用同一个实例', () => {
+    const tag = uniqueTag()
+    defineComponent({ tag })
+    const el = mount(tag, { 'keep-alive': '' })
+    document.body.removeChild(el)
+    document.body.appendChild(el)
+    expect(log).toHaveLength(1)
+    expect(log[0]?.active).toBe(true)
   })
 
   it('重新插入不往 shadow root 里堆第二份 style', () => {

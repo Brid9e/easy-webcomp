@@ -38,7 +38,12 @@ export function createElementClass(
     }
 
     connectedCallback(): void {
-      if (this._instance !== null) return
+      // 实例还在，说明上一轮断开时我们把它挂起了（keep-alive）—— 直接唤回来。
+      // 重新 mount 会把内层那份状态扔掉，而这正是挂起要保的东西。
+      if (this._instance !== null) {
+        adapter.setActive?.(this._instance, true)
+        return
+      }
 
       for (const [name, def] of propEntries) {
         if (!isAttributeChannel(def.type)) continue
@@ -69,6 +74,18 @@ export function createElementClass(
     disconnectedCallback(): void {
       liveInstances.delete(this)
       if (this._instance === null) return
+
+      // keep-alive：宿主（Vue 的 KeepAlive、或任何「把 DOM 挪走而不是销毁」的容器）只是把
+      // 元素移进了一个游离容器，元素会回来。这时不卸载 —— 一卸，内层 app 与它那份 pinia 就
+      // 没了，回来是新实例、必然重新请求。改为通知组件失活，让它自己停掉隐藏期间的轮询。
+      //
+      // 代价：元素被真正销毁时（v-if 撤掉、缓存淘汰）DOM 是从游离容器里被摘走的，我们那时
+      // 已经处于断开状态，收不到第二次信号，这份实例会一直挂着。所以这个属性默认不带。
+      if (this.hasAttribute('keep-alive')) {
+        adapter.setActive?.(this._instance, false)
+        return
+      }
+
       adapter.unmount(this._instance)
       this._instance = null
     }

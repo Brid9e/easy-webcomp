@@ -27,6 +27,12 @@ export interface ElementAdapter {
   ): unknown
   update(instance: unknown, props: Record<string, unknown>): void
   unmount(instance: unknown): void
+  /**
+   * 元素被移出文档但选择保状态（keep-alive）时通知组件。
+   *
+   * 可选：不实现不会让元素失效，只是组件收不到激活信号 —— 状态照样保住。
+   */
+  setActive?(instance: unknown, active: boolean): void
 }
 
 /** 构造器上额外挂了 refresh() */
