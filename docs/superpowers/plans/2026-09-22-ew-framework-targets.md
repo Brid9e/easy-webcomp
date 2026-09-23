@@ -1297,8 +1297,9 @@ declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean
 }
 
+// 只清 body，不清 head：样式去重表是 dist 产物里的一个模块级 Set，用例够不着它，
+// 清掉 head 只会在下一条用例里造出「Set 说注入过、DOM 里却没有」的假红。
 beforeEach(() => {
-  document.head.innerHTML = ''
   document.body.innerHTML = ''
 })
 
@@ -1349,9 +1350,12 @@ describe('Vue 框架产物', () => {
     document.body.append(a, b)
 
     createApp({ render: () => h(HelloVue, {}) }).mount(a)
+    // 断言「不再增长」而不是「恰好 1 份」：去重表在 dist 产物里，用例清不掉它，
+    // 前面用例注入的那份会一直留在 head 里。
+    const afterFirst = document.head.querySelectorAll('style[data-ew-style]').length
     createApp({ render: () => h(HelloVue, {}) }).mount(b)
 
-    expect(document.head.querySelectorAll('style[data-ew-style]')).toHaveLength(1)
+    expect(document.head.querySelectorAll('style[data-ew-style]')).toHaveLength(afterFirst)
   })
 })
 
@@ -1467,14 +1471,27 @@ pnpm run build && pnpm run check:framework
 
 ```ts
 /**
+ * 把 import/export 语句里的说明符抹掉，只留被打进产物的实现代码。
+ *
+ * 框架产物的判据是「宿主框架的**运行时代码**一个字都不该在」，而不是「框架名一次都不该出现」——
+ * 这两件事被 external 拆开了：external 生效时产物里恰好留着一句裸导入，
+ * 而 `@ew/runtime` 的 react 适配器（包装层要用它的 EwEmitContext）本身 `import 'react-dom/client'`，
+ * Rollup 无法证明外部包无副作用，就把这句以「仅副作用导入」的形式保留了下来。
+ * 于是 react-dom 在**健康**产物里也会出现 1 次，按字面量数会直接误报。
+ * 抹掉说明符之后，健康产物是 0，真被 external 漏掉的产物仍是非 0。
+ */
+function stripSpecifiers(code: string): string {
+  return code.replace(/\b(?:from|import)\s*["'][^"']*["']/g, '')
+}
+
+/**
  * 框架产物的守卫。两件事：
  *
  * 1. 宿主框架**不能**被打进去 —— 两份 Vue 会让 provide/inject 对不上，两份 React 会让
- *    hooks 报错。这里沿用 CDN 那套「自家标记恰好出现 N 次」的思路，只是框架产物里
- *    期望值是 0（说明符被 external 掉之后，运行时代码一个字都不该在）。
+ *    hooks 报错。判据是「剥离说明符后运行时代码一个字都不剩」（见 stripSpecifiers）。
  * 2. 包装层不该把适配器拖进来 —— `@ew/runtime` 的桶同时导出两个适配器，只引
- *    EW_EMIT_KEY / EwEmitContext 时另一个应当被摇掉。react-dom 只被 reactAdapter 用到，
- *    它的出现就是没摇干净的证据。
+ *    EW_EMIT_KEY / EwEmitContext 时另一个应当被摇掉。所以 vue.js 里不该有 react 的痕迹，
+ *    反之亦然。
  */
 function checkFramework(failures: string[]): void {
   const dir = join(root, 'dist/framework')
@@ -1489,7 +1506,8 @@ function checkFramework(failures: string[]): void {
       continue
     }
     const code = readFileSync(path, 'utf8')
-    const hits = count(code, marker)
+    // 裸导入的检查跑在原文上（它要找的正是说明符），标记计数跑在剥离后的正文上
+    const hits = count(stripSpecifiers(code), marker)
     if (hits !== 0) {
       failures.push(`dist/framework/${file} 里出现 ${marker} ${hits} 次，框架运行时不该被打进产物`)
     }
@@ -1538,16 +1556,20 @@ pnpm run check:artifacts
 预期：两行「产物隔离正常」「exports 契约正常」，无失败。
 
 反向确认一次——临时把 `scripts/build.ts` 里 `buildFramework` 的
-`rollupOptions: { external: frameworkExternals }` 整行注释掉：
+`rollupOptions: { external: isFrameworkExternal }` 整行注释掉：
 
 ```bash
 pnpm exec tsx scripts/build.ts --only=framework
 pnpm run check:artifacts
 ```
 
-预期：FAIL，报 `dist/framework/vue.js 里出现 __isVue N 次，框架运行时不该被打进产物`。
+预期：FAIL，四条全中 —— 每个框架各报「标记 N 次」（实测 vue 5 次、react-dom 4 次）
+与「没有对 X 的裸导入，external 没生效」。
 **改回来，再 `pnpm run build` 重建**（`--only=framework` 会 `emptyOutDir` 掉 dist/framework，
 不重建的话后面 `check:framework` 与 e2e 都会红）。
+
+> 这一步的实测价值高于预期：它暴露了 `react.js` 里存在一句**健康的** `import "react-dom/client"`。
+> 框架产物按字面量数 `react-dom` 会在正确产物上报 1 次 —— 上面 `stripSpecifiers` 就是为此而加。
 
 - [ ] **Step 7: 提交**
 
