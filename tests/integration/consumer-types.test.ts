@@ -33,8 +33,13 @@ MyList.register()
 // ESM 单组件入口的 Element 构造器挂了 refresh()
 HelloVueElement.refresh()
 
-const vueProps: HelloVueProps = { name: 'World', count: 3 }
-const reactProps: HelloReactProps = { name: 'World', autoLoad: true }
+// 事件回调也要能写在 props 字面量里 —— 声明里漏掉 on* 时，这一行就是那道回归的哨兵
+const vueProps: HelloVueProps = { name: 'World', count: 3, onSelect: (detail) => void detail }
+const reactProps: HelloReactProps = {
+  name: 'World',
+  autoLoad: true,
+  onSelect: (detail) => void detail,
+}
 const listProps: MyListProps = { label: '我的列表' }
 
 export const used = [

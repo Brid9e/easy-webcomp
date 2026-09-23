@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   barrelSource,
   hostClassOf,
+  propsInterface,
   reactWrapperSource,
   vueWrapperSource,
   type FrameworkComponent,
@@ -98,6 +99,25 @@ describe('vueWrapperSource', () => {
   it('没有 props 时仍生成一个空接口，消费方 import 得到的东西不会是 undefined', () => {
     const src = vueWrapperSource(component({ meta: { tag: 'x' } }))
     expect(src).toContain('export interface HelloVueProps {}')
+  })
+})
+
+describe('propsInterface', () => {
+  // 漏掉事件是真实踩过的坑：包装层运行时认 onSelect，声明里却没有，消费方一律 ts(2322)
+  it('事件也进接口，消费方写 onSelect 不再报 prop 不存在', () => {
+    const src = propsInterface(component({ meta: { tag: 'ew-x', events: ['select'] } }))
+    expect(src).toContain('onSelect?: (detail: unknown) => void')
+  })
+
+  it('多单词事件名不做驼峰转换，带连字符的键加引号', () => {
+    const src = propsInterface(component({ meta: { tag: 'ew-x', events: ['row-click'] } }))
+    expect(src).toContain("'onRow-click'?: (detail: unknown) => void")
+  })
+
+  it('props 与事件都没有时仍出空接口', () => {
+    expect(propsInterface(component({ meta: { tag: 'ew-x' } }))).toContain(
+      'export interface HelloVueProps {}',
+    )
   })
 })
 

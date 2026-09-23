@@ -54,7 +54,9 @@ describe('frameworkDeclarationSource', () => {
   it('Vue：props 接口 + DefineComponent', () => {
     const dts = frameworkDeclarationSource([component()], 'vue')
     expect(dts).toContain("import type { DefineComponent } from 'vue'")
-    expect(dts).toContain('export interface HelloVueProps {\n  name?: string\n}')
+    expect(dts).toContain(
+      'export interface HelloVueProps {\n  name?: string\n  onSelect?: (detail: unknown) => void\n}',
+    )
     expect(dts).toContain('export declare const HelloVue: DefineComponent<HelloVueProps>')
   })
 
@@ -64,7 +66,9 @@ describe('frameworkDeclarationSource', () => {
       'react',
     )
     expect(dts).toContain("import type { ReactElement } from 'react'")
-    expect(dts).toContain('export interface HelloReactProps {\n  name?: string\n}')
+    expect(dts).toContain(
+      'export interface HelloReactProps {\n  name?: string\n  onSelect?: (detail: unknown) => void\n}',
+    )
     expect(dts).toContain('export declare function HelloReact(props: HelloReactProps): ReactElement')
   })
 

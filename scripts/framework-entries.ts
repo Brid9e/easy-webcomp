@@ -45,16 +45,41 @@ function tsTypeOf(type: PropType): string {
 }
 
 /**
+ * 事件名 → 消费方写的 prop 名：`select` → `onSelect`。
+ *
+ * 只把首字母大写，**不做连字符转驼峰**：`row-click` 得到 `onRow-click`（带连字符的 prop，
+ * JSX 里写得出来，但接口里要加引号）。事件名取单单词就没这回事。
+ *
+ * 接口与包装层的映射表共用这一个函数 —— 两处对「哪个 prop 触发哪个事件」必须完全一致，
+ * 分头拼迟早会漂成「类型说有、运行时收不到」。
+ */
+export function eventPropOf(event: string): string {
+  return `on${event.charAt(0).toUpperCase()}${event.slice(1)}`
+}
+
+/**
  * props 类型从 meta.props 生成，精度不如组件自己的声明（object 退化成 Record），
  * 但足够让消费方拿到补全。要做到精确得去解 Vue 的 defineProps<{...}>，那是另一期的事。
  *
- * `body.join('\n')` 在空数组时得到空串，会拼出 `{\n\n}` —— 合法但难看；没有 props 时直接
- * 出 `{}`。这条分支真的会走到：hello-react 那种干净组件之外，新建的组件也可能没有 props。
+ * 事件也写进接口，形如 `onSelect?: (detail: unknown) => void`。漏掉它们，消费方写
+ * `<HelloReact onSelect={...} />` 会直接报「props 上不存在 onSelect」—— 包装层运行时明明认。
+ * detail 是 unknown 而不是更具体的形状：meta 里只记事件名，载荷类型无从推断，与其编一个
+ * 不如逼消费方窄化一次。
+ *
+ * `body.join('\n')` 在空数组时得到空串，会拼出 `{\n\n}` —— 合法但难看；两者都没有时直接
+ * 出 `{}`。这条分支真的会走到：hello-react 那种干净组件之外，新建的组件也可能两样都没有。
  */
 export function propsInterface(c: FrameworkComponent): string {
-  const body = Object.entries(c.meta.props ?? {}).map(
+  const props = Object.entries(c.meta.props ?? {}).map(
     ([name, def]) => `  ${name}?: ${tsTypeOf(def.type)}`,
   )
+  const events = (c.meta.events ?? []).map((event) => {
+    const prop = eventPropOf(event)
+    // `onRow-click` 这种带连字符的键在接口里必须加引号，否则是语法错误
+    return `  ${prop.includes('-') ? `'${prop}'` : prop}?: (detail: unknown) => void`
+  })
+
+  const body = [...props, ...events]
   const block = body.length === 0 ? '{}' : `{\n${body.join('\n')}\n}`
   return `export interface ${toIdentifier(c.name)}Props ${block}\n\n`
 }
@@ -90,7 +115,7 @@ export function reactWrapperSource(c: FrameworkComponent): string {
   const id = toIdentifier(c.name)
   const host = hostClassOf(c.name)
   const mapping = (c.meta.events ?? [])
-    .map((event) => `  '${event}': 'on${event.charAt(0).toUpperCase()}${event.slice(1)}',`)
+    .map((event) => `  '${event}': '${eventPropOf(event)}',`)
     .join('\n')
 
   return `import { createElement, useLayoutEffect } from 'react'
