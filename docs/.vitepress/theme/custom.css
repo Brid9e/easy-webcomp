@@ -110,3 +110,22 @@
 #app .VPDoc.has-aside .aside-curtain {
   width: 176px;
 }
+
+/*
+ * 表格：VitePress 默认 `display: block` + 逐格描边，画出来是一张窄窄的网格 —— 宽度只跟着
+ * 内容走、右边空一大片，格线纵横交错也把正文割得很碎。这里放开到整列宽，只留横向的
+ * 行分割线（VitePress 给 tr 的 border-top），去掉每格的框 —— 去掉的东西不重写一遍即可，
+ * 所以只有这两条规则。
+ *
+ * 代价：`display: block` 是 VitePress 给宽表留的横向滚动，换回 `display: table` 就没有了。
+ * 本项目的表格都是两三列短文本，1000px 列宽下不会溢出；真出现宽表再加包裹容器。
+ */
+#app .vp-doc table {
+  display: table;
+  width: 100%;
+}
+
+#app .vp-doc th,
+#app .vp-doc td {
+  border: none;
+}
