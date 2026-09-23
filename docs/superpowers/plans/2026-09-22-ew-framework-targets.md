@@ -1071,8 +1071,20 @@ function writeGeneratedEntries(
 在 `buildCdn` 之后加：
 
 ```ts
-/** 宿主框架自己带一份，打进产物会让 provide/inject 与 hooks 双双失效 */
-const frameworkExternals = ['vue', 'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']
+/**
+ * 宿主自己带一份的依赖，打进产物就是第二份实例：
+ * - `vue` / `react`：两份会让 provide/inject 与 hooks 双双失效；
+ * - `element-plus` / `pinia`：宿主已引时，组件里这份是另一个实例 —— 宿主的
+ *   ElConfigProvider、主题配置够不到它，pinia 更是两个 active pinia，症状极难查。
+ *
+ * 按**前缀**匹配而不是全等：组件会 import `element-plus/es/locale/lang/zh-cn` 这类子路径。
+ * `axios` 故意不在表里 —— 它是组件自己的取数依赖，宿主没有也不该被要求装。
+ */
+const frameworkExternals = ['vue', 'react', 'react-dom', 'element-plus', 'pinia']
+
+function isFrameworkExternal(id: string): boolean {
+  return frameworkExternals.some((pkg) => id === pkg || id.startsWith(`${pkg}/`))
+}
 
 const elementPlusCssSpec = 'element-plus/dist/index.css'
 
@@ -1096,7 +1108,7 @@ function writeElementPlusCss(): void {
   )
 }
 
-async function buildFramework(frameworkComponents: FrameworkComponent[]): Promise<void> {
+async function buildFramework(): Promise<void> {
   await build({
     root,
     configFile: false,
@@ -1110,7 +1122,7 @@ async function buildFramework(frameworkComponents: FrameworkComponent[]): Promis
       outDir: 'dist/framework',
       emptyOutDir: true,
       minify: 'esbuild',
-      rollupOptions: { external: frameworkExternals },
+      rollupOptions: { external: isFrameworkExternal },
       lib: {
         entry: {
           vue: join(generatedDir, 'framework/index-vue.ts'),
@@ -1178,7 +1190,7 @@ async function main(): Promise<void> {
 
   if (!only || only === 'framework') {
     console.log('[build] 构建框架产物...')
-    await buildFramework(frameworkComponents)
+    await buildFramework()
   }
 
   writeExportsField()
@@ -1203,7 +1215,9 @@ head -c 300 dist/framework/vue.js; echo; echo '--- css 头 ---'; head -c 80 dist
 ls -la dist/framework/
 ```
 
-预期：`vue.js` 里有 `from"vue"` 字样；`element-plus.css` 以 `@layer ew {` 开头；目录下三个文件齐全。
+预期：`vue.js` 里有 `from "vue"` 字样；`element-plus.css` 以 `@layer ew {` 开头；目录下文件齐全（vue.js / react.js / element-plus.css，外加一个共享的 `style-*.js` 小 chunk）。
+
+> **实测修正**：第一版只 external 了 vue/react，`vue.js` 出来是 761 KB —— `self-monitor/my-list` 把 element-plus + pinia + axios 都打了进来。与 external vue 是同一条理由（宿主已有 EP 时，组件里那份是另一个实例，宿主的 `ElConfigProvider` 与主题配置够不到它；pinia 更是两个 active pinia），所以 EP 与 pinia 一并外置，`axios` 留着。改完 28.3 KB。注意必须按**前缀**匹配：组件 import 的是 `element-plus/es/locale/lang/zh-cn` 这种子路径，全等匹配放它过去。
 
 - [ ] **Step 5: 加 peerDependencies**
 
