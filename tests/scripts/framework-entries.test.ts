@@ -58,6 +58,12 @@ describe('vueWrapperSource', () => {
     expect(source).toContain('provide(EW_EMIT_KEY, (name: string, detail?: unknown) => emit(name, detail))')
   })
 
+  // 挂载时注入是设计前提：挪到模块顶层，未用到的组件就没法把它摇掉
+  it('applyGlobalStyles 在 setup 里调用，不在模块顶层', () => {
+    expect(source).toMatch(/setup\([\s\S]*applyGlobalStyles\(css\)/)
+    expect(source).not.toMatch(/^applyGlobalStyles\(css\)/m)
+  })
+
   it('props 类型从 meta.props 生成', () => {
     expect(source).toContain('export interface HelloVueProps {')
     expect(source).toContain('  name?: string')
@@ -69,6 +75,24 @@ describe('vueWrapperSource', () => {
     )
     expect(src).toContain('data?: Record<string, unknown>')
     expect(src).toContain('list?: unknown[]')
+  })
+
+  it('number / boolean / function 各自直译，不退化成宽松类型', () => {
+    const src = vueWrapperSource(
+      component({
+        meta: {
+          tag: 'x',
+          props: {
+            count: { type: 'number' },
+            flag: { type: 'boolean' },
+            onPick: { type: 'function' },
+          },
+        },
+      }),
+    )
+    expect(src).toContain('count?: number')
+    expect(src).toContain('flag?: boolean')
+    expect(src).toContain('onPick?: (...args: unknown[]) => unknown')
   })
 
   it('没有 props 时仍生成一个空接口，消费方 import 得到的东西不会是 undefined', () => {
