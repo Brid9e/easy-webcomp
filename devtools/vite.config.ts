@@ -37,6 +37,12 @@ export default defineConfig({
     tailwind(),
     wcModePlugin(workspacesDir),
   ],
+  // 第一次打开页面时才发现的依赖会触发一次**飞行中**的重新预构建：浏览器手里那批
+  // `?v=<旧 hash>` 的模块 URL 当场 504（Outdated Optimize Dep），而 Vite 注入的自动刷新
+  // 赶不上 —— 页面白屏，e2e 里表现成 nav 一直不出现。预先列全就没这个窗口。
+  optimizeDeps: {
+    include: ['vue', 'react', 'react-dom', 'react-dom/client', 'element-plus', 'pinia'],
+  },
   // strictPort：5173 被占时 `vitepress dev` 会静默顺延到 5174/5175，探默认端口就打到别人的旧服务上。
   // 调试页要的是「启动即报错」，不是「悄悄换个端口」。
   server: { port: 5273, strictPort: true },

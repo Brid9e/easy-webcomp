@@ -95,11 +95,14 @@ import { MyList } from '@ew/self-monitor/react'
 
 | 产物 | gzip |
 |---|---|
-| `dist/cdn/hello-vue.js` | 26.8 KB |
+| `dist/cdn/hello-vue.js` | 26.9 KB |
 | `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/ew-all.js` | 95.2 KB |
+| `dist/cdn/my-list.js` | 393.7 KB |
+| `dist/cdn/ew-all.js` | 464.2 KB |
 
-ESM 产物体积随打包器而定，不在基线对比范围内。
+CDN 这一栏与拆分前**逐字节相同** —— `buildCdn` 这次一行没动，它只在自己那套 `dist/cdn/` 下逐组件构建，与 `dist/` 的目录重构无关。数字比上一版基线大，是因为 `my-list`（Element Plus + Pinia，单文件就近 400 KB）是上一版基线写下之后才加进仓库的，与本次拆分无关。
+
+ESM 与框架产物的体积随打包器与引入方式而定，不在基线对比范围内。两点值得留意：`dist/demo/framework/vue.js`（1.1 KB）现在只含 `hello-vue`，`dist/self-monitor/framework/vue.js`（27.8 KB）只含 `my-list` —— 后者仍引 Element Plus 与 Pinia，故比前者大两个数量级；ESM 侧原本全仓库共享的那份 Vue 运行时，现在每个空间包各带一份。
 
 ## 已知约束
 
