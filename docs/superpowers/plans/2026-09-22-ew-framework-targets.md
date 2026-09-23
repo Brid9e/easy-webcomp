@@ -1584,9 +1584,21 @@ git commit -m "test(framework): 构建后守卫与 jsdom 集成测试，覆盖�
 
 ### Task 7: 真实浏览器里跑一遍 Vue 框架产物
 
+> **实测修正（原计划用 import map，走不通）。** 原方案是静态服务器 + 手写 import map 只映射
+> `vue`。实测页面直接死在
+> `Failed to resolve module specifier "element-plus"`：`dist/framework/vue.js` 是**整包桶**，
+> self-monitor 的 my-list 把 `element-plus`、`element-plus/es/locale/lang/zh-cn`、`pinia`
+> 一并静态带了进来（这是 Task 5 把 EP/pinia 定为 external 的直接后果 —— 说明符留在了产物里）。
+> 补齐 import map 等于把 EP 的整棵传递依赖（lodash-es / @vueuse/core / dayjs /
+> @floating-ui/dom / async-validator / @ctrl/tinycolor / normalize-wheel-es …）逐条列全，
+> 既不可维护也不是真实消费方的做法 —— 真实消费方是让打包器干这件事的。
+> 因此改成**由 Vite 提供这个页面**：root 指向仓库根，产物里的裸说明符由 Vite 解析，
+> 走的正是「消费方 dev server 加载本包产物」这条真实路径。
+
 **Files:**
 - Create: `tests/e2e/fixture/framework.html`
 - Create: `tests/e2e/framework.spec.ts`
+- Modify: `playwright.config.ts`（加第三台 webServer）
 
 - [ ] **Step 1: 写页面**
 
@@ -1600,62 +1612,73 @@ git commit -m "test(framework): 构建后守卫与 jsdom 集成测试，覆盖�
     <title>EW 框架产物冒烟</title>
     <link rel="stylesheet" href="/src/tokens/tokens.css" />
     <!--
-      产物里的 `import ... from "vue"` 是裸说明符，静态服务器没有打包器解析它。
-      import map 是这个页面里唯一能把它接上的办法，也让这条用例真正做到「用一个真实
-      浏览器跑真实产物」。React 侧没有浏览器可用的 ESM 构建（上游只发 CJS），
-      那条路由 tests/integration/framework.test.ts 在 jsdom 里覆盖。
+      产物里是裸说明符（`vue`，以及 my-list 拖进来的 `element-plus` / `pinia`），静态服务器
+      接不住。手写 import map 也不行 —— 它得覆盖 element-plus 的整棵传递依赖
+      （lodash-es / @vueuse/core / dayjs / @floating-ui/dom …），而真实消费方是让打包器干
+      这件事的。所以这个页面由 playwright.config.ts 里那台 root 指向仓库根的 Vite 提供，
+      跑的是「消费方 dev server 加载本包产物」这条真实路径。
+      React 侧没有浏览器可用的 ESM 构建（上游只发 CJS），那条路由
+      tests/integration/framework.test.ts 在 jsdom 里覆盖。
     -->
-    <script type="importmap">
-      {
-        "imports": {
-          "vue": "/node_modules/vue/dist/vue.runtime.esm-browser.prod.js"
-        }
-      }
-    </script>
   </head>
   <body>
     <div id="app"></div>
     <p id="log">（还没点）</p>
 
     <script type="module">
-      import { createApp, h, ref } from 'vue'
+      import { createApp, h } from 'vue'
       import { HelloVue } from '/dist/framework/vue.js'
 
-      const log = ref('（还没点）')
-      const app = createApp({
+      createApp({
         render: () =>
           h('div', { id: 'root' }, [
             h(HelloVue, {
               name: '浏览器',
               count: 2,
               onSelect: (detail) => {
-                log.value = JSON.stringify(detail)
+                document.getElementById('log').textContent = JSON.stringify(detail)
               },
             }),
           ]),
-      })
-      app.mount('#app')
-
-      // 把响应式日志写到 DOM 上供断言读取
-      const tick = () => {
-        document.getElementById('log').textContent = log.value
-        requestAnimationFrame(tick)
-      }
-      tick()
+      }).mount('#app')
     </script>
   </body>
 </html>
 ```
 
-- [ ] **Step 2: 写用例**
+- [ ] **Step 2: 加一台 Vite 服务器**
+
+`playwright.config.ts` 的 `webServer` 数组末尾追加：
+
+```ts
+    {
+      // 框架产物的 fixture 要解析裸说明符，静态服务器做不到（见 tests/e2e/fixture/framework.html）。
+      // root 指向仓库根而不是 devtools：fixture 与 dist/framework 都在仓库根下，而
+      // `vite devtools` 的 root 是 devtools/，请求 /tests/... 会走 SPA 回退返回调试页。
+      // 这台不挂插件 —— 要跑的是**已构建**的产物，默认解析足够。
+      command: 'pnpm exec vite . --port 5275 --strictPort',
+      url: 'http://localhost:5275/tests/e2e/fixture/framework.html',
+      reuseExistingServer: false,
+      stdout: 'ignore',
+    },
+```
+
+> `root` 指向仓库根会顺带派生出 `node_modules/.vite` 作为依赖预打包缓存（`vite devtools` 那台
+> 用的是 `devtools/node_modules/.vite`），两者互不干扰。冷启动实测 5 秒内三个用例跑完。
+
+- [ ] **Step 3: 写用例**
 
 创建 `tests/e2e/framework.spec.ts`：
 
 ```ts
 import { expect, test } from '@playwright/test'
 
+// 框架产物的 fixture 要一台能解析裸说明符的服务器（见 fixture 里的注释），所以走 5275 那台
+// root 指向仓库根的 Vite，而不是全局 baseURL（4173 的静态服务器）。与 5274 一样是异源，写绝对地址。
+const FRAMEWORK_URL = 'http://localhost:5275/tests/e2e/fixture/framework.html'
+
 test.beforeEach(async ({ page }) => {
-  await page.goto('/tests/e2e/fixture/framework.html')
+  await page.goto(FRAMEWORK_URL)
 })
 
 test('框架产物在真实浏览器里挂载出宿主 div 与组件内容', async ({ page }) => {
@@ -1679,7 +1702,7 @@ test('样式注入到 head，且没有留下 :host', async ({ page }) => {
 })
 ```
 
-- [ ] **Step 3: 跑**
+- [ ] **Step 4: 跑**
 
 ```bash
 pnpm run build && pnpm run test:e2e
@@ -1687,13 +1710,15 @@ pnpm run build && pnpm run test:e2e
 
 预期：12 条 PASS（原有 9 + 新增 3）。
 
-> 若报 `Failed to load script ... /dist/framework/vue.js`，先查 4173 是否被残留进程占着（`lsof -i :4173`）——`reuseExistingServer` 会静默复用它，症状看起来像构建回归。
+> 若报 `Failed to resolve module specifier`，说明页面落到了静态服务器上（fixture 的 URL 没走 5275），
+> 而不是构建回归。若报 `[:5275] Port 5275 is already in use`，是残留的 Vite 进程占着 ——
+> `strictPort` 故意让它硬报错而不是静默换端口。
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 5: 提交**
 
 ```bash
-git add tests/e2e/fixture/framework.html tests/e2e/framework.spec.ts
-git commit -m "test(e2e): 用 import map 在真实浏览器里跑 Vue 框架产物"
+git add tests/e2e/fixture/framework.html tests/e2e/framework.spec.ts playwright.config.ts
+git commit -m "test(e2e): 真实浏览器里跑 Vue 框架产物，页面由 root 指向仓库根的 Vite 提供"
 ```
 
 ---
