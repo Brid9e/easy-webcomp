@@ -88,6 +88,7 @@ export default defineConfig(async () => ({
             { text: '新增一个组件', link: '/guide/authoring' },
             { text: '主题与 token', link: '/guide/theming' },
             { text: '构建与产物', link: '/guide/build' },
+            { text: '在 Vue / React 项目里使用', link: '/guide/framework-usage' },
           ],
         },
       ],

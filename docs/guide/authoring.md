@@ -54,6 +54,20 @@ src/workspaces/<空间名>/components/<组件名>/
 
 **例外：选了 Tailwind 的组件生成的是 `style.css`。** `@tailwindcss/vite` 不处理 `.scss` —— 写进 `.scss` 的 `@import "tailwindcss"` 会被 Sass 当成待解析的 partial 而报错。这是工具链的硬约束，不是风格选择；Tailwind 组件也因此用不上 `@use`。
 
+## 类名必须落在组件自己的命名空间里
+
+组件样式的每一个类名都要以 `ew-<组件名>` 打头（UI 库自己的 `el-*` 类除外）：
+
+```scss
+.ew-my-list { }            // 根
+.ew-my-list__head { }      // BEM 元素
+.ew-my-list--active { }    // 修饰符
+```
+
+**构建会强制这条规则**，违反直接报错。原因是 shadow 模式关掉之后（框架产物、或组件自己的 `disable-shadow`），样式落到整页，两个组件用了同一个类名就是直接互相覆盖。这条约定没有「看着差不多就行」的余地。
+
+`new:component` 生成的骨架已经按这条规则命名根元素。
+
 ## meta.ts
 
 ```ts

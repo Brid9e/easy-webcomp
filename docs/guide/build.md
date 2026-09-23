@@ -1,9 +1,10 @@
 # 构建与产物
 
 ```bash
-pnpm run build      # ESM + CDN 全部产物
-pnpm run build:esm  # 只出 ESM
-pnpm run build:cdn  # 只出 CDN
+pnpm run build            # ESM + CDN + 框架产物
+pnpm run build:esm        # 只出 ESM
+pnpm run build:cdn        # 只出 CDN
+pnpm run build:framework  # 只出框架产物
 ```
 
 | 路径 | 用途 |
@@ -12,6 +13,8 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
 | `dist/cdn/ew-all.js` | CDN 全量单文件 |
+| `dist/framework/vue.js`、`dist/framework/react.js` | 原生 Vue / React 组件，见下节 |
+| `dist/framework/element-plus.css` | 组件库样式，可选引入 |
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
 
@@ -49,6 +52,26 @@ return <ew-hello-vue ref={ref} name="World" />
 React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello-vue>` 需要在自己的 `d.ts` 里补充 JSX 类型声明。
 
 Vue 项目里用 `v-bind` 要注意：**只要 prop 名在元素上已定义，Vue 就走 property 通道而不是 attribute 通道**，值不会经过字符串化与类型强转。所以数字要传数字、布尔要传真布尔 —— 传 `''` 表示布尔为真会被 Vue 的 Boolean prop 转换一律当成 `false`。文档站的交互面板就是按这条规则写的。
+
+### 框架产物（宿主本来就是 Vue / React 项目时）
+
+上一节那套 Web Component 用法，代价是跨不过框架边界：props 只能走 attribute、事件是 `CustomEvent` 不是 `@select`、用不了宿主的插槽。宿主本来就是 Vue 3 或 React 项目时这些代价白付 —— 直接用原生组件形态：
+
+```ts
+import { MyList } from 'easy-webcomp/vue'
+import 'easy-webcomp/element-plus.css'   // 宿主已经引了 Element Plus 就不用引
+```
+
+```tsx
+import { MyList } from 'easy-webcomp/react'
+```
+
+- `easy-webcomp/vue` 只有 `Component.vue` 写的组件，`easy-webcomp/react` 只有 `Component.tsx` 写的。
+- 事件按宿主框架的写法接：Vue 用 `@select`，React 用 `onSelect`。
+- 组件样式随模块自动注入，不需要逐个引 css；未用到的组件会被 tree-shaking 摇掉。
+- **Vue / React / Element Plus / Pinia 都不打进产物**，用的是宿主自己那份。
+- 组件库样式（Element Plus）单独一个入口，宿主已有就不必引。
+- 顶层挂载的那层 div 带 `class="ew-<组件名>-host"`，要对它设宽高就选这个类。
 
 ## 体积基线
 
