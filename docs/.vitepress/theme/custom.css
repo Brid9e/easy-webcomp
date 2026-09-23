@@ -4,3 +4,42 @@
   --vp-c-brand-3: var(--ew-color-primary);
   --vp-font-family-base: var(--ew-font-family);
 }
+
+/*
+ * 依赖标签：组件卡片与详情页头共用一套外观，所以写成全局类而不是某个 SFC 的 scoped 样式 ——
+ * 它长在文档外壳上、不属于组件自己的皮肤，颜色一律走 --vp-*（--ew-* 不随站点明暗重映射）。
+ * 一个依赖一枚标签：图标 + 包名 + 版本，整枚折行，不留半枚。
+ */
+.ew-deps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ew-dep {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--ew-radius-sm);
+  color: var(--vp-c-text-2);
+  white-space: nowrap;
+}
+
+.ew-dep-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.ew-dep-name {
+  color: var(--vp-c-text-1);
+}
+
+/* 版本是标签里的次要信息，压淡一档 */
+.ew-dep-version {
+  color: var(--vp-c-text-3);
+}

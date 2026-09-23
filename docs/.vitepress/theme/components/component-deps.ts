@@ -1,4 +1,5 @@
 import { bareSpecifiersOf } from '../../../../scripts/workspace-packages'
+import { libIcon } from './lib-icons'
 
 /**
  * 组件用到的第三方库及版本。
@@ -122,4 +123,12 @@ export function componentDeps(name: string): ComponentDep[] {
 
   cache.set(name, deps)
   return deps
+}
+
+/**
+ * 依赖标签要的全部东西：包名、版本、图标。卡片与详情页头画的是同一行，映射就写一次 ——
+ * 图标在这里查好，模板里再调 libIcon() 得连写三遍（判空、取 viewBox、取 path）。
+ */
+export function componentDepsWithIcons(name: string) {
+  return componentDeps(name).map((dep) => ({ ...dep, icon: libIcon(dep.name) }))
 }

@@ -3,10 +3,9 @@ import { computed, ref } from 'vue'
 import { VPLink } from 'vitepress/theme'
 import { toIdentifier } from '@ew/utils'
 import ComponentPreview from './ComponentPreview.vue'
+import CopyTagButton from './CopyTagButton.vue'
 import PreviewModal from './PreviewModal.vue'
-import { componentDeps } from './component-deps'
-import { componentTag } from './component-tag'
-import { libIcon } from './lib-icons'
+import { componentDepsWithIcons } from './component-deps'
 
 const props = defineProps<{
   ws: string
@@ -20,51 +19,7 @@ const href = computed(() => `/workspaces/${props.ws}/${props.name}`)
 // 卡片上写导入时用的标识符（`my-list` → `MyList`），与 `import { MyList }` 对得上；
 // 连字符那套是目录名，只出现在文件路径里。
 const label = computed(() => toIdentifier(props.name))
-
-// 图标在这里就查好：模板里再调 libIcon() 得连写三遍（判空、取 viewBox、取 path）
-const deps = computed(() =>
-  componentDeps(props.name).map((dep) => ({ ...dep, icon: libIcon(dep.name) })),
-)
-
-const snippet = computed(() => {
-  const tag = componentTag(props.name)
-  return tag ? `<${tag} />` : ''
-})
-
-const copied = ref(false)
-let resetTimer: ReturnType<typeof setTimeout> | undefined
-
-/**
- * 优先 Clipboard API —— 它要求安全上下文（https 或 localhost），文档站若跑在内网 http 上就没有
- * navigator.clipboard，回落 execCommand 兜住；两条都不成，按钮就只当作没反应，不假装复制成功。
- */
-async function writeClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch {
-    // 权限被拒，继续走回落
-  }
-  const area = document.createElement('textarea')
-  area.value = text
-  area.setAttribute('readonly', '')
-  area.style.position = 'fixed'
-  area.style.opacity = '0'
-  document.body.appendChild(area)
-  area.select()
-  const ok = document.execCommand('copy')
-  area.remove()
-  return ok
-}
-
-async function copyTag(): Promise<void> {
-  if (!snippet.value || !(await writeClipboard(snippet.value))) return
-  copied.value = true
-  clearTimeout(resetTimer)
-  resetTimer = setTimeout(() => (copied.value = false), 1500)
-}
+const deps = computed(() => componentDepsWithIcons(props.name))
 
 const open = ref(false)
 </script>
@@ -81,50 +36,15 @@ const open = ref(false)
           <div class="head">
             <!-- 按钮不能嵌在 <a> 里，所以链接只圈住名字，整卡的可点面积由 .name::after 铺出来 -->
             <VPLink :href="href" class="name">{{ label }}</VPLink>
-            <button
-              type="button"
-              class="copy"
-              :aria-label="copied ? '已复制' : `复制 ${label} 的标签`"
-              @click="copyTag"
-            >
-              <svg v-if="copied" class="copy-icon" viewBox="0 0 16 16" aria-hidden="true">
-                <path
-                  d="M2.5 8.5l3.5 3.5 7-8"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <svg v-else class="copy-icon" viewBox="0 0 16 16" aria-hidden="true">
-                <rect
-                  x="5.5"
-                  y="5.5"
-                  width="9"
-                  height="9"
-                  rx="1.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                />
-                <path
-                  d="M10.5 3.5h-7A1.5 1.5 0 0 0 2 5v7"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.4"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
+            <CopyTagButton :name="name" />
           </div>
 
-          <span v-if="deps.length > 0" class="deps">
-            <span v-for="dep in deps" :key="dep.name" class="dep">
+          <span v-if="deps.length > 0" class="ew-deps">
+            <span v-for="dep in deps" :key="dep.name" class="ew-dep">
               <!-- alt 留空：包名就在旁边，读屏再念一遍图标名是噪音 -->
-              <img v-if="dep.icon" class="dep-icon" :src="dep.icon" alt="" />
-              <span class="dep-name">{{ dep.name }}</span>
-              <span class="version">{{ dep.version }}</span>
+              <img v-if="dep.icon" class="ew-dep-icon" :src="dep.icon" alt="" />
+              <span class="ew-dep-name">{{ dep.name }}</span>
+              <span class="ew-dep-version">{{ dep.version }}</span>
             </span>
           </span>
         </div>
@@ -223,63 +143,8 @@ const open = ref(false)
   inset: 0;
 }
 
-/* 压在 .name::after 的覆盖层之上，否则鼠标到不了按钮。
-   不要边框不要底色：它是名字行里的一个小附件，画成按钮会跟旁边的依赖标签抢注意力。 */
-.copy {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex: none;
-  padding: 1px;
-  border: none;
-  background: transparent;
-  color: var(--vp-c-text-3);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.copy:hover {
-  color: var(--vp-c-brand-1);
-}
-
-.copy-icon {
-  width: 13px;
-  height: 13px;
-}
-
-/* 一个依赖一枚标签：图标 + 版本号。整枚折行，不留半枚。 */
-.deps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.dep {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 0 6px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: var(--ew-radius-sm);
-  color: var(--vp-c-text-2);
-  white-space: nowrap;
-}
-
-.dep-icon {
-  width: 13px;
-  height: 13px;
-  flex: none;
-}
-
-.dep-name {
-  color: var(--vp-c-text-1);
-}
-
-.version {
-  color: var(--vp-c-text-3);
-}
+/* 复制按钮与依赖标签是卡片与详情页头共用的（CopyTagButton.vue、custom.css 的 .ew-*），
+   这里只留卡片自己的外壳 */
 
 .expand {
   position: absolute;

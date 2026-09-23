@@ -8,6 +8,11 @@ import { defineConfig } from 'vitepress'
 // vite.resolve.alias（别名只作用于配置加载之后的内容构建），会 ERR_MODULE_NOT_FOUND。
 // 下一行的 ./workspaces 同理。别名本身仍然要有，它服务内容构建期的 glob 与 @devtools/*。
 import { wcModePlugin } from '../../devtools/shared/wc-mode'
+// 组件名的驼峰写法只有 packages/utils 一份：构建期生成 `export * as <Id>`、脚手架、文档站
+// 都靠同一条规则，任何一处走偏都是运行时取不到值。这里必须写相对路径 + 显式 .ts ——
+// @ew/utils 的 exports 指向 src 里的裸 .ts，Node 认不了（只有 tsx 认），而裸说明符在这个
+// 文件里一律 external 交给 Node（见上）。
+import { toIdentifier } from '../../packages/utils/src/naming.ts'
 import { listWorkspaces, readWorkspaceMeta } from './workspaces'
 
 export const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../..')
@@ -31,10 +36,30 @@ async function buildWorkspaceSidebar() {
   )
 }
 
+/** 散文页 `docs/workspaces/<空间>/<组件>.md` 里的组件名；空间页（index）与别处的 md 都返回 undefined */
+function componentNameOf(relativePath: string): string | undefined {
+  const match = relativePath.match(/^workspaces\/[^/]+\/([^/]+)\.md$/)
+  return match && match[1] !== 'index' ? match[1] : undefined
+}
+
 export default defineConfig(async () => ({
   title: 'easy-webcomp',
   description: '用 Vue 3 或 React 写业务组件，构建管线输出统一形态的 Web Component',
   srcExclude: ['superpowers/**'],
+
+  // 动态路由页（docs/workspaces/[ws]/index.md、[ws]/[name].md）正文只有一行组件调用，散文页
+  // （docs/workspaces/demo/hello-vue.md 这类）的标题则由 <ComponentHeader> 出 —— 两边都没有
+  // `# 标题` 让 VitePress 抽取，<title> 会退化成站名。这里按路由补上，两类页面的文档头才一致，
+  // 写法与 h1、卡片共用 toIdentifier（`my-list` → `MyList`）。
+  async transformPageData(pageData) {
+    const params = pageData.params as { ws?: string; name?: string } | undefined
+    const name = params?.name ?? componentNameOf(pageData.relativePath)
+    if (name) {
+      pageData.title = toIdentifier(name)
+    } else if (params?.ws) {
+      pageData.title = (await readWorkspaceMeta(params.ws)).title ?? params.ws
+    }
+  },
   head: [
     [
       'link',

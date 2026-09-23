@@ -1,4 +1,4 @@
-# hello-vue
+<ComponentHeader name="hello-vue" />
 
 用 Vue 3 写的示例组件。点击按钮会派发一次 `ew-select` 事件。
 
