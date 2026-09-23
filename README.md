@@ -117,7 +117,7 @@ ESM 一次多入口构建、允许代码分割（消费方是打包器，整目�
 
 ### 文档站卡片缩略图
 
-空间页的卡片显示静态截图（`docs/public/snapshots/<空间>/<组件名>.png`），只有点进详情页或全屏才是真实元素——空间里组件一多，页面上同时挂十几个运行时既慢又没必要。截图由 `pnpm run snapshot` 生成（起一次静态服务 + 无头 Chrome，逐张截元素自身的包围盒，组件左右贴边、高度随内容），改了组件样式后要重跑，见 [docs/guide/authoring.md](docs/guide/authoring.md#组件卡片上的缩略图)。
+空间页的卡片显示静态截图（`docs/public/snapshots/<空间>/<组件名>.png`），只有点进详情页或全屏才是真实元素——空间里组件一多，页面上同时挂十几个运行时既慢又没必要。截图由 `pnpm run snapshot` 生成（起一次静态服务 + 无头 Chrome，逐张截组件连同四周 16px 留白，尺寸随组件走），改了组件样式后要重跑，见 [docs/guide/authoring.md](docs/guide/authoring.md#组件卡片上的缩略图)。
 
 ## 引入方式
 

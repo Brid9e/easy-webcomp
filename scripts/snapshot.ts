@@ -22,11 +22,12 @@ const FIXTURE = `${BASE}/tests/snapshot/fixture.html`
 const FIXED_TIME = new Date('2026-01-01T09:30:00')
 
 /**
- * 布局视口，不是画布 —— 截图按元素自身的包围盒出（见 main 里那一行）。
- * 宽度是组件宽度的上限（my-list 会吃满），高度只要够放下最高的组件：
- * fixture 的 body 是 min-height: 100vh，组件在里头水平居中，视口多高都不影响出图。
+ * 布局视口，不是画布 —— 截图按元素自身的包围盒出（见 main 里那一行），这里只决定组件
+ * 按多宽来排版。16:9 横版：够宽，组件的筛选栏、表格才会排成它们本来的桌面形态
+ * （720 宽时 my-list 的筛选会折成两行）；出图又宽又扁，缩进卡片那个横向的井里正好吃满。
+ * 高度只要够放下最高的组件，fixture 的 body 是 min-height: 100vh，组件在里头居中。
  */
-const VIEWPORT = { width: 720, height: 1280 } as const
+const VIEWPORT = { width: 1280, height: 720 } as const
 
 /**
  * 等组件自己稳定下来。my-list 的假数据带 400~900ms 随机延迟，取个能盖住它的上界。
@@ -139,17 +140,21 @@ async function main(): Promise<void> {
 
       await page.evaluate((tag) => {
         document.body.replaceChildren()
-        document.body.appendChild(document.createElement(tag))
+        const box = document.createElement('div')
+        box.className = 'shot-box'
+        box.appendChild(document.createElement(tag))
+        document.body.appendChild(box)
       }, t.tag)
       await page.evaluate(() => document.fonts.ready)
       await page.waitForTimeout(SETTLE_MS)
 
       const file = join(OUT_DIR, t.workspace, `${t.name}.png`)
       mkdirSync(dirname(file), { recursive: true })
-      // 截元素自身的包围盒：图就是组件，左右两侧不留白，缩进卡片才缩得最小。
-      // 统一画布（试过 16:9 整块视口）两头不讨好 —— 按钮缩成一个小点，
-      // my-list 那种高过画布的还会被裁掉下半截（分页没了）。
-      await page.locator(t.tag).screenshot({ path: file })
+      // 截组件外面那个留白盒子自身的包围盒：图 = 组件 + 四周各 16px。
+      // 不截整块视口（试过 16:9 的统一画布）—— 那样按钮只占画布的一小块，缩进卡片成个小点，
+      // my-list 高过画布还会被裁掉下半截（分页没了）。比例不统一没关系：卡片是按高度贴合的，
+      // 网格照样齐。
+      await page.locator('.shot-box').screenshot({ path: file })
       console.log(`[snapshot] ${t.workspace}/${t.name}.png`)
     }
   } finally {
