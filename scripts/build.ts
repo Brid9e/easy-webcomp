@@ -9,13 +9,20 @@ import {
 } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { dirname, join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { compile } from 'sass'
 import { build } from 'vite'
+import type { ComponentMeta } from '@ew/runtime'
 import { toIdentifier } from '@ew/utils'
+import {
+  barrelSource,
+  reactWrapperSource,
+  vueWrapperSource,
+  type FrameworkComponent,
+} from './framework-entries.ts'
 import { findPrefixViolations } from './style-prefix.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -113,9 +120,47 @@ function checkStylePrefixes(components: ComponentInfo[]): void {
   }
 }
 
-function writeGeneratedEntries(components: ComponentInfo[]): void {
+/**
+ * 框架产物要 meta 里的 props 与 events（事件名、生成的类型全靠它），所以这里真的把
+ * meta.ts 当模块加载一遍。必须走 pathToFileURL：裸绝对路径在 ESM 里不是合法说明符，
+ * macOS 上碰巧能过、Windows 上会炸。
+ */
+async function loadFrameworkComponents(
+  components: ComponentInfo[],
+): Promise<FrameworkComponent[]> {
+  const out: FrameworkComponent[] = []
+
+  for (const c of components) {
+    const stylePath = join(c.dir, c.styleFile)
+    // Tailwind 的 preflight 是全局 reset，与 light DOM 下「不影响其他组件」天然冲突，
+    // 它的类名也无法用前缀约束 —— 这类组件不出框架产物，只出 WC。
+    if (readFileSync(stylePath, 'utf8').includes('@import "tailwindcss"')) {
+      console.log(`[build] ${c.name} 用了 Tailwind，跳过框架产物`)
+      continue
+    }
+
+    const mod = (await import(pathToFileURL(join(c.dir, 'meta.ts')).href)) as {
+      default: ComponentMeta
+    }
+    out.push({
+      name: c.name,
+      workspace: c.workspace,
+      framework: c.framework,
+      styleFile: c.styleFile,
+      meta: mod.default,
+    })
+  }
+
+  return out
+}
+
+function writeGeneratedEntries(
+  components: ComponentInfo[],
+  frameworkComponents: FrameworkComponent[],
+): void {
   rmSync(generatedDir, { recursive: true, force: true })
   mkdirSync(generatedDir, { recursive: true })
+  mkdirSync(join(generatedDir, 'framework'), { recursive: true })
 
   // 生成文件在 src/.generated/，故相对路径要从 src/ 往下写
   const entryPath = (c: ComponentInfo) =>
@@ -131,6 +176,19 @@ function writeGeneratedEntries(components: ComponentInfo[]): void {
   )
   defineLines.push('', components.map((_, i) => `r${i}()`).join('\n'), '')
   writeFileSync(join(generatedDir, 'all-define.ts'), `${defineLines.join('\n')}\n`)
+
+  for (const c of frameworkComponents) {
+    const source = c.framework === 'vue' ? vueWrapperSource(c) : reactWrapperSource(c)
+    writeFileSync(join(generatedDir, 'framework', `${c.name}.ts`), source)
+  }
+  writeFileSync(
+    join(generatedDir, 'framework', 'index-vue.ts'),
+    barrelSource(frameworkComponents, 'vue'),
+  )
+  writeFileSync(
+    join(generatedDir, 'framework', 'index-react.ts'),
+    barrelSource(frameworkComponents, 'react'),
+  )
 }
 
 // tailwind 对不含 @import "tailwindcss" 的 CSS 是直通，没用它的组件不受影响
@@ -239,6 +297,72 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
 }
 
 /**
+ * 宿主自己带一份的依赖，打进产物就是第二份实例：
+ * - `vue` / `react`：两份会让 provide/inject 与 hooks 双双失效；
+ * - `element-plus` / `pinia`：宿主已引时，组件里这份是另一个实例 —— 宿主的
+ *   ElConfigProvider、主题配置够不到它，pinia 更是两个 active pinia，症状极难查。
+ *
+ * 按**前缀**匹配而不是全等：组件会 import `element-plus/es/locale/lang/zh-cn` 这类子路径。
+ * `axios` 故意不在表里 —— 它是组件自己的取数依赖，宿主没有也不该被要求装。
+ */
+const frameworkExternals = ['vue', 'react', 'react-dom', 'element-plus', 'pinia']
+
+function isFrameworkExternal(id: string): boolean {
+  return frameworkExternals.some((pkg) => id === pkg || id.startsWith(`${pkg}/`))
+}
+
+const elementPlusCssSpec = 'element-plus/dist/index.css'
+
+/**
+ * 组件库样式单独出一个入口，让「宿主已有 EP」的项目可以不引。
+ *
+ * 必须裹 `@layer`：EP 的 `:root` 里除了 `--el-*` 还带一句 `color-scheme: light`，
+ * 不分层注入会把宿主的深色主题连同原生控件一起翻成浅色。分层之后它是一份默认值，
+ * 宿主自己写的未分层规则永远赢；宿主完全没引 EP 时这层才顶上来。
+ * 与 packages/runtime/src/style.ts 里那份 head 副本是同一个理由。
+ */
+function writeElementPlusCss(): void {
+  const path = fileURLToPath(import.meta.resolve(elementPlusCssSpec))
+  const raw = readFileSync(path, 'utf8')
+  // @charset 必须排在文件最前，裹进 @layer 块里就失效了 —— 提到块外
+  const charset = /^@charset\s+"[^"]*";\s*/.exec(raw)?.[0] ?? ''
+  const body = raw.slice(charset.length)
+  writeFileSync(
+    join(root, 'dist/framework/element-plus.css'),
+    `${charset}@layer ew {\n${body}\n}\n`,
+  )
+}
+
+async function buildFramework(): Promise<void> {
+  await build({
+    root,
+    configFile: false,
+    // 这里**不能**挂 vueAlias：别名会把裸说明符 `vue` 改写成 vue/dist/...，
+    // 而 external 匹配的是改写前的说明符，两边一错开 vue 就被打进产物 ——
+    // 那正是本文件里 check:artifacts 要拦的东西，别在源头制造它。
+    css: cssConfig,
+    plugins: sharedPlugins(),
+    build: {
+      target: 'es2020',
+      outDir: 'dist/framework',
+      emptyOutDir: true,
+      minify: 'esbuild',
+      rollupOptions: { external: isFrameworkExternal },
+      lib: {
+        entry: {
+          vue: join(generatedDir, 'framework/index-vue.ts'),
+          react: join(generatedDir, 'framework/index-react.ts'),
+        },
+        formats: ['es'],
+        fileName: (_format, entryName) => `${entryName}.js`,
+      },
+    },
+  })
+
+  writeElementPlusCss()
+}
+
+/**
  * 用 pattern 而不是逐条列举组件：枚举的代价是每个组件往 package.json 里塞三行，而这份
  * package.json 是构建生成却又提交进 git 的 —— 两个人各加一个组件就会在这里撞冲突。
  * 交付契约本身没变（`./<name>` 取类、`./<name>/define` 引入即注册、`./cdn/<name>` 单文件），
@@ -260,6 +384,9 @@ function writeExportsField(): void {
   pkg.exports = {
     './tokens.css': './src/tokens/tokens.css',
     '.': './dist/esm/index.js',
+    './vue': './dist/framework/vue.js',
+    './react': './dist/framework/react.js',
+    './element-plus.css': './dist/framework/element-plus.css',
     './cdn/*': './dist/cdn/*.js',
     './*': './dist/esm/*.js',
   }
@@ -287,8 +414,8 @@ function reportSizes(): void {
 
 async function main(): Promise<void> {
   const only = process.argv.find((a) => a.startsWith('--only='))?.split('=')[1]
-  if (only && only !== 'esm' && only !== 'cdn') {
-    throw new Error(`[build] --only 只接受 esm 或 cdn，收到 "${only}"`)
+  if (only && only !== 'esm' && only !== 'cdn' && only !== 'framework') {
+    throw new Error(`[build] --only 只接受 esm、cdn 或 framework，收到 "${only}"`)
   }
 
   const components = discoverComponents()
@@ -301,7 +428,8 @@ async function main(): Promise<void> {
   )
 
   if (!only) rmSync(join(root, 'dist'), { recursive: true, force: true })
-  writeGeneratedEntries(components)
+  const frameworkComponents = await loadFrameworkComponents(components)
+  writeGeneratedEntries(components, frameworkComponents)
 
   if (!only || only === 'esm') {
     console.log('[build] 构建 ESM 产物...')
@@ -311,6 +439,11 @@ async function main(): Promise<void> {
   if (!only || only === 'cdn') {
     console.log('[build] 构建 CDN（IIFE）产物...')
     await buildCdn(components)
+  }
+
+  if (!only || only === 'framework') {
+    console.log('[build] 构建框架产物...')
+    await buildFramework()
   }
 
   writeExportsField()
