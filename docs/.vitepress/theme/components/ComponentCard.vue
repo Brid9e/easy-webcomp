@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { VPLink } from 'vitepress/theme'
 import ComponentPreview from './ComponentPreview.vue'
 import PreviewModal from './PreviewModal.vue'
+import { componentDeps } from './component-deps'
 
 const props = defineProps<{
   ws: string
@@ -14,6 +15,8 @@ const props = defineProps<{
 // 并拼上 base。手写 href 在静态托管上会 404。
 const href = computed(() => `/workspaces/${props.ws}/${props.name}`)
 
+const deps = computed(() => componentDeps(props.name))
+
 const open = ref(false)
 </script>
 
@@ -24,7 +27,14 @@ const open = ref(false)
         <ComponentPreview :name="name" :ws="ws" />
       </div>
       <div class="bar">
-        <span class="name">{{ name }}</span>
+        <div class="meta">
+          <span class="name">{{ name }}</span>
+          <span v-if="deps.length > 0" class="deps">
+            <span v-for="dep in deps" :key="dep.name" class="dep">
+              {{ dep.name }} <span class="version">{{ dep.version }}</span>
+            </span>
+          </span>
+        </div>
         <svg
           v-if="framework === 'vue'"
           class="icon"
@@ -108,15 +118,42 @@ const open = ref(false)
 
 .bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
 }
 
-.name {
+.meta {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  /* 横向排列的 flex 子项默认 min-width: auto，长依赖名会把整行顶宽 */
+  min-width: 0;
+}
+
+.name {
   font-size: var(--ew-font-size-md);
   overflow-wrap: anywhere;
+}
+
+/* 依赖名走 code 的字形（等宽、底色分层），版本跟其后、弱一档。
+   一块一块地折行，不留半截：space-between 式的定宽分栏在窄卡片上会把版本挤走。 */
+.deps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.dep {
+  color: var(--vp-c-text-2);
+  white-space: nowrap;
+}
+
+.version {
+  color: var(--vp-c-text-3);
 }
 
 /* 两个图标的配色是固定品牌色（Vue 的外圈是深蓝、React 是青色），压在暗色底栏上会糊掉。
