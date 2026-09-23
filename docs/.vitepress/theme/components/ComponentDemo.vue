@@ -3,11 +3,8 @@ import { computed, onMounted } from 'vue'
 import { componentByName } from '@devtools/component-index'
 import { useEventLog, usePropControls } from '@devtools/preview-state'
 import { registerWcElement } from '@devtools/wc-registry'
-import { componentDeps } from './component-deps'
 
 const props = defineProps<{ name: string }>()
-
-const deps = computed(() => componentDeps(props.name))
 
 const entry = computed(() => componentByName(props.name))
 const meta = computed(() => entry.value?.meta)
@@ -77,17 +74,6 @@ onMounted(() => {
           </li>
         </ul>
       </div>
-
-      <div class="panel">
-        <h3>依赖</h3>
-        <p v-if="deps.length === 0" class="empty">该组件没有第三方依赖</p>
-        <ul v-else>
-          <li v-for="dep in deps" :key="dep.name">
-            <code>{{ dep.name }}</code>
-            <span class="version">{{ dep.version }}</span>
-          </li>
-        </ul>
-      </div>
     </div>
   </ClientOnly>
 </template>
@@ -133,9 +119,5 @@ ul {
   margin: 0;
   padding-left: 18px;
   font-size: var(--ew-font-size-sm);
-}
-.version {
-  margin-left: 6px;
-  color: var(--vp-c-text-2);
 }
 </style>

@@ -43,3 +43,70 @@
 .ew-dep-version {
   color: var(--vp-c-text-3);
 }
+
+/*
+ * 导航底部那条横线。VitePress 给它的是 --vp-c-gutter，而左侧标题下那条是 --vp-c-divider：
+ * 两个 token 在亮色下同值（#e2e2e3），暗色下却分家（#000000 vs #2e2e32）—— 同一条线左右两段
+ * 一种发黑一种发灰。统一到 --vp-c-divider，亮色不变，暗色才接得上。
+ */
+#app .VPNavBar:not(.home) .divider-line {
+  background-color: var(--vp-c-divider);
+}
+
+/*
+ * ≥1440px 时 VitePress 把整个版心锁进 1440px 居中：侧边栏、导航、正文各分掉
+ * (100vw - 1440) / 2 的留白。宽屏上正文因此被挤成窄窄一条，两侧大片空着。
+ * 这里把那项居中量去掉 —— 侧边栏贴住视口左边，正文从它后面接着铺开，多出来的宽度全归正文。
+ *
+ * 写的都是 ≥960 那档本来就有的值（视口窄于 1440 时 VitePress 走的就是那一套），
+ * 所以这是把宽屏对齐到窄屏的布局，不是另发明一套。
+ *
+ * 每条都多前缀一层 `#app`：这些类住在各组件的 <style scoped> 里，编译后挂着 [data-v-*]，
+ * 比同形的普通选择器多一级 —— 不加前缀，写得一模一样也压不过它。
+ */
+@media (min-width: 1440px) {
+  #app .VPSidebar {
+    padding-left: 32px;
+    width: var(--vp-sidebar-width);
+  }
+
+  /* 只能用子选择器定位：`.title` 这个类在导航标题里有两层（外层的 div 与里面那颗
+     <a>）。VitePress 自己的规则带着 [data-v-*]，只可能命中属于 VPNavBar.vue 的外层 div；
+     这里没有那层属性，写后代选择器会把 <a> 也一起框住 —— <a> 的宽度一被撑到 272px，
+     它那条 border-bottom 就向右多出 32px，压到导航分割线上（实测过，长度 32..304）。 */
+  #app .VPNavBar.has-sidebar .container > .title {
+    padding-left: 32px;
+    width: var(--vp-sidebar-width);
+  }
+
+  #app .VPNavBar.has-sidebar .content {
+    padding-right: 32px;
+    padding-left: var(--vp-sidebar-width);
+  }
+
+  #app .VPNavBar.has-sidebar .divider {
+    padding-left: var(--vp-sidebar-width);
+  }
+
+  #app .VPContent.has-sidebar {
+    padding-left: var(--vp-sidebar-width);
+    padding-right: 32px;
+  }
+}
+
+/* 正文列：默认 688px 是按纯文字的阅读宽度定的，这里满是代码块、表格与预览面板，放宽到 1000。
+   目录收窄到 176px 是同一件事的另一半 —— 目录里都是一行行短标题，缺宽的是正文。 */
+#app .VPDoc.has-aside .content-container {
+  max-width: 1000px;
+}
+
+/* 右栏的 32px 左内边距也算在盒子里，176 + 32 = 208 */
+#app .VPDoc.has-aside .aside {
+  max-width: 208px;
+}
+
+/* 目录的滚动容器与底部渐隐都是 position: fixed、宽度写死的，得跟着右栏一起收 */
+#app .VPDoc.has-aside .aside-container,
+#app .VPDoc.has-aside .aside-curtain {
+  width: 176px;
+}
