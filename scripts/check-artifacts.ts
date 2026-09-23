@@ -98,35 +98,47 @@ function stripSpecifiers(code: string): string {
 }
 
 /**
- * 框架产物的守卫。两件事：
+ * 框架产物的守卫。
  *
- * 1. 宿主框架**不能**被打进去 —— 两份 Vue 会让 provide/inject 对不上，两份 React 会让
- *    hooks 报错。判据是「剥离说明符后运行时代码一个字都不剩」（见 stripSpecifiers）。
- * 2. 包装层不该把适配器拖进来 —— `@ew/runtime` 的桶同时导出两个适配器，只引
- *    EW_EMIT_KEY / EwEmitContext 时另一个应当被摇掉。所以 vue.js 里不该有 react 的痕迹，
- *    反之亦然。
+ * **运行时检查扫整个目录，不是只扫两个入口。** external 失效时框架代码落到哪由 Rollup
+ * 决定：单入口就落在那个入口里，两个入口都用得上时会被提成共享 chunk。只看 vue.js /
+ * react.js 会在后一种情况下漏判。（实测过：往其中一个入口塞一句对手框架的引用，
+ * Rollup 会新开一个 chunk 承接，入口文件本身干干净净。）
+ *
+ * 判据是「剥掉说明符后标记字面量为 0」（见 stripSpecifiers）：external 生效时产物里
+ * 恰恰留着一句裸导入，那个形态是健康的，按字面量数会误报。
+ *
+ * **不覆盖的事：** 包装层误引了对面适配器（`@ew/runtime` 的桶两个适配器都导出）只会多出
+ * 一句对面的裸导入、外加几 KB 代码，不产生运行时代码，这里拦不住 —— 它是体积问题不是
+ * 正确性问题，由 docs/guide/build.md 的体积基线人眼比对。
  */
 function checkFramework(failures: string[]): void {
   const dir = join(root, 'dist/framework')
 
-  for (const [file, marker] of [
-    ['vue.js', '__isVue'],
-    ['react.js', 'react-dom'],
+  for (const [name, marker] of [
+    ['vue', '__isVue'],
+    ['react', 'react-dom'],
   ] as const) {
-    const path = join(dir, file)
-    if (!existsSync(path)) {
-      failures.push(`缺少框架产物 dist/framework/${file}`)
+    const entry = join(dir, `${name}.js`)
+    if (!existsSync(entry)) {
+      failures.push(`缺少框架产物 dist/framework/${name}.js`)
       continue
     }
-    const code = readFileSync(path, 'utf8')
-    // 裸导入的检查跑在原文上（它要找的正是说明符），标记计数跑在剥离后的正文上
-    const hits = count(stripSpecifiers(code), marker)
-    if (hits !== 0) {
-      failures.push(`dist/framework/${file} 里出现 ${marker} ${hits} 次，框架运行时不该被打进产物`)
+
+    // 裸导入必须在：它是 external 生效的证据
+    const code = readFileSync(entry, 'utf8')
+    if (!new RegExp(`from\\s*["']${name}["']`).test(code)) {
+      failures.push(`dist/framework/${name}.js 里没有对 ${name} 的裸导入，external 没生效`)
     }
-    const framework = file === 'vue.js' ? 'vue' : 'react'
-    if (!new RegExp(`from\\s*["']${framework}["']`).test(code)) {
-      failures.push(`dist/framework/${file} 里没有对 ${framework} 的裸导入，external 没生效`)
+
+    // 运行时代码一个文件里都不该有（含共享 chunk）
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
+      const hits = count(stripSpecifiers(readFileSync(join(dir, file), 'utf8')), marker)
+      if (hits !== 0) {
+        failures.push(
+          `dist/framework/${file} 里出现 ${marker} ${hits} 次，框架运行时不该被打进产物`,
+        )
+      }
     }
   }
 
