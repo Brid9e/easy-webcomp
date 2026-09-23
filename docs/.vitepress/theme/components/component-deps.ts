@@ -25,12 +25,15 @@ const versions: Record<string, string> = { ...pkg.dependencies, ...pkg.peerDepen
 
 /**
  * 框架自身的说明符在源码里看不到：SFC 编译器为 template 生成的渲染函数会 inject
- * `vue`，JSX 自动运行时 inject `react/jsx-runtime` 与 `react-dom/client`
- * （对照 dist/demo/framework/react.js）。不补这一层，.tsx 组件会显示成零依赖。
+ * `vue`，JSX 自动运行时 inject `react/jsx-runtime`。不补这一层，.tsx 组件会显示成零依赖。
+ *
+ * **只补作者直接书写的那一个包。** 产物里还引 `react-dom/client`，但它出自 @ew/runtime
+ * 的 reactAdapter 而不是组件 —— 列进来会得到两枚一模一样的 React 标记（两个包没有各自的
+ * logo），看着像重复。宿主该装什么由产物清单的 peerDependencies 回答，不是这里的问题。
  */
 const frameworkDeps: Record<string, readonly string[]> = {
   vue: ['vue'],
-  react: ['react', 'react-dom'],
+  react: ['react'],
 }
 
 const componentDirOf = (path: string) => path.split('/').at(-2) ?? ''

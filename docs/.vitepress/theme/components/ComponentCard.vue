@@ -4,6 +4,7 @@ import { VPLink } from 'vitepress/theme'
 import ComponentPreview from './ComponentPreview.vue'
 import PreviewModal from './PreviewModal.vue'
 import { componentDeps } from './component-deps'
+import { libIcon } from './lib-icons'
 
 const props = defineProps<{
   ws: string
@@ -15,7 +16,10 @@ const props = defineProps<{
 // 并拼上 base。手写 href 在静态托管上会 404。
 const href = computed(() => `/workspaces/${props.ws}/${props.name}`)
 
-const deps = computed(() => componentDeps(props.name))
+// 图标在这里就查好：模板里再调 libIcon() 得连写三遍（判空、取 viewBox、取 path）
+const deps = computed(() =>
+  componentDeps(props.name).map((dep) => ({ ...dep, icon: libIcon(dep.name) })),
+)
 
 const open = ref(false)
 </script>
@@ -31,7 +35,10 @@ const open = ref(false)
           <span class="name">{{ name }}</span>
           <span v-if="deps.length > 0" class="deps">
             <span v-for="dep in deps" :key="dep.name" class="dep">
-              {{ dep.name }} <span class="version">{{ dep.version }}</span>
+              <!-- alt 留空：包名就在旁边，读屏再念一遍图标名是噪音 -->
+              <img v-if="dep.icon" class="dep-icon" :src="dep.icon" alt="" />
+              <span class="dep-name">{{ dep.name }}</span>
+              <span class="version">{{ dep.version }}</span>
             </span>
           </span>
         </div>
@@ -137,19 +144,34 @@ const open = ref(false)
   overflow-wrap: anywhere;
 }
 
-/* 依赖名走 code 的字形（等宽、底色分层），版本跟其后、弱一档。
-   一块一块地折行，不留半截：space-between 式的定宽分栏在窄卡片上会把版本挤走。 */
+/* 一个依赖一枚标签：图标 + 版本号。整枚折行，不留半枚。 */
 .deps {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 8px;
+  gap: 4px 6px;
   font-size: 12px;
   line-height: 1.6;
 }
 
 .dep {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: var(--ew-radius-sm);
   color: var(--vp-c-text-2);
   white-space: nowrap;
+}
+
+.dep-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.dep-name {
+  color: var(--vp-c-text-1);
 }
 
 .version {
