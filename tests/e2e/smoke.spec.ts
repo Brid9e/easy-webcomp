@@ -136,3 +136,47 @@ test('单组件产物与全量包同时引入不触发重复注册错误', async
   })
   expect(upgraded).toBe(true)
 })
+
+test('keep-alive：移出文档再放回来复用同一个实例', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    // 走一遍「挂上 → 移出文档 → 放回来」，回报 DOM 节点是不是原来那一个。
+    // 卸载重挂会让 Vue 换一批节点，节点同一性只有「没重挂」才成立。
+    const roundTrip = async (
+      attrs: Record<string, string>,
+    ): Promise<{ sameRoot: boolean; sameNode: boolean; styleSheets: number; text: string }> => {
+      const el = document.createElement('ew-hello-vue')
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+      document.body.appendChild(el)
+      await new Promise((r) => setTimeout(r, 0))
+
+      const shadow = el.shadowRoot
+      const inner = shadow!.querySelector('.ew-hello-vue')
+
+      el.remove()
+      document.body.appendChild(el)
+      await new Promise((r) => setTimeout(r, 0))
+
+      return {
+        sameRoot: el.shadowRoot === shadow,
+        sameNode: el.shadowRoot!.querySelector('.ew-hello-vue') === inner,
+        styleSheets: el.shadowRoot!.adoptedStyleSheets.length,
+        text: el.shadowRoot!.textContent ?? '',
+      }
+    }
+
+    return {
+      kept: await roundTrip({ 'keep-alive': '', name: 'KA' }),
+      plain: await roundTrip({ name: 'Plain' }),
+    }
+  })
+
+  expect(result.kept.sameRoot).toBe(true)
+  expect(result.kept.sameNode).toBe(true)
+  expect(result.kept.styleSheets).toBe(1)
+  expect(result.kept.text).toContain('KA')
+
+  // 反向：不加这个属性时实例会被换掉 —— 证明上面那条差异确实来自它，
+  // 而不是 querySelector 本来就会命中同一个节点
+  expect(result.plain.sameNode).toBe(false)
+  expect(result.plain.text).toContain('Plain')
+})
