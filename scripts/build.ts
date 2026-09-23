@@ -24,6 +24,7 @@ import {
   type FrameworkComponent,
 } from './framework-entries.ts'
 import { findPrefixViolations } from './style-prefix.ts'
+import { bareSpecifiersOf, workspacePackageJson } from './workspace-packages.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const workspacesDir = join(root, 'src/workspaces')
@@ -89,6 +90,11 @@ function discoverComponents(): ComponentInfo[] {
   }
 
   return components.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** 组件/产物列表里出现过的空间名，排序后返回 —— 构建按它循环 */
+function workspacesOf(items: ReadonlyArray<{ workspace: string }>): string[] {
+  return [...new Set(items.map((item) => item.workspace))].sort()
 }
 
 /**
@@ -166,11 +172,15 @@ function writeGeneratedEntries(
   const entryPath = (c: ComponentInfo) =>
     `../workspaces/${c.workspace}/components/${c.name}/index`
 
-  const allLines = components.map(
-    (c) => `export * as ${toIdentifier(c.name)} from '${entryPath(c)}'`,
-  )
-  writeFileSync(join(generatedDir, 'all.ts'), `${allLines.join('\n')}\n`)
+  // 每个空间一个桶：空间包的 `.` 入口只拉本空间的组件
+  for (const workspace of workspacesOf(components)) {
+    const lines = components
+      .filter((c) => c.workspace === workspace)
+      .map((c) => `export * as ${toIdentifier(c.name)} from '${entryPath(c)}'`)
+    writeFileSync(join(generatedDir, `all-${workspace}.ts`), `${lines.join('\n')}\n`)
+  }
 
+  // ew-all 仍是跨空间聚合，全局那一份保留
   const defineLines = components.map(
     (c, i) => `import { register as r${i} } from '${entryPath(c)}'`,
   )
@@ -181,14 +191,21 @@ function writeGeneratedEntries(
     const source = c.framework === 'vue' ? vueWrapperSource(c) : reactWrapperSource(c)
     writeFileSync(join(generatedDir, 'framework', `${c.name}.ts`), source)
   }
-  writeFileSync(
-    join(generatedDir, 'framework', 'index-vue.ts'),
-    barrelSource(frameworkComponents, 'vue'),
-  )
-  writeFileSync(
-    join(generatedDir, 'framework', 'index-react.ts'),
-    barrelSource(frameworkComponents, 'react'),
-  )
+
+  // 框架桶也按空间切。该空间没有某个框架的组件就不生成 —— 出一个空桶会让
+  // check:artifacts 把它当成「external 没生效」（空模块里没有裸导入）。
+  for (const workspace of workspacesOf(frameworkComponents)) {
+    for (const framework of ['vue', 'react'] as const) {
+      const mine = frameworkComponents.filter(
+        (c) => c.workspace === workspace && c.framework === framework,
+      )
+      if (mine.length === 0) continue
+      writeFileSync(
+        join(generatedDir, 'framework', `index-${workspace}-${framework}.ts`),
+        barrelSource(mine, framework),
+      )
+    }
+  }
 }
 
 // tailwind 对不含 @import "tailwindcss" 的 CSS 是直通，没用它的组件不受影响
@@ -214,32 +231,34 @@ const cssConfig = {
 }
 
 async function buildEsm(components: ComponentInfo[]): Promise<void> {
-  const entry: Record<string, string> = {
-    index: join(generatedDir, 'all.ts'),
-  }
-  for (const c of components) {
-    entry[c.name] = join(c.dir, 'index.ts')
-    entry[`${c.name}/define`] = join(c.dir, 'define.ts')
-  }
+  for (const workspace of workspacesOf(components)) {
+    const entry: Record<string, string> = {
+      index: join(generatedDir, `all-${workspace}.ts`),
+    }
+    for (const c of components.filter((c) => c.workspace === workspace)) {
+      entry[c.name] = join(c.dir, 'index.ts')
+      entry[`${c.name}/define`] = join(c.dir, 'define.ts')
+    }
 
-  await build({
-    root,
-    configFile: false,
-    resolve: { alias: vueAlias },
-    css: cssConfig,
-    plugins: sharedPlugins(),
-    build: {
-      target: 'es2020',
-      outDir: 'dist/esm',
-      emptyOutDir: true,
-      minify: 'esbuild',
-      lib: {
-        entry,
-        formats: ['es'],
-        fileName: (_format, entryName) => `${entryName}.js`,
+    await build({
+      root,
+      configFile: false,
+      resolve: { alias: vueAlias },
+      css: cssConfig,
+      plugins: sharedPlugins(),
+      build: {
+        target: 'es2020',
+        outDir: `dist/${workspace}/esm`,
+        emptyOutDir: true,
+        minify: 'esbuild',
+        lib: {
+          entry,
+          formats: ['es'],
+          fileName: (_format, entryName) => `${entryName}.js`,
+        },
       },
-    },
-  })
+    })
+  }
 }
 
 /**
@@ -320,6 +339,10 @@ const elementPlusCssSpec = 'element-plus/dist/index.css'
  * 不分层注入会把宿主的深色主题连同原生控件一起翻成浅色。分层之后它是一份默认值，
  * 宿主自己写的未分层规则永远赢；宿主完全没引 EP 时这层才顶上来。
  * 与 packages/runtime/src/style.ts 里那份 head 副本是同一个理由。
+ *
+ * 落在 dist 根而不是某个空间下：它是 Element Plus 的**全量**样式，与空间无关。
+ * 放进某个空间是错位（第二个空间用 EP 时要么复制两份、要么另抽包），留根包则消费方
+ * 多引一行 easy-webcomp/element-plus.css。
  */
 function writeElementPlusCss(): void {
   const path = fileURLToPath(import.meta.resolve(elementPlusCssSpec))
@@ -327,70 +350,126 @@ function writeElementPlusCss(): void {
   // @charset 必须排在文件最前，裹进 @layer 块里就失效了 —— 提到块外
   const charset = /^@charset\s+"[^"]*";\s*/.exec(raw)?.[0] ?? ''
   const body = raw.slice(charset.length)
-  writeFileSync(
-    join(root, 'dist/framework/element-plus.css'),
-    `${charset}@layer ew {\n${body}\n}\n`,
-  )
+  writeFileSync(join(root, 'dist/element-plus.css'), `${charset}@layer ew {\n${body}\n}\n`)
 }
 
-async function buildFramework(): Promise<void> {
-  await build({
-    root,
-    configFile: false,
-    // 这里**不能**挂 vueAlias：别名会把裸说明符 `vue` 改写成 vue/dist/...，
-    // 而 external 匹配的是改写前的说明符，两边一错开 vue 就被打进产物 ——
-    // 那正是本文件里 check:artifacts 要拦的东西，别在源头制造它。
-    css: cssConfig,
-    plugins: sharedPlugins(),
-    build: {
-      target: 'es2020',
-      outDir: 'dist/framework',
-      emptyOutDir: true,
-      minify: 'esbuild',
-      rollupOptions: { external: isFrameworkExternal },
-      lib: {
-        entry: {
-          vue: join(generatedDir, 'framework/index-vue.ts'),
-          react: join(generatedDir, 'framework/index-react.ts'),
+async function buildFramework(
+  components: ComponentInfo[],
+  frameworkComponents: FrameworkComponent[],
+): Promise<void> {
+  for (const workspace of workspacesOf(components)) {
+    const entry: Record<string, string> = {}
+    for (const framework of ['vue', 'react'] as const) {
+      const mine = frameworkComponents.filter(
+        (c) => c.workspace === workspace && c.framework === framework,
+      )
+      if (mine.length === 0) continue
+      entry[framework] = join(generatedDir, 'framework', `index-${workspace}-${framework}.ts`)
+    }
+    // 整个空间都用 Tailwind（只出 WC）时没有框架入口，跳过
+    if (Object.keys(entry).length === 0) continue
+
+    await build({
+      root,
+      configFile: false,
+      // 这里**不能**挂 vueAlias：别名会把裸说明符 `vue` 改写成 vue/dist/...，
+      // 而 external 匹配的是改写前的说明符，两边一错开 vue 就被打进产物 ——
+      // 那正是本文件里 check:artifacts 要拦的东西，别在源头制造它。
+      css: cssConfig,
+      plugins: sharedPlugins(),
+      build: {
+        target: 'es2020',
+        outDir: `dist/${workspace}/framework`,
+        emptyOutDir: true,
+        minify: 'esbuild',
+        rollupOptions: { external: isFrameworkExternal },
+        lib: {
+          entry,
+          formats: ['es'],
+          fileName: (_format, entryName) => `${entryName}.js`,
         },
-        formats: ['es'],
-        fileName: (_format, entryName) => `${entryName}.js`,
       },
-    },
-  })
+    })
+  }
 
   writeElementPlusCss()
 }
 
 /**
- * 用 pattern 而不是逐条列举组件：枚举的代价是每个组件往 package.json 里塞三行，而这份
- * package.json 是构建生成却又提交进 git 的 —— 两个人各加一个组件就会在这里撞冲突。
- * 交付契约本身没变（`./<name>` 取类、`./<name>/define` 引入即注册、`./cdn/<name>` 单文件），
- * 只是不再依赖构建期知道有哪些组件。
+ * 根包的 exports 收缩成三条：ESM 与 framework 都按空间搬走了，根上只剩 tokens.css、
+ * element-plus.css 与 CDN。**不保留聚合的 `./vue` / `./react`** —— 那个桶正是本设计要
+ * 消灭的东西（引 HelloVue 会连 element-plus 一起拖进来）。
  *
- * 各键由 Node 的 exports 解析规则兜底，不需要额外顺序：精确键（`.`、`./tokens.css`）
- * 优先于 pattern，pattern 之间比 `*` 之前那段 base 的长短 —— `./cdn/*` 的 base 是 `./cdn/`，
- * 长过 `./*` 的 `./`，所以 `./cdn/hello-vue` 稳定落到 dist/cdn 而不是 dist/esm/cdn。
- * `*` 能跨 `/`，故 `./hello-vue/define` 也由 `./*` 覆盖。
+ * 不需要任何产物就能算出来，所以 --only 下也照跑（与拆分前 writeExportsField 的行为一致）。
  *
- * 已知代价：`./*` 把 dist/esm 里那些哈希 chunk（如 index-BZwKHW0M.js）也暴露成了可导入的
- * 子路径。不打算为它收紧 —— 这些文件是构建内部件，消费方没有理由去 import，而收紧要靠
- * 枚举组件，就又回到上面那个冲突问题。
+ * 各键由 Node 的 exports 解析规则兜底，不需要额外顺序：精确键（`./tokens.css`）优先于
+ * pattern，pattern 之间比 `*` 之前那段 base 的长短。`./cdn/ew-all` 落 `./cdn/*`。
  */
-function writeExportsField(): void {
+function writeRootExports(): void {
   const pkgPath = join(root, 'package.json')
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
 
   pkg.exports = {
     './tokens.css': './src/tokens/tokens.css',
-    '.': './dist/esm/index.js',
-    './vue': './dist/framework/vue.js',
-    './react': './dist/framework/react.js',
-    './element-plus.css': './dist/framework/element-plus.css',
+    './element-plus.css': './dist/element-plus.css',
     './cdn/*': './dist/cdn/*.js',
-    './*': './dist/esm/*.js',
   }
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+}
+
+/**
+ * 给每个空间写一份 package.json。
+ *
+ * 依赖从产物反推：`dist/<空间>/framework/*.js` 里那句 `import ... from "element-plus"`
+ * 就是证据。不手写依赖表 —— 手写的表迟早与产物漂移，而漂移的症状（消费方解析不到说明符）
+ * 要到别人装包时才暴露。
+ *
+ * 用 pattern 而不是逐条列举组件：与根包那份不同，空间包的 package.json 落在被 gitignore
+ * 的 dist/ 下、不入库，所以「两个人各加一个组件会撞冲突」这条理由在这里不成立，但 pattern
+ * 让 exports 与组件清单解耦仍然值得。`*` 能跨 `/`，故 `@ew/<空间>/<组件>/define` 也由
+ * `./*` 覆盖。
+ *
+ * 已知代价：`./*` 把 esm 目录里那些哈希 chunk（如 index-BZwKHW0M.js）也暴露成了可导入的
+ * 子路径。不打算为它收紧 —— 这些文件是构建内部件，消费方没有理由去 import，而收紧要靠
+ * 枚举组件，就又回到上面那个冲突问题。
+ */
+function writeWorkspacePackages(
+  components: ComponentInfo[],
+  frameworkComponents: FrameworkComponent[],
+): void {
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+    version?: string
+    private?: boolean
+    peerDependencies?: Record<string, string>
+    dependencies?: Record<string, string>
+  }
+  // 版本来源：peerDependencies 压过 dependencies。element-plus / pinia 只在 dependencies
+  // 里有版本，vue / react 两处都有，这条合并让三种情况都能取到。
+  const versions = { ...pkg.dependencies, ...pkg.peerDependencies }
+
+  for (const workspace of workspacesOf(components)) {
+    const dir = join(root, 'dist', workspace)
+    const frameworks = (['vue', 'react'] as const).filter((framework) =>
+      frameworkComponents.some((c) => c.workspace === workspace && c.framework === framework),
+    )
+    const externals = [
+      ...new Set(
+        frameworks.flatMap((framework) =>
+          bareSpecifiersOf(readFileSync(join(dir, 'framework', `${framework}.js`), 'utf8')),
+        ),
+      ),
+    ].sort()
+
+    const manifest = workspacePackageJson({
+      workspace,
+      version: pkg.version ?? '0.0.0',
+      private: pkg.private,
+      frameworks,
+      externals,
+      versions,
+    })
+    writeFileSync(join(dir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+  }
 }
 
 function reportSizes(): void {
@@ -443,10 +522,14 @@ async function main(): Promise<void> {
 
   if (!only || only === 'framework') {
     console.log('[build] 构建框架产物...')
-    await buildFramework()
+    await buildFramework(components, frameworkComponents)
   }
 
-  writeExportsField()
+  writeRootExports()
+  // 空间包的依赖从 framework 产物反推，要全量构建的产物才成立 —— --only 时跳过，
+  // 此时 dist/ 下那些 package.json 保持上一次全量构建写下的内容。
+  if (!only) writeWorkspacePackages(components, frameworkComponents)
+
   reportSizes()
 
   console.log('[build] 完成')
