@@ -10,8 +10,8 @@ export interface WorkspacePackageInput {
   workspace: string
   /** 继承根包版本，全仓库锁步 */
   version: string
-  /** 继承根包。不是 true 时不出这个字段 */
-  private?: boolean
+  /** 继承根包。不是 true 时不出这个字段。显式收 undefined —— 调用方直接传 `pkg.private` */
+  private?: boolean | undefined
   /** 该空间真有框架产物的框架 —— 决定出不出 ./vue / ./react */
   frameworks: ReadonlyArray<'vue' | 'react'>
   /** 从 dist/<空间>/framework/*.js 扫出来的包名，调用方去重后传入 */
