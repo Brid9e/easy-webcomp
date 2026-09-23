@@ -121,7 +121,7 @@ dist/
 - **生成入口**：新增 `src/.generated/all-<空间>.ts` 与 `src/.generated/framework/index-<空间>-{vue,react}.ts`。全局的 `all-define.ts` **保留**——`ew-all.js` 是跨空间聚合，仍归 CDN。
 - **`writeElementPlusCss()`** 写到 `dist/element-plus.css` 而不是 `dist/framework/element-plus.css`。
 - **`writeExportsField()`** 扩成 `writePackages()`：重写根 `package.json` 的 `exports`，再写每个空间的 `package.json`。**只给真有组件的空间出包**——`discoverComponents()` 会跳过没有 `components/` 目录的空间，一个空目录不该换回一个空包。
-- `--only=esm|cdn|framework` 语义不变，仍是「只跑这一类」。
+- `--only=esm|cdn|framework` 语义不变，仍是「只跑这一类」。但空间包的依赖要从 framework 产物反推，`--only` 时产物不全，所以那一步（`writeWorkspacePackages`）只在全量构建时跑；根 exports 不需要任何产物，照旧每次都写 —— 与拆分前 `writeExportsField` 的行为一致。
 - `reportSizes()` 递归扫 `dist/`，天然覆盖新路径，不用改。
 
 `element-plus.css` 归根包的理由：它是 EP 的**全量**样式（361 KB），与空间无关。放进某个空间是错位（否则将来第二个空间用 EP 时要么复制两份、要么再抽一个包），留根包则消费方多引一行。等真被两个以上空间用到时再抽 `@ew/element-plus.css` 独立包，那时才有依据。
