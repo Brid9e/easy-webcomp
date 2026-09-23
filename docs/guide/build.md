@@ -11,8 +11,8 @@ pnpm run build:framework  # 只出框架产物
 |---|---|
 | `dist/<空间>/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/<空间>/esm/*/define.js` | npm ESM 引入，import 即注册 |
-| `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ew-all.js` | CDN 全量单文件 |
+| `dist/cdn/<空间>/index.js` | CDN 单文件，该空间的全部组件，运行时内联，import 即注册 |
+| `dist/cdn/<空间>/<组件>.js` | CDN 单文件，单个组件，运行时内联，import 即注册 |
 | `dist/<空间>/framework/vue.js`、`react.js` | 原生 Vue / React 组件，见下节 |
 | `dist/<空间>/styles.css` | 组件 `<style>` 块抽出来的样式，由 `@ew/<空间>/styles.css` 导出，见下节 |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上，见下节 |
@@ -22,7 +22,7 @@ pnpm run build:framework  # 只出框架产物
 
 ```
 dist/
-├── cdn/                  根包 easy-webcomp：URL 寻址 + ew-all 聚合
+├── cdn/<空间>/          根包 easy-webcomp：URL 寻址，按空间分目录
 ├── element-plus.css      根包：Element Plus 的全量样式，与空间无关
 └── <空间>/
     ├── package.json      name 是 @ew/<空间>，依赖从产物反推
@@ -32,9 +32,9 @@ dist/
 
 **依赖不手写。** 空间包的 `peerDependencies` 由构建扫 `framework/*.js` 里的裸说明符反推 —— 产物里那句 `import ... from "element-plus"` 就是证据。声明成 peer 而不是 dependency，是因为 `element-plus` / `pinia` / `vue` / `react` 一旦出现两份实例，宿主的配置与 hooks 就够不到组件里那一份。
 
-`dist/cdn/` 与 `dist/element-plus.css` 留在根包：CDN 是 URL 寻址的，`ew-all.js` 按定义就是跨空间聚合；EP 样式是全量的，与空间无关。
+`dist/cdn/` 与 `dist/element-plus.css` 留在根包：CDN 是 URL 寻址的，按空间分目录就够了，不需要包管理器的名字；EP 样式是全量的，与空间无关。**没有跨空间的聚合产物** —— 把两个空间的运行时揉进同一个 bundle，等于让一个空间的 vue / element-plus 版本服从另一个。
 
-ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
+ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次，空间的 `index.js` 是又一次独立构建 —— 它 import 本空间全部组件的单入口，不是多入口。Rollup 的 IIFE 格式不支持多入口，逐组件构建是唯一能产出「单文件可拷走」的方式。
 
 构建结束会打印每个产物的 gzip 体积。空间包的 `exports` 用 pattern 覆盖本空间全部组件（`./*` → `./esm/*.js` 与 `./esm/*.d.ts`、`./vue` / `./react` → `./framework/*.js` 与对应的 `.d.ts`），**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。
 
@@ -84,7 +84,7 @@ import '@ew/self-monitor/styles.css'
 
 **只保留一份，放在空间根目录下。** CSS 抽取跟着模块图走，本来每条构建管线都会在自己的 outDir 里落一份（`esm/` 一份、`framework/` 一份），内容还完全一样。构建结束会把 framework 那份提到 `dist/<空间>/styles.css`、删掉 ESM 那份 —— WC 模式下组件渲染在 shadow root 里，外部 CSS 根本进不去，ESM 那份谁也拿不到，留着只是让消费方在两份同内容文件里挑。`check:artifacts` 会拦住构建目录里残留的那份。
 
-CDN 那份（`dist/cdn/<组件>.css`、`dist/cdn/ew-all.css`）是例外，照留：那是 URL 寻址的，跟空间目录无关，而且单组件 IIFE 旁边没有别的入口能替它把样式带进去，用 CDN 时得自己补一个 `<link>`。它按组件名分而不是共用根包名，是因为逐组件构建共用 `dist/cdn` 且 `emptyOutDir: false`，共用一个名字时后一个组件会覆盖前一个。
+CDN 那份（`dist/cdn/<空间>/<组件>.css`、`dist/cdn/<空间>/index.css`）是例外，照留：那是 URL 寻址的，与空间包的入口无关，而且单组件 IIFE 旁边没有别的入口能替它把样式带进去，用 CDN 时得自己补一个 `<link>`。它按组件名分而不是共用根包名，是因为同空间内逐组件构建共用 `dist/cdn/<空间>` 且 `emptyOutDir: false`，共用一个名字时后一个组件会覆盖前一个。
 
 **键名必须带 `.css` 后缀。** 消费方的 tsc 是靠 `vite/client` 里那句 `declare module '*.css'` 认出这个模块的，而那条声明匹配的是说明符文本 —— `@ew/<空间>/css` 不以 `.css` 结尾，匹配不上，即便 exports 指向的确实是个 `.css` 文件也报 TS2307。
 
@@ -96,7 +96,7 @@ CDN：
 
 ```html
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
-<script src="https://your-cdn/hello-vue.js"></script>
+<script src="https://your-cdn/demo/index.js"></script>
 
 <ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
@@ -173,12 +173,13 @@ import { MyList } from '@ew/self-monitor/react'
 
 | 产物 | gzip |
 |---|---|
-| `dist/cdn/hello-vue.js` | 26.9 KB |
-| `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/my-list.js` | 393.7 KB |
-| `dist/cdn/ew-all.js` | 464.2 KB |
+| `dist/cdn/demo/hello-vue.js` | 27.0 KB |
+| `dist/cdn/demo/hello-react.js` | 69.4 KB |
+| `dist/cdn/demo/index.js` | 95.1 KB |
+| `dist/cdn/self-monitor/my-list.js` | 393.6 KB |
+| `dist/cdn/self-monitor/index.js` | 393.6 KB |
 
-CDN 这一栏与拆分前**逐字节相同** —— `buildCdn` 这次一行没动，它只在自己那套 `dist/cdn/` 下逐组件构建，与 `dist/` 的目录重构无关。数字比上一版基线大，是因为 `my-list`（Element Plus + Pinia，单文件就近 400 KB）是上一版基线写下之后才加进仓库的，与本次拆分无关。
+拆掉跨空间的 `ew-all.js` 换来的是**按需付费**：以前想用 demo 的两个组件，要么引两次单组件文件（运行时各内联一份），要么引 464.2 KB 的 `ew-all.js` 把 self-monitor 那份 Element Plus 也拖下来。现在引 `demo/index.js` 就只要 95.1 KB。`self-monitor/index.js` 与它那个单组件文件同为 393.6 KB 是正常的 —— 该空间只有一个组件，共享运行时的收益没有第二个组件来摊。数字比更早的基线大，是因为 `my-list`（Element Plus + Pinia，单文件就近 400 KB）是那份基线写下之后才加进仓库的，与本次改动无关。
 
 ESM 与框架产物的体积随打包器与引入方式而定，不在基线对比范围内。两点值得留意：`dist/demo/framework/vue.js`（1.1 KB）现在只含 `hello-vue`，`dist/self-monitor/framework/vue.js`（27.8 KB）只含 `my-list` —— 后者仍引 Element Plus 与 Pinia，故比前者大两个数量级；ESM 侧原本全仓库共享的那份 Vue 运行时，现在每个空间包各带一份。
 
@@ -188,4 +189,4 @@ ESM 与框架产物的体积随打包器与引入方式而定，不在基线对�
 - **事件必须带 `composed: true`。** 漏了事件出不了 shadow root，且不报错。桥接层已统一处理，手写事件时注意。
 - **CDN 产物必须静态替换 `process.env.NODE_ENV`。** Vite lib 模式默认不替换（留给宿主打包器），但 IIFE 没有宿主打包器。构建脚本已处理。
 - **`customElements.define` 同 tag 重复注册直接抛错。** 桥接层的 `registerElement` 做了两层去重（模块级 Map + `customElements.get()` 兜底），后者是跨 bundle 场景下唯一有效的防线。
-- **IIFE 不支持多入口。** 因此 CDN 侧是逐组件构建，不是一次多入口。
+- **IIFE 不支持多入口。** 因此 CDN 侧逐组件构建，空间 `index.js` 也是独立的一次单入口构建（它 import 本空间全部组件，不是多入口）。

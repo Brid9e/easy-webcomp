@@ -103,12 +103,12 @@ pnpm run build:cdn  # 只出 CDN
 |---|---|
 | `dist/<空间>/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/<空间>/esm/*/define.js` | npm ESM 引入，import 即注册 |
-| `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
-| `dist/cdn/ew-all.js` | CDN 全量单文件 |
+| `dist/cdn/<空间>/index.js` | CDN 单文件，该空间的全部组件，运行时内联，import 即注册 |
+| `dist/cdn/<空间>/<组件>.js` | CDN 单文件，单个组件，运行时内联，import 即注册 |
 | `dist/<空间>/styles.css` | 组件 `<style>` 块抽出来的样式，由 `@ew/<空间>/styles.css` 导出（没有组件写 `<style>` 块就没有这个文件） |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上 |
 
-ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次（Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式）。
+ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次，空间 `index.js` 是又一次独立构建（Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式；index 是 import 本空间全部组件的单入口，不是多入口）。
 
 构建结束会打印每个产物的 gzip 体积。`dist/` 按工作空间分目录，每个目录是一个独立包（`@ew/demo`、`@ew/self-monitor`），各带一份 `package.json`，依赖由构建从产物反推。`exports` 用 pattern 覆盖本空间全部组件，**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。
 
@@ -120,7 +120,7 @@ CDN：
 
 ```html
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
-<script src="https://your-cdn/hello-vue.js"></script>
+<script src="https://your-cdn/demo/index.js"></script>
 
 <ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
@@ -192,13 +192,13 @@ pnpm run verify   # typecheck + 单测 + 构建 + 文档站构建 + 冒烟测试
 | `test` | Vitest + jsdom，13 个文件 113 个用例，覆盖桥接层全部易错点与组件扫描 |
 | `build` | ESM + CDN 全量产物 |
 | `docs:build` | VitePress 构建文档站，同时是 SSR 问题的唯一防线 |
-| `test:e2e` | Playwright 冒烟测试，9 个用例加载 `dist/cdn/*.js` 真实产物，其中一个起调试页 |
+| `test:e2e` | Playwright 冒烟测试，10 个用例加载 `dist/cdn/<空间>/*.js` 真实产物，其中一个起调试页 |
 
 e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chromium 的下载源在本机只有约 2.5 MB/min，182 MB 装不上。若要改用自带 chromium：`pnpm exec playwright install chromium`，然后删掉 `playwright.config.ts` 里的 `channel`。
 
 ### 冒烟测试覆盖
 
-注册升级、shadow 渲染、Vue 与 React 同页共存互不干扰（含两个 root 的样式表互相独立）、事件穿透 shadow root 冒泡到 window、`disable-shadow` 降级、token 换肤穿透、单组件产物与全量包同时引入不触发重复注册错误。
+注册升级、shadow 渲染、Vue 与 React 同页共存互不干扰（含两个 root 的样式表互相独立）、事件穿透 shadow root 冒泡到 window、`disable-shadow` 降级、token 换肤穿透、单组件产物与空间 index 同时引入不触发重复注册错误、空间 index 单独引入即注册该空间全部组件。
 
 另有一条起调试页（独立端口 5274）验证舞台本身：元素升级后渲染进 shadow root、按 375 预设后容器实测宽度就是 375。
 
@@ -208,9 +208,11 @@ e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chr
 
 | 产物 | gzip |
 |---|---|
-| `dist/cdn/hello-vue.js` | 26.8 KB |
-| `dist/cdn/hello-react.js` | 69.3 KB |
-| `dist/cdn/ew-all.js` | 95.2 KB |
+| `dist/cdn/demo/hello-vue.js` | 27.0 KB |
+| `dist/cdn/demo/hello-react.js` | 69.4 KB |
+| `dist/cdn/demo/index.js` | 95.1 KB |
+| `dist/cdn/self-monitor/my-list.js` | 393.6 KB |
+| `dist/cdn/self-monitor/index.js` | 393.6 KB |
 
 ESM 产物体积随打包器而定，不在基线对比范围内。
 
@@ -220,4 +222,4 @@ ESM 产物体积随打包器而定，不在基线对比范围内。
 - **事件必须带 `composed: true`。** 漏了事件出不了 shadow root，且不报错。桥接层已统一处理，手写事件时注意。
 - **CDN 产物必须静态替换 `process.env.NODE_ENV`。** Vite lib 模式默认不替换（留给宿主打包器），但 IIFE 没有宿主打包器。构建脚本已处理。
 - **`customElements.define` 同 tag 重复注册直接抛错。** 桥接层的 `registerElement` 做了两层去重（模块级 Map + `customElements.get()` 兜底），后者是跨 bundle 场景下唯一有效的防线。
-- **IIFE 不支持多入口。** 因此 CDN 侧是逐组件构建，不是一次多入口。
+- **IIFE 不支持多入口。** 因此 CDN 侧逐组件构建，空间 `index.js` 也是独立的一次单入口构建（它 import 本空间全部组件，不是多入口）。

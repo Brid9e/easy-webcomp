@@ -10,7 +10,7 @@ CDN：
 
 ```html
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
-<script src="https://your-cdn/hello-vue.js"></script>
+<script src="https://your-cdn/demo/hello-vue.js"></script>
 
 <ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```

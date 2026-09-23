@@ -10,7 +10,7 @@ CDN：
 
 ```html
 <link rel="stylesheet" href="https://your-cdn/tokens.css" />
-<script src="https://your-cdn/hello-react.js"></script>
+<script src="https://your-cdn/demo/hello-react.js"></script>
 
 <ew-hello-react name="World" count="3"></ew-hello-react>
 ```

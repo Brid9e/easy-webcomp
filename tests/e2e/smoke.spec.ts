@@ -116,15 +116,15 @@ test('token 换肤能穿透 shadow root 影响组件', async ({ page }) => {
   expect(after).toBe('rgb(255, 0, 0)')
 })
 
-test('单组件产物与全量包同时引入不触发重复注册错误', async ({ page }) => {
-  // fixture 已引入 hello-vue.js / hello-react.js 单组件产物，
-  // 这里再引入全量包，它会再次对同样的 tag 调 register()。
+test('单组件产物与空间 index 同时引入不触发重复注册错误', async ({ page }) => {
+  // fixture 已引入 hello-vue.js / hello-react.js 两个单组件产物，
+  // 这里再引入 demo 的空间 index，它会对同样的 tag 再注册一遍。
   // 注意这是两个独立的 bundle，registry 模块实例不共享 ——
   // 拦住重复注册的必须是 registerElement 里的 customElements.get() 兜底检查。
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
-  await page.addScriptTag({ url: '/dist/cdn/ew-all.js' })
+  await page.addScriptTag({ url: '/dist/cdn/demo/index.js' })
 
   expect(errors).toEqual([])
 
@@ -135,6 +135,19 @@ test('单组件产物与全量包同时引入不触发重复注册错误', async
     return el.shadowRoot?.textContent?.includes('All') ?? false
   })
   expect(upgraded).toBe(true)
+})
+
+test('空间 index 单独引入即注册该空间全部组件', async ({ page }) => {
+  // 清掉 fixture 里已经引过的两个单组件产物，只留 index.js 一个来源。
+  // 用 setContent 而不是 goto('about:blank')：后者会丢掉 origin，相对 URL 解析不到。
+  await page.setContent('<html><body></body></html>')
+  await page.addScriptTag({ url: '/dist/cdn/demo/index.js' })
+
+  const registered = await page.evaluate(() => ({
+    vue: Boolean(customElements.get('ew-hello-vue')),
+    react: Boolean(customElements.get('ew-hello-react')),
+  }))
+  expect(registered).toEqual({ vue: true, react: true })
 })
 
 test('keep-alive：移出文档再放回来复用同一个实例', async ({ page }) => {
