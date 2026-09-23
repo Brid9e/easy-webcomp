@@ -23,14 +23,31 @@ const MARKER = { vue: '__isVue', react: 'react-dom' } as const
 
 type Framework = keyof typeof MARKER
 
+/**
+ * 与 scripts/build.ts 的 frameworkExternals **故意各写一份**。
+ *
+ * 下游的第三条契约（checkPackages）拿这张表逐个去产物里找裸导入，而 build.ts 那边是
+ * 「解析出所有说明符再取包名」—— 两条路径独立，才能互相验。共用一份的话，解析器漏掉
+ * 某种形态时两边一起漏，守卫永远绿。
+ */
+const FRAMEWORK_EXTERNALS = ['vue', 'react', 'react-dom', 'element-plus', 'pinia']
+
 function count(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1
 }
 
-/** 组件清单与框架都取自源码目录，而不是文件名约定 —— 与构建脚本同一处事实来源 */
-function discoverComponents(): Array<{ name: string; framework: Framework }> {
+interface DiscoveredComponent {
+  name: string
+  workspace: string
+  framework: Framework
+  /** 是否出框架产物。Tailwind 组件只出 WC */
+  inFramework: boolean
+}
+
+/** 组件清单、框架与归属空间都取自源码目录，而不是文件名约定 —— 与构建脚本同一处事实来源 */
+function discoverComponents(): DiscoveredComponent[] {
   const workspacesDir = join(root, 'src/workspaces')
-  const found: Array<{ name: string; framework: Framework }> = []
+  const found: DiscoveredComponent[] = []
 
   for (const ws of readdirSync(workspacesDir)) {
     const componentsDir = join(workspacesDir, ws, 'components')
@@ -38,8 +55,19 @@ function discoverComponents(): Array<{ name: string; framework: Framework }> {
 
     for (const name of readdirSync(componentsDir)) {
       const dir = join(componentsDir, name)
-      if (existsSync(join(dir, 'Component.vue'))) found.push({ name, framework: 'vue' })
-      else if (existsSync(join(dir, 'Component.tsx'))) found.push({ name, framework: 'react' })
+      let framework: Framework | undefined
+      if (existsSync(join(dir, 'Component.vue'))) framework = 'vue'
+      else if (existsSync(join(dir, 'Component.tsx'))) framework = 'react'
+      if (framework === undefined) continue
+
+      // 与 build.ts 的 loadFrameworkComponents 同一判据：Tailwind 的 preflight 是全局
+      // reset，与 light DOM 下「不影响其他组件」天然冲突，这类组件只出 WC。
+      const inFramework = !['style.scss', 'style.css']
+        .map((f) => join(dir, f))
+        .filter((p) => existsSync(p))
+        .some((p) => readFileSync(p, 'utf8').includes('@import "tailwindcss"'))
+
+      found.push({ name, workspace: ws, framework, inFramework })
     }
   }
 
@@ -51,9 +79,12 @@ function discoverComponents(): Array<{ name: string; framework: Framework }> {
  * `./*: ./dist/esm/*.jsx` 这类错误映射「补救」成实际存在的 .js 再返回，于是守卫永远绿。
  * 实测同一个错误映射，tsx 下 `import.meta.resolve` 与 `createRequire().resolve` 都返回
  * `dist/esm/hello-vue.js`，只有原生 node 如实返回 `.jsx`。消费方跑的正是原生 node / 打包器，
- * 所以以它为准。`cwd` 必须是仓库根，self-reference 才找得到本包。
+ * 所以以它为准。
+ *
+ * `cwd` 决定 self-reference 认哪个包：根包的 exports 在仓库根解析，空间包的
+ * exports 要在 `dist/<空间>/` 里解析 —— 不换 cwd 的话 `@ew/demo/vue` 根本找不到。
  */
-function resolveSpecs(specs: string[]): Record<string, string | null> {
+function resolveSpecs(specs: string[], cwd: string): Record<string, string | null> {
   const probe = `
 import { fileURLToPath } from 'node:url'
 const out = {}
@@ -63,7 +94,7 @@ for (const s of ${JSON.stringify(specs)}) {
 process.stdout.write(JSON.stringify(out))
 `
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', probe], {
-    cwd: root,
+    cwd,
     encoding: 'utf8',
   })
   if (result.status !== 0) {
@@ -72,17 +103,6 @@ process.stdout.write(JSON.stringify(out))
   return JSON.parse(result.stdout) as Record<string, string | null>
 }
 
-/**
- * 第二条契约：`package.json` 的 exports 子路径必须真能解析到文件。
- *
- * 组件子路径现在由 pattern（`./*`、`./cdn/*`）覆盖而不是逐条列举 —— 好处是 package.json
- * 不再随组件增减而变动，代价是它对「有哪些组件」一无所知，写错一个字符不会有任何测试红，
- * 要等消费方 import 时才炸。所以在这里按源码目录里的组件清单逐个走一遍。
- *
- * 交给真实解析而不是自己按 pattern 拼路径：`./cdn/hello-vue` 正是靠 `./cdn/*` 的 base 比
- * `./*` 长才没被解析到 `dist/esm/cdn/` 下，自己拼等于把 Node 的优先级规则再实现一遍。
- * 解析只做映射、不 stat 文件，所以结果还要 existsSync 一次。
- */
 /**
  * 把 import/export 语句里的说明符抹掉，只留被打进产物的实现代码。
  *
@@ -102,9 +122,9 @@ function stripSpecifiers(code: string): string {
 }
 
 /**
- * 框架产物的守卫。
+ * 框架产物的守卫，按空间各查一遍。
  *
- * **运行时检查扫整个目录，不是只扫两个入口。** external 失效时框架代码落到哪由 Rollup
+ * **运行时检查扫整个目录，不是只扫入口。** external 失效时框架代码落到哪由 Rollup
  * 决定：单入口就落在那个入口里，两个入口都用得上时会被提成共享 chunk。只看 vue.js /
  * react.js 会在后一种情况下漏判。（实测过：往其中一个入口塞一句对手框架的引用，
  * Rollup 会新开一个 chunk 承接，入口文件本身干干净净。）
@@ -112,62 +132,156 @@ function stripSpecifiers(code: string): string {
  * 判据是「剥掉说明符后标记字面量为 0」（见 stripSpecifiers）：external 生效时产物里
  * 恰恰留着一句裸导入，那个形态是健康的，按字面量数会误报。
  *
+ * 「该有的必须有、不该有的不许有」两个方向都查：少一个 `framework/vue.js` 说明
+ * buildFramework 漏了该空间；多一个 `framework/react.js` 说明框架桶没按空间过滤干净，
+ * 而那个空模块会让「裸导入必须在」这条检查失效。
+ *
  * **不覆盖的事：** 包装层误引了对面适配器（`@ew/runtime` 的桶两个适配器都导出）只会多出
  * 一句对面的裸导入、外加几 KB 代码，不产生运行时代码，这里拦不住 —— 它是体积问题不是
  * 正确性问题，由 docs/guide/build.md 的体积基线人眼比对。
  */
-function checkFramework(failures: string[]): void {
-  const dir = join(root, 'dist/framework')
+function checkFramework(components: DiscoveredComponent[], failures: string[]): void {
+  for (const workspace of [...new Set(components.map((c) => c.workspace))].sort()) {
+    const dir = join(root, 'dist', workspace, 'framework')
+    const mine = components.filter((c) => c.workspace === workspace)
 
-  for (const [name, marker] of [
-    ['vue', '__isVue'],
-    ['react', 'react-dom'],
-  ] as const) {
-    const entry = join(dir, `${name}.js`)
-    if (!existsSync(entry)) {
-      failures.push(`缺少框架产物 dist/framework/${name}.js`)
-      continue
-    }
+    for (const [framework, marker] of [
+      ['vue', '__isVue'],
+      ['react', 'react-dom'],
+    ] as const) {
+      const entry = join(dir, `${framework}.js`)
+      const expected = mine.some((c) => c.inFramework && c.framework === framework)
 
-    // 裸导入必须在：它是 external 生效的证据
-    const code = readFileSync(entry, 'utf8')
-    if (!new RegExp(`from\\s*["']${name}["']`).test(code)) {
-      failures.push(`dist/framework/${name}.js 里没有对 ${name} 的裸导入，external 没生效`)
-    }
-
-    // 运行时代码一个文件里都不该有（含共享 chunk）
-    for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
-      const hits = count(stripSpecifiers(readFileSync(join(dir, file), 'utf8')), marker)
-      if (hits !== 0) {
+      if (!existsSync(entry)) {
+        if (expected) failures.push(`缺少框架产物 dist/${workspace}/framework/${framework}.js`)
+        continue
+      }
+      if (!expected) {
         failures.push(
-          `dist/framework/${file} 里出现 ${marker} ${hits} 次，框架运行时不该被打进产物`,
+          `dist/${workspace}/framework/${framework}.js 存在，但该空间没有 ${framework} 组件 —— 桶没按空间过滤`,
         )
+        continue
+      }
+
+      // 裸导入必须在：它是 external 生效的证据
+      const code = readFileSync(entry, 'utf8')
+      if (!new RegExp(`from\\s*["']${framework}["']`).test(code)) {
+        failures.push(
+          `dist/${workspace}/framework/${framework}.js 里没有对 ${framework} 的裸导入，external 没生效`,
+        )
+      }
+
+      // 运行时代码一个文件里都不该有（含共享 chunk）
+      for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
+        const hits = count(stripSpecifiers(readFileSync(join(dir, file), 'utf8')), marker)
+        if (hits !== 0) {
+          failures.push(
+            `dist/${workspace}/framework/${file} 里出现 ${marker} ${hits} 次，框架运行时不该被打进产物`,
+          )
+        }
       }
     }
   }
 
-  if (!existsSync(join(dir, 'element-plus.css'))) {
-    failures.push('缺少 dist/framework/element-plus.css')
+  if (!existsSync(join(root, 'dist/element-plus.css'))) {
+    failures.push('缺少 dist/element-plus.css')
   }
 }
 
-function checkExports(components: Array<{ name: string }>, failures: string[]): void {
-  const wanted = [
-    PKG,
-    `${PKG}/tokens.css`,
-    `${PKG}/vue`,
-    `${PKG}/react`,
-    `${PKG}/element-plus.css`,
-    `${PKG}/cdn/ew-all`,
-    ...components.flatMap((c) => [
-      `${PKG}/${c.name}`,
-      `${PKG}/${c.name}/define`,
-      `${PKG}/cdn/${c.name}`,
-    ]),
-  ]
+/**
+ * 第三条契约：空间包存在，且框架产物里的裸导入都在它的 package.json 里声明过。
+ *
+ * build.ts 那里是「解析出所有说明符再取包名」（workspace-packages.ts 的
+ * bareSpecifiersOf），这里反过来「拿 FRAMEWORK_EXTERNALS 这张已知的表逐个去产物里找」。
+ * 两条路径不共用代码是有意的：共用一份解析器的话，解析器漏掉某种形态（比如仅副作用
+ * 导入 `import "x"`）时两边会一起漏，守卫永远绿。
+ *
+ * 只查「用了没声明」这一个方向。声明了却没用上只是多装一个 peer，不破坏消费方，
+ * 不值得为它引入误报风险。
+ */
+function checkPackages(components: DiscoveredComponent[], failures: string[]): void {
+  for (const workspace of [...new Set(components.map((c) => c.workspace))].sort()) {
+    const dir = join(root, 'dist', workspace)
+    const pkgPath = join(dir, 'package.json')
+    if (!existsSync(pkgPath)) {
+      failures.push(`缺少空间包 dist/${workspace}/package.json`)
+      continue
+    }
 
-  const resolved = resolveSpecs(wanted)
-  for (const spec of wanted) {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
+      name?: string
+      peerDependencies?: Record<string, string>
+    }
+    const expectedName = `@ew/${workspace}`
+    if (pkg.name !== expectedName) {
+      failures.push(`dist/${workspace}/package.json 的 name 是 "${pkg.name}"，应为 "${expectedName}"`)
+    }
+
+    const frameworkDir = join(dir, 'framework')
+    if (!existsSync(frameworkDir)) continue
+
+    const declared = new Set(Object.keys(pkg.peerDependencies ?? {}))
+    const files = readdirSync(frameworkDir).filter((f) => f.endsWith('.js'))
+
+    for (const name of FRAMEWORK_EXTERNALS) {
+      const pattern = new RegExp(`(?:from|import)\\s*["']${name}(?:/[^"']*)?["']`)
+      const used = files.some((file) => pattern.test(readFileSync(join(frameworkDir, file), 'utf8')))
+      if (used && !declared.has(name)) {
+        failures.push(
+          `dist/${workspace}/framework 里引了 "${name}"，但 dist/${workspace}/package.json 没声明`,
+        )
+      }
+    }
+  }
+}
+
+/**
+ * 第二条契约：每个包的 exports 子路径必须真能解析到文件。
+ *
+ * 组件子路径由 pattern（`./*`）覆盖而不是逐条列举 —— 好处是 package.json
+ * 不再随组件增减而变动，代价是它对「有哪些组件」一无所知，写错一个字符不会有任何测试红，
+ * 要等消费方 import 时才炸。所以在这里按源码目录里的组件清单逐个走一遍。
+ *
+ * 交给真实解析而不是自己按 pattern 拼路径：Node 的精确键优先于 pattern、pattern 之间
+ * 按 base 长度取长的规则，自己实现一遍就容易错。解析只做映射、不 stat 文件，所以结果
+ * 还要 existsSync 一次。
+ *
+ * `./vue` / `./react` 只在空间真有该框架组件时才该存在（build.ts 的框架桶按空间过滤），
+ * 所以期望清单也得跟着条件生成 —— 无条件要 `@ew/self-monitor/react` 会假红。
+ */
+function checkExports(components: DiscoveredComponent[], failures: string[]): void {
+  // 根包：ESM 与 framework 都按空间搬走了，只剩 tokens.css / element-plus.css / CDN
+  verifySpecs(
+    [
+      `${PKG}/tokens.css`,
+      `${PKG}/element-plus.css`,
+      ...components.map((c) => `${PKG}/cdn/${c.name}`),
+      `${PKG}/cdn/ew-all`,
+    ],
+    root,
+    failures,
+  )
+
+  const byWorkspace = new Map<string, DiscoveredComponent[]>()
+  for (const c of components) {
+    byWorkspace.set(c.workspace, [...(byWorkspace.get(c.workspace) ?? []), c])
+  }
+
+  for (const [workspace, mine] of byWorkspace) {
+    const specs = [
+      `@ew/${workspace}`,
+      ...mine.flatMap((c) => [`@ew/${workspace}/${c.name}`, `@ew/${workspace}/${c.name}/define`]),
+      ...(['vue', 'react'] as const)
+        .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
+        .map((framework) => `@ew/${workspace}/${framework}`),
+    ]
+    verifySpecs(specs, join(root, 'dist', workspace), failures)
+  }
+}
+
+function verifySpecs(specs: string[], cwd: string, failures: string[]): void {
+  const resolved = resolveSpecs(specs, cwd)
+  for (const spec of specs) {
     const target = resolved[spec]
     if (target === null) {
       failures.push(`exports 里 ${spec} 没有匹配的键`)
@@ -215,7 +329,8 @@ function main(): void {
     }
   }
 
-  checkFramework(failures)
+  checkFramework(components, failures)
+  checkPackages(components, failures)
   checkExports(components, failures)
 
   if (failures.length > 0) {
