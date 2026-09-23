@@ -713,6 +713,12 @@ describe('vueWrapperSource', () => {
     expect(source).toContain('provide(EW_EMIT_KEY, (name: string, detail?: unknown) => emit(name, detail))')
   })
 
+  // 挂载时注入是设计前提：挪到模块顶层，未用到的组件就没法把它摇掉
+  it('applyGlobalStyles 在 setup 里调用，不在模块顶层', () => {
+    expect(source).toMatch(/setup\([\s\S]*applyGlobalStyles\(css\)/)
+    expect(source).not.toMatch(/^applyGlobalStyles\(css\)/m)
+  })
+
   it('props 类型从 meta.props 生成', () => {
     expect(source).toContain('export interface HelloVueProps {')
     expect(source).toContain('  name?: string')
@@ -724,6 +730,24 @@ describe('vueWrapperSource', () => {
     )
     expect(src).toContain('data?: Record<string, unknown>')
     expect(src).toContain('list?: unknown[]')
+  })
+
+  it('number / boolean / function 各自直译，不退化成宽松类型', () => {
+    const src = vueWrapperSource(
+      component({
+        meta: {
+          tag: 'x',
+          props: {
+            count: { type: 'number' },
+            flag: { type: 'boolean' },
+            onPick: { type: 'function' },
+          },
+        },
+      }),
+    )
+    expect(src).toContain('count?: number')
+    expect(src).toContain('flag?: boolean')
+    expect(src).toContain('onPick?: (...args: unknown[]) => unknown')
   })
 
   it('没有 props 时仍生成一个空接口，消费方 import 得到的东西不会是 undefined', () => {
@@ -935,7 +959,7 @@ export function barrelSource(components: FrameworkComponent[], framework: 'vue' 
 pnpm run test -- framework-entries
 ```
 
-预期：PASS（17 条）。若 `ReturnType<typeof createElement>` 在类型检查上报错，改成 `ReactElement` 并相应调整 import —— 这一步只影响生成物的类型标注，不影响运行。
+预期：PASS（19 条）。若 `ReturnType<typeof createElement>` 在类型检查上报错，改成 `ReactElement` 并相应调整 import —— 这一步只影响生成物的类型标注，不影响运行。
 
 - [ ] **Step 5: 提交**
 
@@ -1799,7 +1823,7 @@ git commit -m "docs: 框架产物的用法、样式来源与类名命名约定"
 pnpm run verify
 ```
 
-七个阶段依次要绿：`typecheck` → `test`（115 → **160**：Task 1 加 9、Task 2 加 17、Task 3 加 2、Task 4 加 17）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
+七个阶段依次要绿：`typecheck` → `test`（115 → **162**：Task 1 加 9、Task 2 加 17、Task 3 加 2、Task 4 加 19）→ `build` → `check:artifacts`（两行「产物隔离正常」「exports 契约正常」）→ `check:framework`（7 条）→ `docs:build` → `test:e2e`（9 → 12 条）。
 
 > **与 spec §9 的一处偏离：** spec 写的是「在文档站里引 `dist/framework/vue.js` 渲染一个组件，跑一条 e2e」。实际做成了 jsdom 集成测试（`check:framework`）+ 一个 import-map 的独立 e2e 页面。原因是文档站页面要在**构建期**解析 `dist/framework/vue.js`，而 `verify` 里 `typecheck` 与 `docs:build` 都排在 `build` 之前 —— 干净 clone 上 `dist` 还不存在，页面直接构建失败。换成独立 fixture 页后覆盖的内容一样（真实浏览器 + 真实产物），且不再给文档站加一条「必须先构建」的隐性前置。
 
