@@ -29,7 +29,7 @@ import '@ew/self-monitor/my-list/define'
 
 ## 事件
 
-| 事件 | `detail` |
+| 事件 | 回调 |
 |---|---|
 | `ew-select` | `{ source: 'my-list', id: string, name: string }` |
 

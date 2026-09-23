@@ -31,7 +31,7 @@ import '@ew/demo/hello-vue/define'
 
 ## 事件
 
-| 事件 | `detail` |
+| 事件 | 回调 |
 |---|---|
 | `ew-select` | `{ source: 'hello-vue', name: string }` |
 

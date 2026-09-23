@@ -31,7 +31,7 @@ import '@ew/demo/hello-react/define'
 
 ## 事件
 
-| 事件 | `detail` |
+| 事件 | 回调 |
 |---|---|
 | `ew-select` | `{ source: 'hello-react', name: string }` |
 
