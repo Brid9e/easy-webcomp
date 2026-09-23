@@ -12,27 +12,26 @@
         margin: 0;
         background: #fff;
       }
-      /* 画布尺寸由截图脚本的 viewport 定（9:16）。body 用 min-height 而不是 height 铺满它 ——
-         height 是确定值，组件里的 `height: 100%`（my-list 那种「撑满高度区域」的写法）会照着
-         铺满整块画布，分页被顶到底部、中间空一大片；min-height 不算确定高度，百分比退化成 auto，
-         组件按内容撑开。尺寸写在这边就会有两处数字要同步，迟早漂，所以只写 100vh。 */
+      /* 这一页只负责「把组件摆成它能有的宽度」，出图交给截图脚本截元素包围盒。
+         视口宽度由脚本给（720），body 铺满它、把组件居中即可。 */
       body {
+        /* 用 min-height 而不是 height —— height 是确定值，组件里的 `height: 100%`
+           （my-list 那种「撑满高度区域」的写法）会照着铺满整个视口，分页被顶到底部、
+           中间空一大片；min-height 不算确定高度，百分比退化成 auto，组件按内容撑开。 */
         min-height: 100vh;
         display: flex;
-        /* column：垂直居中交给 justify-content（组件比画布高时 `safe` 退回从顶部开始，
-           否则 flex 居中会把开头那截顶出可视区、两头都够不着），水平居中交给 align-items */
+        /* column：垂直居中交给 justify-content，水平居中交给 align-items */
         flex-direction: column;
         justify-content: safe center;
         /* 不用 stretch：那会把一个按钮拉成整行宽 */
         align-items: center;
         box-sizing: border-box;
-        /* 不留边距：my-list 的表格宽到刚好占满 720，留 24px 会把末列「操作」裁掉。
+        /* 不留边距：留给组件的宽度就是视口宽（720），my-list 的表格正好吃满。
            组件自己那层（.ew-my-list 的 padding）就是它的内边距，不用这边再补。 */
         padding: 0;
-        overflow: hidden;
       }
       /* 组件挂了 shadow root，但宿主元素本身在 light DOM，这么选得到。
-         宽表格（my-list）不加这条会顶出画布右边。 */
+         宽表格（my-list）不加这条会顶出视口右边。 */
       body > * {
         max-width: 100%;
       }

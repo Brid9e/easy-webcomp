@@ -22,15 +22,11 @@ const FIXTURE = `${BASE}/tests/snapshot/fixture.html`
 const FIXED_TIME = new Date('2026-01-01T09:30:00')
 
 /**
- * 画布固定 16:9，截的是整个画布而不是元素本身 —— 组件自身尺寸千差万别
- * （按钮 168×30、my-list 672×560），不统一比例的话卡片高矮不一会很难看。
- * fixture 的 body 铺满这个视口并把组件居中。
- *
- * 选 16:9 而不是竖版，是因为消费这张图的是文档卡片里那个 140px 高、约 300px 宽的井
- * （见 ComponentCard.vue）：井是横的，竖版图在井里按高度贴合后只剩 79px 宽，
- * my-list 缩到看不清；16:9 同样是按高度贴合，却能拿到 249px。
+ * 布局视口，不是画布 —— 截图按元素自身的包围盒出（见 main 里那一行）。
+ * 宽度是组件宽度的上限（my-list 会吃满），高度只要够放下最高的组件：
+ * fixture 的 body 是 min-height: 100vh，组件在里头水平居中，视口多高都不影响出图。
  */
-const CANVAS = { width: 720, height: 405 } as const
+const VIEWPORT = { width: 720, height: 1280 } as const
 
 /**
  * 等组件自己稳定下来。my-list 的假数据带 400~900ms 随机延迟，取个能盖住它的上界。
@@ -119,7 +115,7 @@ async function main(): Promise<void> {
   const browser = await chromium.launch({ channel: 'chrome' })
   try {
     const page = await browser.newPage({
-      viewport: { ...CANVAS },
+      viewport: { ...VIEWPORT },
       // 2x：卡片里是缩着看的，1x 缩下来字就糊了
       deviceScaleFactor: 2,
     })
@@ -150,8 +146,10 @@ async function main(): Promise<void> {
 
       const file = join(OUT_DIR, t.workspace, `${t.name}.png`)
       mkdirSync(dirname(file), { recursive: true })
-      // 截整块画布（就是 viewport），不截元素 —— 元素尺寸各不相同，统一画布才有统一比例
-      await page.screenshot({ path: file })
+      // 截元素自身的包围盒：图就是组件，左右两侧不留白，缩进卡片才缩得最小。
+      // 统一画布（试过 16:9 整块视口）两头不讨好 —— 按钮缩成一个小点，
+      // my-list 那种高过画布的还会被裁掉下半截（分页没了）。
+      await page.locator(t.tag).screenshot({ path: file })
       console.log(`[snapshot] ${t.workspace}/${t.name}.png`)
     }
   } finally {
