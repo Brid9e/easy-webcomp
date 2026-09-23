@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: easy-webcomp
-  text: 写一个组件，交付一个 Web Component
-  tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素 —— npm 与 CDN 双通道，加组件零配置。
+  text: Web Component 构建工具链
+  tagline: 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的自定义元素。提供 npm 与 CDN 两条引入通道，新增组件无需修改配置。
   actions:
     - theme: brand
       text: 快速开始
@@ -19,7 +19,7 @@ features:
     link: /guide/authoring
     linkText: 新增一个组件
   - title: 自包含 Web Component
-    details: 运行时内联进单文件产物，一个 &lt;script&gt; 标签即可使用；不依赖宿主框架，不怕样式冲突。
+    details: 运行时内联进单文件产物，一个 &lt;script&gt; 标签即可使用，不受宿主框架与宿主样式影响。
     link: /guide/theming
     linkText: 主题与隔离
   - title: npm 与 CDN 双通道

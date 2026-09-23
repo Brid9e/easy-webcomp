@@ -39,4 +39,4 @@ import '@ew/demo/hello-vue/define'
 
 ## 说明
 
-组件源码在 `src/workspaces/demo/components/hello-vue/Component.vue`。用哪个框架写不影响最终交付形态 —— 它同样产出一个 `<ew-hello-vue>` 自定义元素。
+组件源码位于 `src/workspaces/demo/components/hello-vue/Component.vue`。框架选择不影响交付形态：Vue 与 React 组件产出的都是 `<ew-hello-vue>` 自定义元素。

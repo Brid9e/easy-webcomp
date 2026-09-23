@@ -12,7 +12,7 @@
 }
 ```
 
-组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤静默失效。这是最容易踩的坑：写了不报错，只是换肤不起作用。
+组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值**：它的优先级高于宿主继承来的值，会使换肤静默失效。该写法不会报错，只是换肤不再起作用。
 
 ## 降级到 light DOM
 
@@ -24,6 +24,6 @@
 
 降级后宿主页面的样式可以直接作用到组件内部，代价是失去 Shadow 隔离。
 
-## 文档站自己也吃这套 token
+## 文档站的主题来源
 
-`docs/.vitepress/theme/custom.css` 把 `--vp-c-brand-*` 指向 `--ew-color-primary`，所以文档站与组件的视觉是同一份来源。方向是 `--ew-*` → `--vp-c-*` 而不是反过来：token 是一等公民（消费方也要用），VitePress 的变量只是文档站私有的皮肤。
+`docs/.vitepress/theme/custom.css` 把 `--vp-c-brand-*` 指向 `--ew-color-primary`，因此文档站与组件共用同一份视觉来源。映射方向是 `--ew-*` → `--vp-c-*`，而非反向：token 同时供消费方使用，是一等公民；VitePress 的变量仅服务于文档站自身。
