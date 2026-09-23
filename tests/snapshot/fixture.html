@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>文档截图 fixture</title>
+    <!-- 与文档站详情页同一套底：token 与实际会引的第三方样式 -->
+    <link rel="stylesheet" href="/src/tokens/tokens.css" />
+    <link rel="stylesheet" href="/dist/element-plus.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #fff;
+      }
+      /* 画布尺寸由截图脚本的 viewport 定（9:16）。body 用 min-height 而不是 height 铺满它 ——
+         height 是确定值，组件里的 `height: 100%`（my-list 那种「撑满高度区域」的写法）会照着
+         铺满整块画布，分页被顶到底部、中间空一大片；min-height 不算确定高度，百分比退化成 auto，
+         组件按内容撑开。尺寸写在这边就会有两处数字要同步，迟早漂，所以只写 100vh。 */
+      body {
+        min-height: 100vh;
+        display: flex;
+        /* column：垂直居中交给 justify-content（组件比画布高时 `safe` 退回从顶部开始，
+           否则 flex 居中会把开头那截顶出可视区、两头都够不着），水平居中交给 align-items */
+        flex-direction: column;
+        justify-content: safe center;
+        /* 不用 stretch：那会把一个按钮拉成整行宽 */
+        align-items: center;
+        box-sizing: border-box;
+        /* 不留边距：my-list 的表格宽到刚好占满 720，留 24px 会把末列「操作」裁掉。
+           组件自己那层（.ew-my-list 的 padding）就是它的内边距，不用这边再补。 */
+        padding: 0;
+        overflow: hidden;
+      }
+      /* 组件挂了 shadow root，但宿主元素本身在 light DOM，这么选得到。
+         宽表格（my-list）不加这条会顶出画布右边。 */
+      body > * {
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 元素由 scripts/snapshot.ts 逐张插进来，这里不预置任何东西。
+         也刻意不放脚本：截图页的行为全部由截图脚本经 CDP 驱动，
+         留下 JS 只会让「截出来的是什么」多一个说不清的影响因素。 -->
+  </body>
+</html>
