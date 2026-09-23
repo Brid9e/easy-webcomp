@@ -56,10 +56,12 @@ describe('workspacePackageJson', () => {
     expect(pkg.version).toBe('0.1.0')
     expect(pkg.private).toBe(true)
     expect(pkg.type).toBe('module')
+    expect(pkg.types).toBe('./esm/index.d.ts')
+    // 每条都是条件对象且 types 排在前：裸字符串没有 types 条件，消费方的 tsc 会报 TS7016
     expect(pkg.exports).toEqual({
-      '.': './esm/index.js',
-      './*': './esm/*.js',
-      './vue': './framework/vue.js',
+      '.': { types: './esm/index.d.ts', default: './esm/index.js' },
+      './*': { types: './esm/*.d.ts', default: './esm/*.js' },
+      './vue': { types: './framework/vue.d.ts', default: './framework/vue.js' },
     })
   })
 

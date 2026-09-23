@@ -236,6 +236,61 @@ function checkPackages(components: DiscoveredComponent[], failures: string[]): v
 }
 
 /**
+ * 第四条契约：空间包的每条 exports 都要有声明文件，否则消费方拿到的是隐式 any。
+ *
+ * 只能对着**产物**查：`.d.ts` 是 build.ts 现写的，写没写、写在哪，源码里没有任何痕迹 ——
+ * 少写一个 `.d.ts` 时构建、测试、e2e 全绿，只有别人装包时 tsconfig 里冒出 TS7016。
+ *
+ * `./*` 是 pattern，没法直接验目标存在，所以按源码目录里的组件清单逐个推期望路径。
+ * `@ew/<空间>/<组件>/define` 不在期望里：它只被 `import '...'` 那种纯副作用引法用，
+ * TS 对没有绑定的模块不要求声明。真为它写一个 `export {}` 是无人消费的死文件。
+ *
+ * 只查「该有的在不在」，不查声明内容对不对 —— 内容由
+ * tests/integration/consumer-types.test.ts 真跑一次 tsc 兜住。
+ */
+function checkDeclarations(components: DiscoveredComponent[], failures: string[]): void {
+  for (const workspace of [...new Set(components.map((c) => c.workspace))].sort()) {
+    const dir = join(root, 'dist', workspace)
+    const mine = components.filter((c) => c.workspace === workspace)
+
+    const expected = [
+      'esm/index.d.ts',
+      ...mine.map((c) => `esm/${c.name}.d.ts`),
+      ...(['vue', 'react'] as const)
+        .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
+        .map((framework) => `framework/${framework}.d.ts`),
+    ]
+    for (const rel of expected) {
+      if (!existsSync(join(dir, rel))) failures.push(`缺少声明文件 dist/${workspace}/${rel}`)
+    }
+
+    const pkgPath = join(dir, 'package.json')
+    if (!existsSync(pkgPath)) continue
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
+      types?: string
+      exports?: Record<string, string | { types?: string; default?: string }>
+    }
+
+    if (typeof pkg.types !== 'string') {
+      failures.push(`dist/${workspace}/package.json 缺 types 字段`)
+    } else if (!existsSync(join(dir, pkg.types))) {
+      failures.push(`dist/${workspace}/package.json 的 types 指向 ${pkg.types}，但该文件不存在`)
+    }
+
+    for (const [key, target] of Object.entries(pkg.exports ?? {})) {
+      const types = typeof target === 'string' ? undefined : target.types
+      if (types === undefined) {
+        failures.push(`dist/${workspace}/package.json 的 exports["${key}"] 没有 types 条件`)
+      } else if (!types.includes('*') && !existsSync(join(dir, types))) {
+        failures.push(
+          `dist/${workspace}/package.json 的 exports["${key}"] 指向 ${types}，但该文件不存在`,
+        )
+      }
+    }
+  }
+}
+
+/**
  * 第二条契约：每个包的 exports 子路径必须真能解析到文件。
  *
  * 组件子路径由 pattern（`./*`）覆盖而不是逐条列举 —— 好处是 package.json
@@ -331,6 +386,7 @@ function main(): void {
 
   checkFramework(components, failures)
   checkPackages(components, failures)
+  checkDeclarations(components, failures)
   checkExports(components, failures)
 
   if (failures.length > 0) {

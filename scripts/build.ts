@@ -18,6 +18,11 @@ import { build } from 'vite'
 import type { ComponentMeta } from '@ew/runtime'
 import { toIdentifier } from '@ew/utils'
 import {
+  barrelDeclarationSource,
+  frameworkDeclarationSource,
+  wcDeclarationSource,
+} from './declarations.ts'
+import {
   barrelSource,
   reactWrapperSource,
   vueWrapperSource,
@@ -232,13 +237,16 @@ const cssConfig = {
 
 async function buildEsm(components: ComponentInfo[]): Promise<void> {
   for (const workspace of workspacesOf(components)) {
+    const mine = components.filter((c) => c.workspace === workspace)
     const entry: Record<string, string> = {
       index: join(generatedDir, `all-${workspace}.ts`),
     }
-    for (const c of components.filter((c) => c.workspace === workspace)) {
+    for (const c of mine) {
       entry[c.name] = join(c.dir, 'index.ts')
       entry[`${c.name}/define`] = join(c.dir, 'define.ts')
     }
+
+    const outDir = join(root, 'dist', workspace, 'esm')
 
     await build({
       root,
@@ -258,6 +266,14 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
         },
       },
     })
+
+    writeFileSync(
+      join(outDir, 'index.d.ts'),
+      barrelDeclarationSource(mine.map((c) => c.name)),
+    )
+    for (const c of mine) {
+      writeFileSync(join(outDir, `${c.name}.d.ts`), wcDeclarationSource(c.name))
+    }
   }
 }
 
@@ -359,12 +375,14 @@ async function buildFramework(
 ): Promise<void> {
   for (const workspace of workspacesOf(components)) {
     const entry: Record<string, string> = {}
+    const perFramework: Array<['vue' | 'react', FrameworkComponent[]]> = []
     for (const framework of ['vue', 'react'] as const) {
       const mine = frameworkComponents.filter(
         (c) => c.workspace === workspace && c.framework === framework,
       )
       if (mine.length === 0) continue
       entry[framework] = join(generatedDir, 'framework', `index-${workspace}-${framework}.ts`)
+      perFramework.push([framework, mine])
     }
     // 整个空间都用 Tailwind（只出 WC）时没有框架入口，跳过
     if (Object.keys(entry).length === 0) continue
@@ -390,6 +408,13 @@ async function buildFramework(
         },
       },
     })
+
+    for (const [framework, mine] of perFramework) {
+      writeFileSync(
+        join(root, 'dist', workspace, 'framework', `${framework}.d.ts`),
+        frameworkDeclarationSource(mine, framework),
+      )
+    }
   }
 
   writeElementPlusCss()

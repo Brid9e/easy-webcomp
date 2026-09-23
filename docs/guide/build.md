@@ -14,6 +14,7 @@ pnpm run build:framework  # 只出框架产物
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
 | `dist/cdn/ew-all.js` | CDN 全量单文件 |
 | `dist/<空间>/framework/vue.js`、`react.js` | 原生 Vue / React 组件，见下节 |
+| `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上，见下节 |
 | `dist/element-plus.css` | 组件库样式，可选引入 |
 
 `dist/` 按工作空间分目录，每个目录是一个独立包（`@ew/demo`、`@ew/self-monitor`），各带一份自己的 `package.json`：
@@ -34,7 +35,23 @@ dist/
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次 —— Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式。
 
-构建结束会打印每个产物的 gzip 体积。空间包的 `exports` 用 pattern 覆盖本空间全部组件（`./*` → `./esm/*.js`、`./vue` / `./react` → `./framework/*.js`），**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过，由 `pnpm run check:artifacts` 兜底。
+构建结束会打印每个产物的 gzip 体积。空间包的 `exports` 用 pattern 覆盖本空间全部组件（`./*` → `./esm/*.js` 与 `./esm/*.d.ts`、`./vue` / `./react` → `./framework/*.js` 与对应的 `.d.ts`），**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。
+
+每条 exports 都是 `{ types, default }` 条件对象，不是裸字符串。裸字符串没有 `types` 条件，消费方的 `tsc` 就只看得到 `.js`，报「隐式拥有 any 类型」（TS7016）。`types` 必须排在 `default` 前面 —— 条件按书写顺序匹配。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过、该有的声明文件在不在，由 `pnpm run check:artifacts` 兜底。
+
+### 类型声明
+
+`dist/<空间>/**/*.d.ts` 由构建期现写（`scripts/declarations.ts`）：
+
+| 文件 | 内容 |
+|---|---|
+| `esm/index.d.ts` | 桶，每个组件一个命名空间 |
+| `esm/<组件>.d.ts` | `meta` / `<组件>Element` / `register` |
+| `framework/vue.d.ts`、`react.d.ts` | 该空间的框架组件，props 接口由 `meta.props` 生成 |
+
+**声明是手写模板拼出来的，没上 `vite-plugin-dts`。** 产物里的声明一个字都不能引 `@ew/runtime` —— 那个包 private、不发，消费方解析不到它，而从源码图生成的声明必然带着这个说明符。所以运行时类型（`ComponentMeta` / `EwElementConstructor`）就地内联成副本；代价是这份形状与 `packages/runtime/src/types.ts` 是两份、可能漂，由 `tests/integration/consumer-types.test.ts` 兜底 —— 那条用例把 `dist/<空间>` 软链进一个临时项目，真跑一次 `tsc`。
+
+`@ew/<空间>/<组件>/define` 没有声明文件，是有意的：它只被 `import '...'` 那种纯副作用引法用，而 TS 对没有绑定的模块不要求声明。
 
 ## 引入方式
 

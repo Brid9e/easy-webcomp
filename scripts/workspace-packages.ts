@@ -64,13 +64,22 @@ export function bareSpecifiersOf(code: string): string[] {
  * 正好制造该表要防的事故。一律 optional —— Vue 项目不该因为没装 React 而告警。
  */
 export function workspacePackageJson(input: WorkspacePackageInput): Record<string, unknown> {
-  const exports: Record<string, string> = {
-    '.': './esm/index.js',
-    './*': './esm/*.js',
+  // 每条都是「先 types 后 default」的条件对象，不能退回裸字符串：裸字符串没有 types 条件，
+  // 消费方的 tsc 只能看见 .js，报 TS7016 隐式 any。`types` 必须排在 `default` 前面 ——
+  // 条件按书写顺序匹配，node 那边 `default` 又会兜住一切，排反了就永远轮不到 types。
+  //
+  // `./*` 的 types 目标同理靠 `*` 展开：`@ew/<空间>/<组件>/define` 落到
+  // `./esm/<组件>/define.d.ts`，与 JS 那侧的目录层级一致。
+  const exports: Record<string, unknown> = {
+    '.': { types: './esm/index.d.ts', default: './esm/index.js' },
+    './*': { types: './esm/*.d.ts', default: './esm/*.js' },
   }
   for (const framework of ['vue', 'react'] as const) {
     if (input.frameworks.includes(framework)) {
-      exports[`./${framework}`] = `./framework/${framework}.js`
+      exports[`./${framework}`] = {
+        types: `./framework/${framework}.d.ts`,
+        default: `./framework/${framework}.js`,
+      }
     }
   }
 
@@ -92,6 +101,9 @@ export function workspacePackageJson(input: WorkspacePackageInput): Record<strin
   }
   if (input.private === true) manifest.private = true
   manifest.type = 'module'
+  // 顶层 types：exports 之外的退路。认得 exports 的解析器（bundler / node16）走上面那套
+  // 条件，忽略这个字段；只认 main/types 的老解析器读它，至少 `@ew/<空间>` 这一层有类型。
+  manifest.types = './esm/index.d.ts'
   manifest.exports = exports
   if (input.externals.length > 0) {
     manifest.peerDependencies = peerDependencies

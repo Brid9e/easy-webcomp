@@ -51,7 +51,7 @@ function tsTypeOf(type: PropType): string {
  * `body.join('\n')` 在空数组时得到空串，会拼出 `{\n\n}` —— 合法但难看；没有 props 时直接
  * 出 `{}`。这条分支真的会走到：hello-react 那种干净组件之外，新建的组件也可能没有 props。
  */
-function propsInterface(c: FrameworkComponent): string {
+export function propsInterface(c: FrameworkComponent): string {
   const body = Object.entries(c.meta.props ?? {}).map(
     ([name, def]) => `  ${name}?: ${tsTypeOf(def.type)}`,
   )
