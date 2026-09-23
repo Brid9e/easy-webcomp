@@ -2,27 +2,27 @@
 
 用 Vue 3 或 React 编写业务组件，构建管线输出统一形态的 Web Component。支持 npm ESM 引入与 CDN 单文件引入。
 
-组件写哪个框架由你决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ew-*>` 自定义元素。
+使用哪个框架由作者决定：Vue 组件放 `Component.vue`，React 组件放 `Component.tsx`。构建脚本按文件名自动判别，两者最终产出一致的 `<ew-*>` 自定义元素。
 
 ## 快速开始
 
 ```bash
 pnpm install
-pnpm dev            # 调试页：http://localhost:5273 —— 单组件调试，容器可 resize
+pnpm dev            # 调试页：http://localhost:5273，单组件调试，容器可拖拽改宽
 pnpm docs:dev       # 文档站：http://localhost:5173
 ```
 
-调试页一次只渲染一个组件，占满视口，容器可以拖拽或按 375 / 768 / 1024 / 铺满 改尺寸，还有实时像素读数——用来观察组件在窄容器下的自适应表现。左栏选组件，右栏改属性、看事件。它也扫 `src/workspaces/`，所以和文档站一样**新增目录后要重启**。
+调试页每次只渲染一个组件并占满视口。容器可拖拽，也可按 375 / 768 / 1024 / 铺满 取预设，右上角显示实时像素读数，用于观察组件在窄容器下的自适应表现。左栏选择组件，右栏修改属性、查看事件。它同样扫描 `src/workspaces/`，因此与文档站一样，**新增目录后需要重启**。
 
-文档站在 `docs/`，由 VitePress 驱动。每个组件一页，散文手写、交互面板由 `meta.ts` 驱动；没有单独写页面的组件会在空间页里给出兜底详情页。
+文档站位于 `docs/`，由 VitePress 驱动。每个组件一页，散文手写，交互面板由 `meta.ts` 驱动；未单独编写页面的组件会得到一个只含交互面板的详情页。
 
-组件页的交互面板走真实的 `createElementClass` 路径 —— 即消费方实际拿到的那条路，能验证属性传递、事件冒泡、Shadow 隔离。改源码热更新，不重新 `customElements.define`。
+组件页的交互面板使用与消费方完全一致的 `createElementClass` 路径，可验证属性传递、事件冒泡与 Shadow 隔离。修改源码即热更新，不重新执行 `customElements.define`。
 
-属性面板与事件日志都由 `meta.ts` 驱动，不用手写。
+属性面板与事件日志均由 `meta.ts` 驱动，无需手写。
 
 ## 工作空间
 
-组件必须住在工作空间里，没有隐式的默认空间。一个工作空间是一个目录，加一份清单：
+组件必须属于某个工作空间，不存在隐式的默认空间。工作空间是一个目录加一份清单：
 
 ```
 src/workspaces/
@@ -41,9 +41,9 @@ src/workspaces/
 pnpm run new:workspace <空间名>
 ```
 
-目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。**新建后要重启 `docs:dev` 与 `pnpm dev`** —— 页面清单、侧边栏与 grid 都在启动时就定好了，运行时冒出来的新目录不会被收进去（新增组件同理）。
+目录名即工作空间 id，清单里不重复声明；只允许小写字母、数字与连字符，且以字母开头。**新建后需要重启 `docs:dev` 与 `pnpm dev`**：页面清单、侧边栏与 grid 都在启动时确定，运行时新增的目录不会被收录（新增组件同理）。
 
-工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，撞名时构建会直接报错。
+工作空间只是**文件组织单位**，不影响交付：自定义元素 tag、`package.json` 的 `exports` 键、CDN 文件名都不带空间前缀。代价是**组件名必须全局唯一**，两个空间下的同名组件会使构建直接报错。
 
 ## 新增一个组件
 
@@ -58,9 +58,9 @@ src/workspaces/<空间名>/components/<组件名>/
 └── define.ts         # 副作用入口，CDN 产物用
 ```
 
-样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里 `@use '<空间>/styles' as styles;` 取用 —— 写空间名而非相对路径，是因为构建与文档站都把 SCSS 的解析路径指向了 `src/workspaces`，这样组件挪层级不会断。**例外是 Tailwind**：`@tailwindcss/vite` 不处理 `.scss`，选了它的组件仍是 `style.css`。
+样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里用 `@use '<空间>/styles' as styles;` 取用。写空间名而非相对路径是刻意为之：构建与文档站都把 SCSS 的解析路径指向 `src/workspaces`，路径因此与组件所在层级解耦，组件目录移到更深一层也不需要改这行。**例外：Tailwind 组件是 `style.css`**，因为 `@tailwindcss/vite` 不处理 `.scss`。
 
-组件自己的样式写 `style.scss`，它由桥接层注入，消费方不用管。`Component.vue` 里另开 `<style>` 块只用于把第三方样式表拉进来（比如宿主按需引入 Element Plus 时组件用到的子组件样式），**不要加 `scoped`** —— 那份 CSS 会被抽成独立文件而不是随模块注入，框架消费方得自己 `import '@ew/<空间>/styles.css'`。细节见 [docs/guide/build.md](docs/guide/build.md#组件里的-style-块)。
+组件自身的样式写在 `style.scss`，由桥接层注入，消费方无需操作。`Component.vue` 里的 `<style>` 块只用于引入第三方样式表（例如宿主按需引入 Element Plus 时，组件用到的子组件样式），**不要加 `scoped`**：那份 CSS 会被抽成独立文件而非随模块注入，框架消费方需要显式 `import '@ew/<空间>/styles.css'`。细节见 [docs/guide/build.md](docs/guide/build.md#组件里的-style-块)。
 
 `meta.ts` 示例：
 
@@ -109,15 +109,15 @@ pnpm run snapshot   # 重新生成文档站卡片缩略图（需先 build 过）
 | `dist/<空间>/styles.css` | 组件 `<style>` 块抽出来的样式，由 `@ew/<空间>/styles.css` 导出（没有组件写 `<style>` 块就没有这个文件） |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上 |
 
-ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次，空间 `index.js` 是又一次独立构建（Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式；index 是 import 本空间全部组件的单入口，不是多入口）。
+ESM 采用一次多入口构建，允许代码分割（消费方是打包器，按整目录解析）；IIFE 每个组件单独构建一次，空间的 `index.js` 是又一次独立的单入口构建，它 import 本空间全部组件，而非多入口。Rollup 的 IIFE 格式不支持多入口，逐组件构建是产出单文件产物的唯一方式。
 
-构建结束会打印每个产物的 gzip 体积。`dist/` 按工作空间分目录，每个目录是一个独立包（`@ew/demo`、`@ew/self-monitor`），各带一份 `package.json`，依赖由构建从产物反推。`exports` 用 pattern 覆盖本空间全部组件，**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。
+构建结束会打印每个产物的 gzip 体积。`dist/` 按工作空间分目录，每个目录是一个独立包（`@ew/demo`、`@ew/self-monitor`），各带一份 `package.json`，依赖由构建从产物反推。`exports` 用 pattern 覆盖本空间全部组件，**不随组件增减而变动**：新增组件只需重新构建，这些 `package.json` 不会因此产生 diff。
 
-每条 exports 是 `{ types, default }` 条件对象：声明文件（`.d.ts`）与 JS 一样由构建期现写，没有 `types` 条件的话消费方的 `tsc` 只看得到 `.js`，报「隐式拥有 any 类型」（TS7016）。细节见 [docs/guide/build.md](docs/guide/build.md)。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过，由 `pnpm run check:artifacts` 兜底。
+每条 exports 是 `{ types, default }` 条件对象：声明文件（`.d.ts`）与 JS 一样由构建期生成，没有 `types` 条件时消费方的 `tsc` 只看得到 `.js`，会报「隐式拥有 any 类型」（TS7016）。细节见 [docs/guide/build.md](docs/guide/build.md)。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过，由 `pnpm run check:artifacts` 兜底。
 
 ### 文档站卡片缩略图
 
-空间页的卡片显示静态截图（`docs/public/snapshots/<空间>/<组件名>.png`），只有点进详情页或全屏才是真实元素——空间里组件一多，页面上同时挂十几个运行时既慢又没必要。截图由 `pnpm run snapshot` 生成（起一次静态服务 + 无头 Chrome，逐张截组件连同四周 16px 留白，尺寸随组件走），改了组件样式后要重跑，见 [docs/guide/authoring.md](docs/guide/authoring.md#组件卡片上的缩略图)。
+空间页的卡片显示静态截图（`docs/public/snapshots/<空间>/<组件名>.png`），点击卡片进入详情页或点击全屏时挂载的才是真实元素：空间内组件较多时，页面上同时挂载十几个运行时既慢且没有必要。截图由 `pnpm run snapshot` 生成（起一次静态服务与无头 Chrome，逐张截取组件连同四周 16px 留白，尺寸随组件走），修改组件样式后需要重新生成，见 [docs/guide/authoring.md](docs/guide/authoring.md#组件卡片上的缩略图)。
 
 ## 引入方式
 
@@ -160,7 +160,7 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello
 }
 ```
 
-组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值** —— 它的优先级高于宿主继承来的值，会让换肤失效。
+组件内部一律用 `var(--ew-color-primary, 兜底值)` 取用。**不要在 `:host` 上写变量默认值**：它的优先级高于宿主继承来的值，会使换肤静默失效。
 
 ## 降级到 light DOM
 
@@ -172,21 +172,21 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello
 
 ## 保持状态（keep-alive）
 
-组件被移出文档时默认销毁。宿主用 KeepAlive 缓存页签、或只是把它挪个位置时，这会让状态白白丢掉
-（切回来必重新请求）。给元素加 `keep-alive` 即断开不销毁：
+自定义元素被移出文档时默认销毁。宿主用 KeepAlive 缓存页签、或只是改变它在文档中的位置时，状态会一并丢失
+（切回页签必然重新请求）。为元素加上 `keep-alive` 即断开时不销毁：
 
 ```html
 <ew-my-list keep-alive></ew-my-list>
 ```
 
 组件可读激活信号，在隐藏期间停掉轮询与请求：`useVueActive()`（Vue）/ `useReactActive()`（React）。
-代价是挂起的元素继续持着框架实例与整棵 DOM，所以默认关。细节见
+代价是挂起的元素继续持有框架实例与整棵 DOM，因此默认关闭。细节见
 [docs/guide/lifecycle.md](docs/guide/lifecycle.md)。
 
 ## 验证
 
 ```bash
-pnpm run verify   # typecheck + 单测 + 构建 + 产物检查 + 文档站构建 + 冒烟测试
+pnpm run verify   # typecheck + 单测 + 构建 + 产物检查 + 框架产物检查 + 文档站构建 + 冒烟测试
 ```
 
 七项依次为：
@@ -213,7 +213,7 @@ e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chr
 
 ### 体积基线
 
-最近一次构建（gzip）——后续构建应与这张表对比，某个产物突然变大说明引入了未察觉的大依赖：
+最近一次构建（gzip）。后续构建应与这张表对比，某个产物突然变大说明引入了未察觉的大依赖：
 
 | 产物 | gzip |
 |---|---|
