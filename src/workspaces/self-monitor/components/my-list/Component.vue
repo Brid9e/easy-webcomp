@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // <script setup> 里 import 进来的组件自动可用，模板写 <ElButton> 或 <el-button> 都行。
-// v-loading 是**指令**，不是组件 —— 必须显式引 vLoading 才能在模板里用上它
-// （只引组件不带插件安装时，v-loading 不会自动注册）。
+// v-loading 是**指令**而非组件，必须显式引入 vLoading 才能在模板里使用
+// （只引组件、不安装插件时，v-loading 不会自动注册）。
 import {
   ElButton,
   ElConfigProvider,
@@ -33,8 +33,8 @@ const props = defineProps<{ label?: string }>()
 const emit = useVueEmit()
 const store = useMyListStore()
 
-// 详情弹框：查看的是哪一行 + 开没开。两者分开，关掉时 detail 还留着，
-// 免得关闭动画放到一半内容突然变空。
+// 详情弹框：查看的是哪一行，以及它是否打开。两者分开保存，关闭时 detail 仍然保留，
+// 避免关闭动画播放到一半内容突然变空。
 const detail = ref<MyListItem | null>(null)
 const detailVisible = ref(false)
 
@@ -43,7 +43,7 @@ onMounted(() => {
 })
 
 // el-table 的插槽把 row 定型成 DefaultRow（Record<string, any> 的别名），
-// 不是我们传进去的 MyListItem —— 这里认的是运行时数据，所以收窄一下类型即可。
+// 而不是传入的 MyListItem。这里处理的是运行时数据，因此收窄类型即可。
 function handleView(row: unknown): void {
   const item = row as MyListItem
   detail.value = item

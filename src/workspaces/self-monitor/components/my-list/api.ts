@@ -57,7 +57,7 @@ function formatTime(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-// 时间取「距今每 7 小时一条」，而不是写死年月 —— 否则过几天回来调，日期筛选就永远筛不出东西了。
+// 时间取「距今每 7 小时一条」，而不是写死年月：否则过一段时间后查看，日期筛选将永远筛不出结果。
 const MOCK_ROWS: MyListItem[] = Array.from({ length: TOTAL }, (_, i) => {
   const seq = String(i + 1).padStart(3, '0')
   return {
