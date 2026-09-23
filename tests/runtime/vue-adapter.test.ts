@@ -4,6 +4,7 @@ import {
   createElementClass,
   resetRegistry,
   resetStyleCache,
+  useVueActive,
   useVueEmit,
   vueAdapter,
 } from '@ew/runtime'
@@ -145,5 +146,49 @@ describe('vueAdapter', () => {
     const el = mountVue(uniqueTag())
     await tick()
     expect(el.shadowRoot?.querySelector('.probe')?.textContent).toBe('Hello, World')
+  })
+
+  it('keep-alive 元素断开时组件读到失活，回来后读到激活，且实例没换', async () => {
+    const tag = uniqueTag()
+    let mounts = 0
+    const ActiveProbe = defineComponent({
+      setup() {
+        mounts += 1
+        const active = useVueActive()
+        return () => h('span', { class: 'active' }, String(active.value))
+      },
+    })
+    const ctor = createElementClass({ tag }, vueAdapter(() => ActiveProbe), '')
+    customElements.define(tag, ctor)
+
+    const el = document.createElement(tag)
+    el.setAttribute('keep-alive', '')
+    document.body.appendChild(el)
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('true')
+
+    document.body.removeChild(el)
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('false')
+
+    document.body.appendChild(el)
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('true')
+    // 整段过程只 setup 过一次 —— 是复用，不是重建
+    expect(mounts).toBe(1)
+  })
+
+  it('注入不存在时 useVueActive 恒为 true', async () => {
+    let value: boolean | undefined
+    const Bare = defineComponent({
+      setup() {
+        value = useVueActive().value
+        return () => h('span')
+      },
+    })
+    const host = document.createElement('div')
+    vueAdapter(() => Bare).mount(host, {}, () => {})
+    await tick()
+    expect(value).toBe(true)
   })
 })

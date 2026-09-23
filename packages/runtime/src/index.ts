@@ -23,7 +23,7 @@ export type {
   PropType,
 } from './types.ts'
 
-export { vueAdapter, useVueEmit, EW_EMIT_KEY } from './vue.ts'
+export { vueAdapter, useVueActive, useVueEmit, EW_ACTIVE_KEY, EW_EMIT_KEY } from './vue.ts'
 export type { VueAdapterOptions } from './vue.ts'
 
 export { reactAdapter, useReactEmit, EwEmitContext } from './react.ts'
