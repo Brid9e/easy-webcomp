@@ -95,6 +95,7 @@ emit('select', { id: 1 })                      // → 派发 ew-select 事件
 pnpm run build      # ESM + CDN 全部产物
 pnpm run build:esm  # 只出 ESM
 pnpm run build:cdn  # 只出 CDN
+pnpm run snapshot   # 重新生成文档站卡片缩略图（需先 build 过）
 ```
 
 产物结构：
@@ -113,6 +114,10 @@ ESM 一次多入口构建、允许代码分割（消费方是打包器，整目�
 构建结束会打印每个产物的 gzip 体积。`dist/` 按工作空间分目录，每个目录是一个独立包（`@ew/demo`、`@ew/self-monitor`），各带一份 `package.json`，依赖由构建从产物反推。`exports` 用 pattern 覆盖本空间全部组件，**不随组件增减而变动** —— 加组件只要重新构建，那些 `package.json` 不会因此产生 diff。
 
 每条 exports 是 `{ types, default }` 条件对象：声明文件（`.d.ts`）与 JS 一样由构建期现写，没有 `types` 条件的话消费方的 `tsc` 只看得到 `.js`，报「隐式拥有 any 类型」（TS7016）。细节见 [docs/guide/build.md](docs/guide/build.md)。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过，由 `pnpm run check:artifacts` 兜底。
+
+### 文档站卡片缩略图
+
+空间页的卡片显示静态截图（`docs/public/snapshots/<空间>/<组件名>.png`），只有点进详情页或全屏才是真实元素——空间里组件一多，页面上同时挂十几个运行时既慢又没必要。截图由 `pnpm run snapshot` 生成（起一次静态服务 + 无头 Chrome，逐张截 720×405 的画布），改了组件样式后要重跑，见 [docs/guide/authoring.md](docs/guide/authoring.md#组件卡片上的缩略图)。
 
 ## 引入方式
 
@@ -181,18 +186,22 @@ React ≤18 会把对象属性序列化，必须走 property 通道；`<ew-hello
 ## 验证
 
 ```bash
-pnpm run verify   # typecheck + 单测 + 构建 + 文档站构建 + 冒烟测试
+pnpm run verify   # typecheck + 单测 + 构建 + 产物检查 + 文档站构建 + 冒烟测试
 ```
 
-五项依次为：
+七项依次为：
 
 | 阶段 | 内容 |
 |---|---|
 | `typecheck` | `vue-tsc --noEmit`，根目录 `*.config.ts` 也在检查范围内 |
-| `test` | Vitest + jsdom，13 个文件 113 个用例，覆盖桥接层全部易错点与组件扫描 |
+| `test` | Vitest + jsdom，17 个文件 186 个用例，覆盖桥接层全部易错点与组件扫描 |
 | `build` | ESM + CDN 全量产物 |
+| `check:artifacts` | 产物结构、exports 子路径能否解析、裸导入是否都声明过 |
+| `check:framework` | Vue / React 框架产物在 jsdom 里真实挂载（2 个文件 8 个用例） |
 | `docs:build` | VitePress 构建文档站，同时是 SSR 问题的唯一防线 |
-| `test:e2e` | Playwright 冒烟测试，10 个用例加载 `dist/cdn/<空间>/*.js` 真实产物，其中一个起调试页 |
+| `test:e2e` | Playwright 冒烟测试，14 个用例加载 `dist/cdn/<空间>/*.js` 真实产物，其中一个起调试页 |
+
+`pnpm run snapshot`（卡片缩略图）不在 `verify` 里：它要开无头 Chrome，而图片是提交进 git 的产物，缺图时卡片会退回实时组件而不是报错。
 
 e2e 用**系统 Chrome**（`channel: 'chrome'`），因为 Playwright 自带 chromium 的下载源在本机只有约 2.5 MB/min，182 MB 装不上。若要改用自带 chromium：`pnpm exec playwright install chromium`，然后删掉 `playwright.config.ts` 里的 `channel`。
 
