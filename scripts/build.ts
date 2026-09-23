@@ -186,12 +186,15 @@ function writeGeneratedEntries(
     writeFileSync(join(generatedDir, `all-${workspace}.ts`), `${lines.join('\n')}\n`)
   }
 
-  // ew-all 仍是跨空间聚合，全局那一份保留
-  const defineLines = components.map(
-    (c, i) => `import { register as r${i} } from '${entryPath(c)}'`,
-  )
-  defineLines.push('', components.map((_, i) => `r${i}()`).join('\n'), '')
-  writeFileSync(join(generatedDir, 'all-define.ts'), `${defineLines.join('\n')}\n`)
+  // 每个空间一份 side-effect 桶，CDN 的 `<空间>/index.js` 拿它当单入口。
+  // 跨空间那份（原来的 ew-all）不再生成 —— 把两个空间的运行时揉进同一个 bundle，
+  // 等于让一个空间的 vue / element-plus 版本服从另一个空间，正是空间拆分要避免的事。
+  for (const workspace of workspacesOf(components)) {
+    const mine = components.filter((c) => c.workspace === workspace)
+    const lines = mine.map((c, i) => `import { register as r${i} } from '${entryPath(c)}'`)
+    lines.push('', mine.map((_, i) => `r${i}()`).join('\n'), '')
+    writeFileSync(join(generatedDir, `all-define-${workspace}.ts`), `${lines.join('\n')}\n`)
+  }
 
   for (const c of frameworkComponents) {
     const source = c.framework === 'vue' ? vueWrapperSource(c) : reactWrapperSource(c)
@@ -288,7 +291,42 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
 const cdnDefine = { 'process.env.NODE_ENV': JSON.stringify('production') }
 
 async function buildCdn(components: ComponentInfo[]): Promise<void> {
-  for (const c of components) {
+  // 进函数先把整棵 CDN 树清掉。下面每个空间、每个组件都共用 outDir 且关着 emptyOutDir
+  // （关了才对 —— 否则同一空间里后一个构建会把前一个清掉），代价是删掉的组件会留尸。
+  // 全量构建时 main() 已经清过 dist，但 --only=cdn 不走那条路，所以这里必须自己清。
+  rmSync(join(root, 'dist', 'cdn'), { recursive: true, force: true })
+
+  for (const workspace of workspacesOf(components)) {
+    const mine = components.filter((c) => c.workspace === workspace)
+    const outDir = `dist/cdn/${workspace}`
+
+    for (const c of mine) {
+      await build({
+        root,
+        configFile: false,
+        define: cdnDefine,
+        resolve: { alias: vueAlias },
+        css: cssConfig,
+        plugins: sharedPlugins(),
+        build: {
+          target: 'es2020',
+          outDir,
+          emptyOutDir: false,
+          minify: 'esbuild',
+          lib: {
+            entry: join(c.dir, 'define.ts'),
+            formats: ['iife'],
+            name: toIdentifier(c.name),
+            fileName: () => `${c.name}.js`,
+            // 同空间内逐组件构建共用 outDir 且 emptyOutDir: false，不按组件名分会互相覆盖
+            cssFileName: c.name,
+          },
+        },
+      })
+    }
+
+    // 空间入口：单入口 IIFE，import 即本空间全部组件都注册上。
+    // 它相对「逐个引单组件文件」的价值就是共享的运行时只内联一份。
     await build({
       root,
       configFile: false,
@@ -298,42 +336,19 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
       plugins: sharedPlugins(),
       build: {
         target: 'es2020',
-        outDir: 'dist/cdn',
+        outDir,
         emptyOutDir: false,
         minify: 'esbuild',
         lib: {
-          entry: join(c.dir, 'define.ts'),
+          entry: join(generatedDir, `all-define-${workspace}.ts`),
           formats: ['iife'],
-          name: toIdentifier(c.name),
-          fileName: () => `${c.name}.js`,
-          // 逐组件构建共用 dist/cdn 且 emptyOutDir: false，不按组件名分会互相覆盖
-          cssFileName: c.name,
+          name: `Ew${toIdentifier(workspace)}`,
+          fileName: () => 'index.js',
+          cssFileName: 'index',
         },
       },
     })
   }
-
-  await build({
-    root,
-    configFile: false,
-    define: cdnDefine,
-    resolve: { alias: vueAlias },
-    css: cssConfig,
-    plugins: sharedPlugins(),
-    build: {
-      target: 'es2020',
-      outDir: 'dist/cdn',
-      emptyOutDir: false,
-      minify: 'esbuild',
-      lib: {
-        entry: join(generatedDir, 'all-define.ts'),
-        formats: ['iife'],
-        name: 'EwAll',
-        fileName: () => 'ew-all.js',
-        cssFileName: 'ew-all',
-      },
-    },
-  })
 }
 
 /**
@@ -433,7 +448,7 @@ async function buildFramework(
  * 但对消费方来说只有框架那份够得着：WC 模式下组件渲染在 shadow root 里，外部 CSS 进不去，
  * ESM 那份谁也拿不到。所以只留一份放在空间根上，由 package.json 的 "./styles.css" 导出。
  *
- * CDN 那份（`dist/cdn/<组件>.css`）不动：它是 URL 寻址的，跟空间目录无关，
+ * CDN 那份（`dist/cdn/<空间>/<组件>.css`）不动：它是 URL 寻址的，与空间包的入口无关，
  * 而且单组件 IIFE 旁边没有 JS 入口能替它把样式带进去。
  */
 function hoistCss(workspaces: readonly string[]): void {
@@ -453,7 +468,8 @@ function hoistCss(workspaces: readonly string[]): void {
  * 不需要任何产物就能算出来，所以 --only 下也照跑（与拆分前 writeExportsField 的行为一致）。
  *
  * 各键由 Node 的 exports 解析规则兜底，不需要额外顺序：精确键（`./tokens.css`）优先于
- * pattern，pattern 之间比 `*` 之前那段 base 的长短。`./cdn/ew-all` 落 `./cdn/*`。
+ * pattern，pattern 之间比 `*` 之前那段 base 的长短。`./cdn/<空间>/<组件>` 落 `./cdn/*`
+ * —— subpath pattern 里的 `*` 能跨 `/`，所以多一层目录不用加规则。
  */
 function writeRootExports(): void {
   const pkgPath = join(root, 'package.json')
