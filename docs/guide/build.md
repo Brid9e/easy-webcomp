@@ -64,13 +64,37 @@ CDN：
 <ew-hello-vue name="World" count="3"></ew-hello-vue>
 ```
 
-ESM：
+ESM（npm）：
+
+三个入口，按需要选一个：
+
+| import | 拿到什么 | 副作用 |
+|---|---|---|
+| `@ew/demo/hello-vue/define` | 无导出 | import 即注册 `<ew-hello-vue>` |
+| `@ew/demo/hello-vue` | `meta` / `HelloVueElement` / `register` | 无，要自己调 `register()` |
+| `@ew/demo` | 整空间命名空间，`HelloVue.register()` | 无 |
 
 ```ts
 import '@ew/demo/hello-vue/define'
 
-document.body.innerHTML = '<ew-hello-vue name="World"></ew-hello-vue>'
+document.body.innerHTML = '<ew-hello-vue name="World" count="3"></ew-hello-vue>'
 ```
+
+要控制升级时机（比如等布局算完再升级元素）就用第二种入口手动 `register()`。
+
+空间包还没发到 registry，本地用 `pnpm add link:<仓库>/dist/<空间>` 接进来。`link:` 是软链，重跑构建后立刻生效；`file:` 会拷一份，重建了不跟着变。
+
+**ESM 产物是自包含的**：Vue 运行时、组件自己的样式、以及组件显式引的库样式（如 my-list 引的 Element Plus）都打在里面，所以宿主项目既不用装 `vue` / `element-plus` / `pinia`（它们在空间包里只是 optional peer），也不用引任何 CSS —— 样式在挂载时投进 shadow root。
+
+属性分成两条通道：**string / number / boolean 走 attribute，对象、数组、函数只能走 property** —— 后三者的类型根本不在 `observedAttributes` 里，写进 attribute 只会被忽略。
+
+事件名一律带 `ew-` 前缀，且 `bubbles: true, composed: true`，能穿出 shadow root：
+
+```ts
+el.addEventListener('ew-select', (e) => console.log(e.detail))
+```
+
+`easy-webcomp/tokens.css` 里的 `--ew-*` 是可选的 —— 组件都带兜底值，不引只有默认主题。
 
 React 项目里传对象属性：
 
