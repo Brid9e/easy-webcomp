@@ -14,6 +14,8 @@ export interface WorkspacePackageInput {
   private?: boolean | undefined
   /** 该空间真有框架产物的框架 —— 决定出不出 ./vue / ./react */
   frameworks: ReadonlyArray<'vue' | 'react'>
+  /** 框架产物里有没有被 Vite 抽出来的样式表。调用方看产物在不在，不猜源码 */
+  hasCss?: boolean | undefined
   /** 从 dist/<空间>/framework/*.js 扫出来的包名，调用方去重后传入 */
   externals: readonly string[]
   /** 版本来源：根包的 peerDependencies ⊕ dependencies */
@@ -81,6 +83,18 @@ export function workspacePackageJson(input: WorkspacePackageInput): Record<strin
         default: `./framework/${framework}.js`,
       }
     }
+  }
+
+  // 组件里写 <style> 块（目前只用于 @use 第三方样式表，如 Element Plus 的 theme-chalk 局部）
+  // 时，那份 CSS 走 Vite 的抽取管线，会被单独出一个文件而不是随模块注入 —— 框架路径的
+  // applyGlobalStyles 只认 style.scss，够不到它。所以得由宿主显式引一次。
+  //
+  // 键名不挂 framework/ 前缀，与 ./vue → ./framework/vue.js 保持一致：消费方引的是
+  // 「这个空间的样式」，文件落在哪儿是产物内部的事。
+  //
+  // 裸字符串而不是 { types, default }：CSS 没有声明文件，写 types 是编的。
+  if (input.hasCss === true) {
+    exports['./styles.css'] = './framework/styles.css'
   }
 
   const peerDependencies: Record<string, string> = {}

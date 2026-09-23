@@ -65,6 +65,21 @@ describe('workspacePackageJson', () => {
     })
   })
 
+  it('产物有样式表时导出 ./styles.css，指向 framework 下那个文件', () => {
+    const pkg = workspacePackageJson({
+      ...base,
+      frameworks: ['vue'],
+      externals: ['vue'],
+      hasCss: true,
+    })
+    expect(pkg.exports).toHaveProperty('./styles.css', './framework/styles.css')
+  })
+
+  it('没有样式表就不出 ./styles.css —— 那条导出会解析到不存在的文件', () => {
+    const pkg = workspacePackageJson({ ...base, frameworks: ['vue'], externals: ['vue'] })
+    expect(pkg.exports).not.toHaveProperty('./styles.css')
+  })
+
   it('外部依赖一律声明成 optional peer', () => {
     const pkg = workspacePackageJson({
       ...base,

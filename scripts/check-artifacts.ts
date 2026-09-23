@@ -245,6 +245,9 @@ function checkPackages(components: DiscoveredComponent[], failures: string[]): v
  * `@ew/<空间>/<组件>/define` 不在期望里：它只被 `import '...'` 那种纯副作用引法用，
  * TS 对没有绑定的模块不要求声明。真为它写一个 `export {}` 是无人消费的死文件。
  *
+ * 唯一不要求 types 的是 `./styles.css`：CSS 没有声明文件。它存在与否本身也是产物事实，
+ * 所以这一条顺带管了反方向 —— 产物里有 styles.css 就必须导出它。
+ *
  * 只查「该有的在不在」，不查声明内容对不对 —— 内容由
  * tests/integration/consumer-types.test.ts 真跑一次 tsc 兜住。
  */
@@ -278,6 +281,16 @@ function checkDeclarations(components: DiscoveredComponent[], failures: string[]
     }
 
     for (const [key, target] of Object.entries(pkg.exports ?? {})) {
+      // CSS 入口没有声明文件，豁免 types 那条；但目标文件必须在 —— 构建漏了一次抽取、
+      // 或 dist 是旧的，消费方引到的就是一个不存在的路径。
+      if (key.endsWith('.css')) {
+        if (typeof target === 'string' && !existsSync(join(dir, target))) {
+          failures.push(
+            `dist/${workspace}/package.json 的 exports["${key}"] 指向 ${target}，但该文件不存在`,
+          )
+        }
+        continue
+      }
       const types = typeof target === 'string' ? undefined : target.types
       if (types === undefined) {
         failures.push(`dist/${workspace}/package.json 的 exports["${key}"] 没有 types 条件`)
@@ -286,6 +299,15 @@ function checkDeclarations(components: DiscoveredComponent[], failures: string[]
           `dist/${workspace}/package.json 的 exports["${key}"] 指向 ${types}，但该文件不存在`,
         )
       }
+    }
+
+    // 反方向：产物里真有样式表就必须导出。少了这条，组件里加的 <style> 块会静默地
+    // 只落在 dist 里 —— 构建、测试、e2e 全绿，消费方却拿不到那份样式。
+    const cssPath = join(dir, 'framework/styles.css')
+    if (existsSync(cssPath) && !Object.keys(pkg.exports ?? {}).includes('./styles.css')) {
+      failures.push(
+        `dist/${workspace}/framework/styles.css 存在，但 package.json 的 exports 里没有 "./styles.css"`,
+      )
     }
   }
 }
@@ -329,6 +351,10 @@ function checkExports(components: DiscoveredComponent[], failures: string[]): vo
       ...(['vue', 'react'] as const)
         .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
         .map((framework) => `@ew/${workspace}/${framework}`),
+      // 有条件才有：没组件写 <style> 块的空间根本不产这个文件
+      ...(existsSync(join(root, 'dist', workspace, 'framework/styles.css'))
+        ? [`@ew/${workspace}/styles.css`]
+        : []),
     ]
     verifySpecs(specs, join(root, 'dist', workspace), failures)
   }

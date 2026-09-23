@@ -263,6 +263,7 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
           entry,
           formats: ['es'],
           fileName: (_format, entryName) => `${entryName}.js`,
+          cssFileName: 'styles',
         },
       },
     })
@@ -304,6 +305,8 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
           formats: ['iife'],
           name: toIdentifier(c.name),
           fileName: () => `${c.name}.js`,
+          // 逐组件构建共用 dist/cdn 且 emptyOutDir: false，不按组件名分会互相覆盖
+          cssFileName: c.name,
         },
       },
     })
@@ -326,6 +329,7 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
         formats: ['iife'],
         name: 'EwAll',
         fileName: () => 'ew-all.js',
+        cssFileName: 'ew-all',
       },
     },
   })
@@ -405,6 +409,7 @@ async function buildFramework(
           entry,
           formats: ['es'],
           fileName: (_format, entryName) => `${entryName}.js`,
+          cssFileName: 'styles',
         },
       },
     })
@@ -490,6 +495,9 @@ function writeWorkspacePackages(
       version: pkg.version ?? '0.0.0',
       private: pkg.private,
       frameworks,
+      // 从产物探测而不是扫源码里的 <style> 块：Vite 抽不抽得出 CSS 由模块图决定，
+      // 源码里有个 <style> 不等于产物里有这个文件。
+      hasCss: existsSync(join(dir, 'framework', 'styles.css')),
       externals,
       versions,
     })

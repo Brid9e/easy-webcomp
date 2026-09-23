@@ -14,6 +14,7 @@ pnpm run build:framework  # 只出框架产物
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
 | `dist/cdn/ew-all.js` | CDN 全量单文件 |
 | `dist/<空间>/framework/vue.js`、`react.js` | 原生 Vue / React 组件，见下节 |
+| `dist/<空间>/framework/styles.css` | 组件 `<style>` 块抽出来的样式，从 `@ew/<空间>/styles.css` 导出，见下节 |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上，见下节 |
 | `dist/element-plus.css` | 组件库样式，可选引入 |
 
@@ -52,6 +53,38 @@ ESM 一次多入口构建、允许代码分割（消费方是打包器，整目�
 **声明是手写模板拼出来的，没上 `vite-plugin-dts`。** 产物里的声明一个字都不能引 `@ew/runtime` —— 那个包 private、不发，消费方解析不到它，而从源码图生成的声明必然带着这个说明符。所以运行时类型（`ComponentMeta` / `EwElementConstructor`）就地内联成副本；代价是这份形状与 `packages/runtime/src/types.ts` 是两份、可能漂，由 `tests/integration/consumer-types.test.ts` 兜底 —— 那条用例把 `dist/<空间>` 软链进一个临时项目，真跑一次 `tsc`。
 
 `@ew/<空间>/<组件>/define` 没有声明文件，是有意的：它只被 `import '...'` 那种纯副作用引法用，而 TS 对没有绑定的模块不要求声明。
+
+`./styles.css` 是唯一一条没有 `types` 条件的 exports —— CSS 没有声明文件，写一个是编的。它指向的文件在不在，由 `check:artifacts` 兜底。
+
+### 组件里的 `<style>` 块
+
+组件自己的样式写 `style.scss`，它由桥接层按 Shadow DOM 投递、框架路径由包装层 `applyGlobalStyles` 注入，消费方什么都不用做。
+
+`<style>` 块的用途只有一个：`@use` 第三方样式表。典型场景是组件用了 Element Plus 的某个子组件，而宿主走的是按需引入 —— `unplugin-vue-components` 只扫宿主自己的源码，一个预构建好的 dist 在它眼里不存在，所以那些子组件的样式谁都不会引。组件作者可以自己把缺失的那份拉进来：
+
+```vue
+<style lang="scss">
+@use 'element-plus/theme-chalk/src/descriptions.scss';
+@use 'element-plus/theme-chalk/src/descriptions-item.scss';
+</style>
+```
+
+Vite 对 SFC 的 `<style>` 一律走抽取管线，产出一个**独立 CSS 文件**而不是随模块注入 —— 框架路径的 `applyGlobalStyles` 够不到它。所以这份样式必须由宿主显式引一次：
+
+```ts
+import { MyList } from '@ew/self-monitor/vue'
+import '@ew/self-monitor/styles.css'
+```
+
+三条要点：
+
+- **不要加 `scoped`。** Vue 只会把 scope id 打到本组件自己 render 出来的元素（含子组件的根元素）上，而这类样式表的选择器命中的是第三方组件的**内部**元素，加了 `scoped` 之后绝大多数规则永远不会匹配 —— 而且不报错。组件自己的规则本来就该写 `style.scss`（那份受类名前缀检查约束），`<style>` 块只放第三方样式表，全局作用域正是它要的。
+- **这个文件是有条件产出的。** 该空间没有任何组件写 `<style>` 块时它根本不存在，exports 里也就没有 `./styles.css`。`check:artifacts` 双向查：产物里有就必须导出，导出了就必须存在。
+- **文件名固定为 `styles.css`，是显式指定的**（`build.lib.cssFileName`）。不指定的话 Vite 会退回根包的 `name` —— 产物里凭空出现一个叫 `easy-webcomp.css` 的文件（还是散在空间目录里的），根包一改名就静默跟着变。
+
+同一份 CSS 在 `esm/` 与 `cdn/` 下也有（同名 `styles.css`，CDN 侧是 `<组件>.css`）：CSS 抽取跟着模块图走，构建分几条管线它就在几处出现。只有 framework 那份被导出，另两份是过程产物。CDN 那份按组件名分而不是共用根包名，是因为逐组件构建共用 `dist/cdn` 且 `emptyOutDir: false`，共用一个名字时后一个组件会覆盖前一个。
+
+宿主已经引了完整 Element Plus 的话，直接用根包的 `easy-webcomp/element-plus.css` 更省事 —— 那是个全量入口，不必逐个组件地补。
 
 ## 引入方式
 

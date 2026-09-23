@@ -28,7 +28,7 @@ src/workspaces/my-space/
 src/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
-├── style.scss        # 唯一样式来源，禁止用 <style> 块（选了 Tailwind 是 style.css）
+├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
 └── define.ts         # 副作用入口，CDN 产物用
 ```
@@ -53,6 +53,20 @@ src/workspaces/<空间名>/components/<组件名>/
 写空间名而不是 `../../styles` 是有意的：构建与文档站都把 `scss` 的解析路径指向了 `src/workspaces`，路径因此与组件所在层级解耦，组件目录挪到更深一层也不用改这行。
 
 **例外：选了 Tailwind 的组件生成的是 `style.css`。** `@tailwindcss/vite` 不处理 `.scss` —— 写进 `.scss` 的 `@import "tailwindcss"` 会被 Sass 当成待解析的 partial 而报错。这是工具链的硬约束，不是风格选择；Tailwind 组件也因此用不上 `@use`。
+
+### `<style>` 块只用来引第三方样式表
+
+组件自己的样式一律写 `style.scss`。`Component.vue` 里再开一个 `<style>` 块只有一个正当用途：把第三方库的样式表拉进来 —— 宿主按需引入 Element Plus 时，组件用到的子组件样式不会被自动带上，得自己补：
+
+```vue
+<style lang="scss">
+@use 'element-plus/theme-chalk/src/descriptions.scss';
+</style>
+```
+
+**不要加 `scoped`。** scope id 只会打到本组件自己 render 出来的元素上，而这类样式表命中的是第三方组件的内部元素，加了 `scoped` 绝大多数规则永远不匹配，且不报错。
+
+这份 CSS 走 Vite 的抽取管线，会被单独出一个文件而不是随模块注入，所以框架消费方要显式引一次 `@ew/<空间>/styles.css`（详见[构建与产物](build.md#组件里的-style-块)）。什么都没写的空间不产这个文件。
 
 ## 类名必须落在组件自己的命名空间里
 
@@ -87,7 +101,7 @@ export default defineComponentMeta({
 
 `props` 的 `type` 目前支持 `string` / `number` / `boolean`，交互面板按它渲染 text / number / checkbox 三种控件。布尔属性的 attribute 名用 `attr` 显式指定（不指定的话 `autoLoad` 会推导成 `auto-load`，结果一样，写出来更明确）。
 
-`shadow: true` 是默认值。`style.scss` 交给桥接层按 Shadow DOM 投递，因此组件里不要写 `<style scoped>`，那份样式不会被打进产物。
+`shadow: true` 是默认值。`style.scss` 交给桥接层按 Shadow DOM 投递，因此组件自己的样式都要写在那里 —— `<style>` 块不参与这条路，见上一节。
 
 ## 派发事件
 

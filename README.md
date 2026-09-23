@@ -53,12 +53,14 @@ pnpm run new:workspace <空间名>
 src/workspaces/<空间名>/components/<组件名>/
 ├── Component.vue     # 或 Component.tsx，二者只能有一个
 ├── meta.ts           # 组件契约：tag、props、events
-├── style.scss        # 唯一样式来源，禁止用 <style> 块（选了 Tailwind 是 style.css）
+├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
 └── define.ts         # 副作用入口，CDN 产物用
 ```
 
 样式默认写 SCSS。空间共享的变量与 mixin 放 `<空间>/styles/index.scss`，组件里 `@use '<空间>/styles' as styles;` 取用 —— 写空间名而非相对路径，是因为构建与文档站都把 SCSS 的解析路径指向了 `src/workspaces`，这样组件挪层级不会断。**例外是 Tailwind**：`@tailwindcss/vite` 不处理 `.scss`，选了它的组件仍是 `style.css`。
+
+组件自己的样式写 `style.scss`，它由桥接层注入，消费方不用管。`Component.vue` 里另开 `<style>` 块只用于把第三方样式表拉进来（比如宿主按需引入 Element Plus 时组件用到的子组件样式），**不要加 `scoped`** —— 那份 CSS 会被抽成独立文件而不是随模块注入，框架消费方得自己 `import '@ew/<空间>/styles.css'`。细节见 [docs/guide/build.md](docs/guide/build.md#组件里的-style-块)。
 
 `meta.ts` 示例：
 
@@ -103,6 +105,7 @@ pnpm run build:cdn  # 只出 CDN
 | `dist/<空间>/esm/*/define.js` | npm ESM 引入，import 即注册 |
 | `dist/cdn/<组件>.js` | CDN 单文件，运行时内联，import 即注册 |
 | `dist/cdn/ew-all.js` | CDN 全量单文件 |
+| `dist/<空间>/framework/styles.css` | 组件 `<style>` 块抽出来的样式，从 `@ew/<空间>/styles.css` 导出（没有组件写 `<style>` 块就没有这个文件） |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上 |
 
 ESM 一次多入口构建、允许代码分割（消费方是打包器，整目录解析）；IIFE 每个组件单独构建一次（Rollup 的 IIFE 格式不支持多入口，这是唯一能产出「单文件可拷走」的方式）。
