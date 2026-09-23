@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { act } from 'react'
+import { act, useRef } from 'react'
 import {
   createElementClass,
   reactAdapter,
   resetRegistry,
   resetStyleCache,
+  useReactActive,
   useReactEmit,
 } from '@ew/runtime'
 
@@ -128,5 +129,36 @@ describe('reactAdapter', () => {
     })
     await tick()
     expect(el.shadowRoot?.querySelector('.probe')).toBeNull()
+  })
+
+  it('keep-alive 元素断开时组件读到失活，回来后读到激活，且没重建', async () => {
+    const tag = uniqueTag()
+    let seq = 0
+    function ActiveProbe() {
+      // 只在首次渲染时取号：号不变即证明是同一个组件实例，重建会换号
+      const id = useRef(++seq).current
+      const active = useReactActive()
+      return <span className="active">{`${id}:${active}`}</span>
+    }
+    const ctor = createElementClass({ tag }, reactAdapter(() => ActiveProbe), '')
+    customElements.define(tag, ctor)
+
+    const el = document.createElement(tag)
+    el.setAttribute('keep-alive', '')
+    await connect(el)
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('1:true')
+
+    await act(async () => {
+      document.body.removeChild(el)
+    })
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('1:false')
+
+    await act(async () => {
+      document.body.appendChild(el)
+    })
+    await tick()
+    expect(el.shadowRoot?.querySelector('.active')?.textContent).toBe('1:true')
   })
 })

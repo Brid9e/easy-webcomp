@@ -26,4 +26,10 @@ export type {
 export { vueAdapter, useVueActive, useVueEmit, EW_ACTIVE_KEY, EW_EMIT_KEY } from './vue.ts'
 export type { VueAdapterOptions } from './vue.ts'
 
-export { reactAdapter, useReactEmit, EwEmitContext } from './react.ts'
+export {
+  reactAdapter,
+  useReactActive,
+  useReactEmit,
+  EwActiveContext,
+  EwEmitContext,
+} from './react.ts'
