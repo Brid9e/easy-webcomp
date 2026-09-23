@@ -32,7 +32,7 @@ export default defineConfig({
     },
     {
       // 框架产物的 fixture 要解析裸说明符，静态服务器做不到（见 tests/e2e/fixture/framework.html）。
-      // root 指向仓库根而不是 devtools：fixture 与 dist/framework 都在仓库根下，而
+      // root 指向仓库根而不是 devtools：fixture 与 dist/ 都在仓库根下，而
       // `vite devtools` 的 root 是 devtools/，请求 /tests/... 会走 SPA 回退返回调试页。
       // 这台不挂插件 —— 要跑的是**已构建**的产物，默认解析足够。
       command: 'pnpm exec vite . --port 5275 --strictPort',

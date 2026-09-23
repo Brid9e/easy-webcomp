@@ -2,8 +2,8 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h } from 'vue'
-import { HelloReact } from '../../dist/framework/react.js'
-import { HelloVue } from '../../dist/framework/vue.js'
+import { HelloReact } from '../../dist/demo/framework/react.js'
+import { HelloVue } from '../../dist/demo/framework/vue.js'
 
 declare global {
   // eslint-disable-next-line no-var
