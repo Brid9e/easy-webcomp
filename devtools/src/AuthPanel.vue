@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   AUTH_METHODS,
   AUTH_METHOD_KEYS,
@@ -7,13 +7,28 @@ import {
   probeAuthMethod,
   type AuthMethodKey,
 } from '@ew/auth'
+import { configure, getConfig } from '@ew/runtime/config'
 import { usePersisted } from './use-persisted'
 
-const method = usePersisted<AuthMethodKey>('authMethod', 'SELF_MONITOR_TOKEN')
+// 初值优先取全局槽：config.local.ts 里可能写了 auth，面板要显示的就是组件实际在用的那份。
+// 显示一套、实际用另一套的话，面板说「解得开」而请求 401，比没有面板更坏。
+// 本机在面板上改过的值存在 localStorage，优先于文件 —— 文件是起点，面板是本机当前选择。
+const configured = getConfig().auth
+
+const method = usePersisted<AuthMethodKey>(
+  'authMethod',
+  AUTH_METHOD_KEYS.find((key) => key === configured?.method) ?? 'SELF_MONITOR_TOKEN',
+)
 // 存下来的 KEY 可能已经从注册表里删掉，落回默认 —— 与 App.vue 处理组件名同一个理由
 if (!AUTH_METHOD_KEYS.includes(method.value)) method.value = 'SELF_MONITOR_TOKEN'
 
-const secret = usePersisted('authSecret', DEFAULT_SECRET)
+const secret = usePersisted('authSecret', configured?.secret ?? DEFAULT_SECRET)
+
+// 面板就是这个配置项的控件：选什么，组件下次请求就用什么（@ew/http 每个请求重新解析 auth，
+// 不必重载）。只显示不写回的话，密钥贴对了也没用 —— 请求那头仍拿 DEFAULT_SECRET 去解。
+watch([method, secret], () => configure({ auth: { method: method.value, secret: secret.value } }), {
+  immediate: true,
+})
 
 // localStorage 可能在面板外被改（宿主页面本身，或另一个标签页），选完方式不是终点
 const nonce = ref(0)

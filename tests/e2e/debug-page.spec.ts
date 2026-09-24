@@ -214,3 +214,22 @@ test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) 
     .poll(() => page.evaluate(() => localStorage.getItem('ew-debug:authMethod')))
     .toBe(JSON.stringify('SELF_MONITOR_TOKEN'))
 })
+
+// 面板是「显示」还是「控件」的区别就在这条：只显示的话，密钥贴对了面板说解得开，
+// 而请求那头仍拿 DEFAULT_SECRET 去解、后端回 401，页面上没有任何地方看得出这层错位。
+test('调试页：面板选的密钥写回全局槽 —— 组件下次请求用的就是它', async ({ page }) => {
+  await page.goto(DEBUG_URL)
+
+  const panel = page.locator('aside.side .panel', { hasText: '鉴权' })
+  await panel.locator('input').fill('宿主那串 VITE_APP_STORE_SECURE_KEY')
+
+  const auth = () =>
+    page.evaluate(
+      () => (window as unknown as { __ew_config__?: { auth?: unknown } }).__ew_config__?.auth,
+    )
+
+  await expect.poll(auth).toMatchObject({
+    method: 'SELF_MONITOR_TOKEN',
+    secret: '宿主那串 VITE_APP_STORE_SECURE_KEY',
+  })
+})
