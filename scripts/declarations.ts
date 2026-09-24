@@ -78,3 +78,22 @@ export function frameworkDeclarationSource(
   const runtimeType = framework === 'vue' ? 'DefineComponent' : 'ReactElement'
   return `import type { ${runtimeType} } from '${framework}'\n\n${blocks.join('\n')}`
 }
+
+/**
+ * 配置入口的声明。与 wcDeclarationSource 同理，**不许出现 `@ew/runtime`** ——
+ * `EwConfig` 的形状照上面 RUNTIME_TYPES 的做法就地写一份。
+ *
+ * 只声明 configure / getConfig：生成的入口就导这两个，`resetConfig` 是测试专用的，
+ * 不在产物的 API 面上。
+ */
+export function configDeclarationSource(): string {
+  return `export interface EwConfig {
+  baseURL?: string
+  timeout?: number
+  headers?: Record<string, string>
+}
+
+export declare function configure(patch: EwConfig): EwConfig
+export declare function getConfig(): EwConfig
+`
+}
