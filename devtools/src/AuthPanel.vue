@@ -11,7 +11,7 @@ import { usePersisted } from './use-persisted'
 
 const method = usePersisted<AuthMethodKey>('authMethod', 'SELF_MONITOR_TOKEN')
 // 存下来的 KEY 可能已经从注册表里删掉，落回默认 —— 与 App.vue 处理组件名同一个理由
-if (!(method.value in AUTH_METHODS)) method.value = 'SELF_MONITOR_TOKEN'
+if (!AUTH_METHOD_KEYS.includes(method.value)) method.value = 'SELF_MONITOR_TOKEN'
 
 const secret = usePersisted('authSecret', DEFAULT_SECRET)
 
@@ -21,14 +21,15 @@ const nonce = ref(0)
 const REASONS = {
   'no-storage-key': '没找到以 -core-access 结尾的 localStorage key',
   'no-token': '找到了 key，但没解出 accessToken（密钥不对？）',
-  error: '解析过程抛异常，看控制台',
+  error: '解析过程抛异常',
 } as const
 
 const result = computed(() => {
   void nonce.value
   const probe = probeAuthMethod(method.value, { secret: secret.value })
   if (probe.status === 'resolved') return { ok: true, text: probe.token ?? '' }
-  const why = REASONS[probe.status]
+  const why =
+    probe.status === 'error' ? `${REASONS.error}：${String(probe.error)}` : REASONS[probe.status]
   return { ok: false, text: probe.storageKey ? `${why}（${probe.storageKey}）` : why }
 })
 </script>
