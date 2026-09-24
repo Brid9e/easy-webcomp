@@ -65,4 +65,13 @@ describe('my-list http 的配置优先级（请求级 > 全局配置 > 组件兜
     await http.get('/x')
     expect(sent!.baseURL).toBe('https://late.example.com')
   })
+
+  it('全局 headers 盖得住 axios 自带的 Accept，但盖不过请求级', async () => {
+    configure({ headers: { Accept: 'application/vnd.ew+json' } })
+    await http.get('/x')
+    expect(sent!.headers.get('Accept')).toBe('application/vnd.ew+json')
+
+    await http.get('/x', { headers: { Accept: 'text/plain' } })
+    expect(sent!.headers.get('Accept')).toBe('text/plain')
+  })
 })

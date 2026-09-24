@@ -11,6 +11,13 @@ import { getConfig } from '@ew/runtime/config'
  */
 export const http: AxiosInstance = axios.create()
 
+// axios 在拦截器之前就把库默认头（Accept 等）并进了 config.headers，于是 has() 分不出
+// 「调用方设的」与「库兜底的」—— Accept 那种库自带值会让全局配置静默失效。
+// 按值把库兜底当成「没设」，这一层才真的只压过兜底、不压过调用方。
+const libHeaders: Record<string, unknown> = Object.fromEntries(
+  Object.entries(axios.defaults.headers.common).map(([key, value]) => [key.toLowerCase(), value]),
+)
+
 // 请求时读而不是创建时读，所以晚调 configure() 也生效，
 // 也不要求宿主赶在组件加载之前配置。
 http.interceptors.request.use((config) => {
@@ -20,7 +27,9 @@ http.interceptors.request.use((config) => {
   // 用假值判定而不是 undefined：axios 里 timeout: 0 意味着「不限时」，当作「没设」才对
   if (!config.timeout) config.timeout = ew.timeout ?? 15_000
   for (const [key, value] of Object.entries(ew.headers ?? {})) {
-    if (!config.headers.has(key)) config.headers.set(key, value)
+    const current = config.headers.get(key)
+    const fallback = libHeaders[key.toLowerCase()]
+    if (current === undefined || current === fallback) config.headers.set(key, value)
   }
 
   return config
