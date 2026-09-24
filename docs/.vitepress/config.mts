@@ -116,6 +116,7 @@ export default defineConfig(async () => ({
             { text: '生命周期与状态保持', link: '/guide/lifecycle' },
             { text: '构建与产物', link: '/guide/build' },
             { text: '在 Vue / React 项目里使用', link: '/guide/framework-usage' },
+            { text: '运行时配置', link: '/guide/config' },
           ],
         },
       ],

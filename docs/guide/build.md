@@ -11,8 +11,10 @@ pnpm run build:framework  # 只出框架产物
 |---|---|
 | `dist/<空间>/esm/*.js` | npm ESM 引入，无副作用，需显式调 `register()` |
 | `dist/<空间>/esm/*/define.js` | npm ESM 引入，import 即注册 |
+| `dist/<空间>/esm/config.js` | ESM 与框架消费方共用的配置入口，由 `@ew/<空间>/config` 导出 |
 | `dist/cdn/<空间>/index.js` | CDN 单文件，该空间的全部组件，运行时内联，import 即注册 |
 | `dist/cdn/<空间>/<组件>.js` | CDN 单文件，单个组件，运行时内联，import 即注册 |
+| `dist/cdn/config.js` | CDN 的全局配置入口，落到 `window.ewConfig`，与空间无关，见[运行时配置](/guide/config) |
 | `dist/<空间>/framework/vue.js`、`react.js` | 原生 Vue / React 组件，见下节 |
 | `dist/<空间>/styles.css` | 组件 `<style>` 块抽出来的样式，由 `@ew/<空间>/styles.css` 导出，见下节 |
 | `dist/<空间>/**/*.d.ts` | 类型声明，由 exports 的 `types` 条件自动带上，见下节 |
@@ -36,7 +38,7 @@ dist/
 
 ESM 采用一次多入口构建，允许代码分割（消费方是打包器，按整目录解析）；IIFE 每个组件单独构建一次，空间的 `index.js` 是又一次独立的单入口构建，它 import 本空间全部组件，而不是多入口。Rollup 的 IIFE 格式不支持多入口，逐组件构建是产出单文件产物的唯一方式。
 
-构建结束会打印每个产物的 gzip 体积。空间包的 `exports` 用 pattern 覆盖本空间全部组件（`./*` → `./esm/*.js` 与 `./esm/*.d.ts`、`./vue` / `./react` → `./framework/*.js` 与对应的 `.d.ts`），**不随组件增减而变动**，新增组件只需重新构建，这些 `package.json` 不会因此产生 diff。
+构建结束会打印每个产物的 gzip 体积。空间包的 `exports` 用 pattern 覆盖本空间全部组件（`./*` → `./esm/*.js` 与 `./esm/*.d.ts`、`./vue` / `./react` → `./framework/*.js` 与对应的 `.d.ts`），**不随组件增减而变动**，新增组件只需重新构建，这些 `package.json` 不会因此产生 diff。配置入口 `@ew/<空间>/config` 落在这条 `./*` 里，因此也是白拿的 —— 显式键只在**要盖过** pattern 时才写（`./vue` / `./react` 要指向 `framework/`，`./styles.css` 要盖掉 pattern 算出的 `esm/styles.css.js`）。
 
 每条 exports 都是 `{ types, default }` 条件对象，不是裸字符串。裸字符串没有 `types` 条件，消费方的 `tsc` 就只看得到 `.js`，报「隐式拥有 any 类型」（TS7016）。`types` 必须排在 `default` 前面，条件按书写顺序匹配。子路径是否真能解析到文件、产物里的裸导入是否都在 `peerDependencies` 里声明过、该有的声明文件在不在，由 `pnpm run check:artifacts` 兜底。
 
@@ -48,9 +50,10 @@ ESM 采用一次多入口构建，允许代码分割（消费方是打包器，�
 |---|---|
 | `esm/index.d.ts` | 桶，每个组件一个命名空间 |
 | `esm/<组件>.d.ts` | `meta` / `<组件>Element` / `register` |
+| `esm/config.d.ts` | `EwConfig` 与 `configure` / `getConfig`，供 `@ew/<空间>/config` |
 | `framework/vue.d.ts`、`react.d.ts` | 该空间的框架组件，props 接口由 `meta.props` 生成 |
 
-**声明文件由手写模板生成，未使用 `vite-plugin-dts`。** 产物中的声明不能引用 `@ew/runtime`，该包为 private 且不发布，消费方无法解析它，而从源码图生成的声明必然带着这个说明符。因此运行时类型（`ComponentMeta` / `EwElementConstructor`）在声明中就地内联为副本；代价是该形状与 `packages/runtime/src/types.ts` 存在两份、可能产生偏差，由 `tests/integration/consumer-types.test.ts` 兜底，该用例把 `dist/<空间>` 软链进一个临时项目并真跑一次 `tsc`。
+**声明文件由手写模板生成，未使用 `vite-plugin-dts`。** 产物中的声明不能引用 `@ew/runtime`，该包为 private 且不发布，消费方无法解析它，而从源码图生成的声明必然带着这个说明符。因此运行时类型（`ComponentMeta` / `EwElementConstructor` / `EwConfig`）在声明中就地内联为副本；代价是该形状与 `packages/runtime/src/` 下的源头存在两份、可能产生偏差，由 `tests/integration/consumer-types.test.ts` 兜底，该用例把 `dist/<空间>` 软链进一个临时项目并真跑一次 `tsc`。
 
 `@ew/<空间>/<组件>/define` 没有声明文件，这是刻意的：它只被 `import '...'` 这类纯副作用引法使用，而 TS 对没有绑定的模块不要求声明。
 

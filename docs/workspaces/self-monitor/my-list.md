@@ -42,3 +42,4 @@ import '@ew/self-monitor/my-list/define'
 - **状态按元素实例隔离。** `index.ts` 里的 `createPinia()` 是每个元素构造时各跑一次，同页放两个 `<ew-my-list>` 得到两份互不相干的状态。
 - **Element Plus 的样式进了 shadow root。** 与脚手架默认相反（选 UI 库时默认关掉 shadow），这里保持 `shadow: true`：`packages/runtime` 会把同一份 CSS 额外往 `document.head` 放一份，`--el-*` 变量因此能定义在真实 `<html>` 上再继承进树里，Teleport 到 `body` 的弹框也命中得到。理由见 `packages/runtime/src/style.ts`。
 - **`api.ts` 现在是 mock。** 接真实接口只需替换 `fetchMyList` 的函数体，`store.ts` 与组件一行都不用动。
+- **请求打到哪里由宿主在运行时说了算。** `baseURL` / `timeout` / `headers` 三项不在组件源码里写死，宿主 `configure()` 一次即可（不配就是 `/api` 与 15 秒），见[运行时配置](/guide/config)。

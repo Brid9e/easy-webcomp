@@ -30,3 +30,4 @@ pnpm docs:dev       # 文档站：http://localhost:5173
 - [新增一个组件](/guide/authoring)
 - [主题与 token](/guide/theming)
 - [构建与产物](/guide/build)
+- [运行时配置](/guide/config)
