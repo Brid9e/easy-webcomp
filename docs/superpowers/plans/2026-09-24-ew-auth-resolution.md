@@ -764,13 +764,18 @@ test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) 
 
 > 这两条用例沿用文件顶部那句 `test.use({ viewport: { width: 1440, height: 900 } })`，**不要**为它们另开 `test.use`，也不要改那个值 —— 拖拽那三条靠它。
 >
-> 不要去断言 `ew-debug:authMethod` 这个 key 本身：`usePersisted` 只在值变化时写入，而现在注册表里只有一项，下拉是切不动的，冷启动下这个 key 根本不会被写出来。上一条里 addInitScript 是**我们自己**写进去的，不是应用写的。
+> 第一条**不要**去断言 `ew-debug:authMethod` 这个 key：`usePersisted` 只在值变化时写入，而现在注册表里只有一项，下拉是切不动的，冷启动下这个 key 根本不会被应用写出来。
+>
+> 第二条**相反，必须**断言它 —— 但要断言成默认值：
+> `await expect.poll(() => page.evaluate(() => localStorage.getItem('ew-debug:authMethod'))).toBe(JSON.stringify('SELF_MONITOR_TOKEN'))`。
+> 这是「守卫真见到了坏值并把它顶掉」的唯一证据：坏值读进来 → 被守卫拒绝 → 经 `usePersisted` 的 watch 写回，存储里才可能变成默认值；读失败直接回落的那条路不会写。少了它，谁把 `JSON.stringify` 删掉，这条用例就永远是绿的。
 
 - [ ] **Step 2: 跑测试**
 
 ```bash
-pnpm run test:e2e -- tests/e2e/debug-page.spec.ts
+pnpm exec playwright test tests/e2e/debug-page.spec.ts
 ```
+（`pnpm run test:e2e -- <路径>` 会把路径吃掉，跑成整个 e2e 目录，要过滤就用 `pnpm exec`。）
 
 预期：6 条全 PASS（原 4 条 + 新的 2 条）。playwright.config.ts 会自己拉起 5274 那台 dev server（`reuseExistingServer: false`），不需要手工先跑 `pnpm dev`。
 
