@@ -80,14 +80,17 @@ describe('frameworkDeclarationSource', () => {
 })
 
 describe('configDeclarationSource', () => {
-  it('就地内联 EwConfig，两个函数的签名与运行时一致', () => {
-    const dts = configDeclarationSource()
-    expect(dts).toContain('export interface EwConfig {')
-    expect(dts).toContain('baseURL?: string')
-    expect(dts).toContain('timeout?: number')
-    expect(dts).toContain('headers?: Record<string, string>')
-    expect(dts).toContain('export declare function configure(patch: EwConfig): EwConfig')
-    expect(dts).toContain('export declare function getConfig(): EwConfig')
+  it('就地内联 EwConfig，只声明 configure / getConfig', () => {
+    expect(configDeclarationSource()).toBe(
+      'export interface EwConfig {\n' +
+        '  baseURL?: string\n' +
+        '  timeout?: number\n' +
+        '  headers?: Record<string, string>\n' +
+        '}\n' +
+        '\n' +
+        'export declare function configure(patch: EwConfig): EwConfig\n' +
+        'export declare function getConfig(): EwConfig\n',
+    )
   })
 
   it('不引 @ew/runtime —— 那个包 private、不发，消费方解析不到', () => {
