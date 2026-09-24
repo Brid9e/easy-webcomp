@@ -577,7 +577,9 @@ import { usePersisted } from './use-persisted'
 
 const method = usePersisted<AuthMethodKey>('authMethod', 'SELF_MONITOR_TOKEN')
 // 存下来的 KEY 可能已经从注册表里删掉，落回默认 —— 与 App.vue 处理组件名同一个理由
-if (!(method.value in AUTH_METHODS)) method.value = 'SELF_MONITOR_TOKEN'
+// 判定走 AUTH_METHOD_KEYS，不能用 `in AUTH_METHODS` —— `in` 会走原型链，
+// 存成 'constructor' 之类就骗过守卫，probeAuthMethod 取到 undefined 当场抛，整页白。
+if (!AUTH_METHOD_KEYS.includes(method.value)) method.value = 'SELF_MONITOR_TOKEN'
 
 const secret = usePersisted('authSecret', DEFAULT_SECRET)
 
@@ -587,14 +589,17 @@ const nonce = ref(0)
 const REASONS = {
   'no-storage-key': '没找到以 -core-access 结尾的 localStorage key',
   'no-token': '找到了 key，但没解出 accessToken（密钥不对？）',
-  error: '解析过程抛异常，看控制台',
+  error: '解析过程抛异常',
 } as const
 
 const result = computed(() => {
   void nonce.value
   const probe = probeAuthMethod(method.value, { secret: secret.value })
   if (probe.status === 'resolved') return { ok: true, text: probe.token ?? '' }
-  const why = REASONS[probe.status]
+  // error 分支得把异常本身摆出来 —— 它来自 resolvers 的 catch，那儿不打日志，
+  // 叫用户「看控制台」正是控制台最空的时候。
+  const why =
+    probe.status === 'error' ? `${REASONS.error}：${String(probe.error)}` : REASONS[probe.status]
   return { ok: false, text: probe.storageKey ? `${why}（${probe.storageKey}）` : why }
 })
 </script>
@@ -736,9 +741,26 @@ test('调试页：右栏鉴权面板默认选「自行监测系统 token 解析�
     '没找到以 -core-access 结尾的 localStorage key',
   )
 })
+
+test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) => {
+  // 'constructor' 能骗过 `in` 守卫（原型链），却让 probeAuthMethod 取到 undefined 而抛错；
+  // 面板的 computed 在渲染期读它，一抛整页白屏且自己恢复不了。这条钉住守卫必须按 KEY 清单判定。
+  // addInitScript 在页面自己的脚本之前跑，所以面板 setup 时读到的就是这个坏值。
+  await page.addInitScript(() => localStorage.setItem('ew-debug:authMethod', 'constructor'))
+  await page.goto(DEBUG_URL)
+
+  const panel = page.locator('aside.side .panel', { hasText: '鉴权' })
+  await expect(panel.locator('select')).toHaveValue('SELF_MONITOR_TOKEN')
+  await expect(panel.locator('option')).toHaveText(['自行监测系统 token 解析'])
+
+  // 面板之外的东西也得在 —— 面板抛错会连累整个应用挂载，白屏时连舞台都没有
+  await expect(page.locator('.stage-area')).toBeVisible()
+})
 ```
 
-> 这条用例沿用文件顶部那句 `test.use({ viewport: { width: 1440, height: 900 } })`，**不要**为它另开 `test.use`，也不要改那个值 —— 拖拽那三条靠它。
+> 这两条用例沿用文件顶部那句 `test.use({ viewport: { width: 1440, height: 900 } })`，**不要**为它们另开 `test.use`，也不要改那个值 —— 拖拽那三条靠它。
+>
+> 不要去断言 `ew-debug:authMethod` 这个 key 本身：`usePersisted` 只在值变化时写入，而现在注册表里只有一项，下拉是切不动的，冷启动下这个 key 根本不会被写出来。上一条里 addInitScript 是**我们自己**写进去的，不是应用写的。
 
 - [ ] **Step 2: 跑测试**
 
@@ -746,7 +768,7 @@ test('调试页：右栏鉴权面板默认选「自行监测系统 token 解析�
 pnpm run test:e2e -- tests/e2e/debug-page.spec.ts
 ```
 
-预期：5 条全 PASS（原 4 条 + 新的 1 条）。playwright.config.ts 会自己拉起 5274 那台 dev server（`reuseExistingServer: false`），不需要手工先跑 `pnpm dev`。
+预期：6 条全 PASS（原 4 条 + 新的 2 条）。playwright.config.ts 会自己拉起 5274 那台 dev server（`reuseExistingServer: false`），不需要手工先跑 `pnpm dev`。
 
 - [ ] **Step 3: 提交**
 
