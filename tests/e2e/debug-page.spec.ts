@@ -4,6 +4,43 @@ import { expect, test } from '@playwright/test'
 // 不同源，所以这里写绝对地址。
 const DEBUG_URL = 'http://localhost:5274/'
 
+// 这三条测的是边线的像素位置，得先把视口钉死 —— 默认的 1280×720 舞台只剩 732px 宽，
+// 框架拖两下就顶出去，落进另一段倍率；而 900 的高度够高，不会因出现竖向滚动条让舞台变窄。
+test.use({ viewport: { width: 1440, height: 900 } })
+
+/** 舞台内容盒宽（不含左右 padding）—— 能拖多远全看它，见 stage-resize.test.ts 的倍率分界。 */
+const stageInnerWidth = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const area = document.querySelector('.stage-area')!
+    const style = getComputedStyle(area)
+    return Math.floor(
+      area.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+    )
+  })
+
+const edgesOf = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const rect = document.querySelector('.stage-frame')!.getBoundingClientRect()
+    return {
+      left: Math.round(rect.left),
+      right: Math.round(rect.right),
+      top: Math.round(rect.top),
+      bottom: Math.round(rect.bottom),
+    }
+  })
+
+async function drag(page: import('@playwright/test').Page, handle: string, dx: number, dy: number) {
+  const box = (await page.locator(handle).boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx, y + dy, { steps: 10 })
+  await page.mouse.up()
+}
+
 test('调试页：元素渲染进 shadow root、预设改宽', async ({ page }) => {
   await page.goto(DEBUG_URL)
 
@@ -19,13 +56,89 @@ test('调试页：元素渲染进 shadow root、预设改宽', async ({ page }) 
     )
     .toContain('Vue 组件：World')
 
-  // 预设 375 后，容器实测宽度就是 375
+  // 预设 375 后，容器实测宽度就是 375，且静止时左右留白相等（居中）
   await page.getByRole('button', { name: '375', exact: true }).click()
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        Math.round(document.querySelector('.stage-body')!.getBoundingClientRect().width),
-      ),
+  const widthNow = () =>
+    page.evaluate(() =>
+      Math.round(document.querySelector('.stage-body')!.getBoundingClientRect().width),
     )
-    .toBe(375)
+  await expect.poll(widthNow).toBe(375)
+
+  const gapsNow = () =>
+    page.evaluate(() => {
+      const area = document.querySelector('.stage-area')!.getBoundingClientRect()
+      const frame = document.querySelector('.stage-frame')!.getBoundingClientRect()
+      return Math.round(frame.left - area.left - (area.right - frame.right))
+    })
+  await expect.poll(gapsNow).toBe(0)
+
+  // 1024 比舞台还宽，必须真的撑到 1024 并交给 stage-area 滚。
+  // stage-frame 是 flex item，少了 flex-shrink: 0 就会被压回容器宽 —— 这条是那道守门人。
+  await page.getByRole('button', { name: '1024', exact: true }).click()
+  await expect.poll(widthNow).toBe(1024)
 })
+
+test('调试页：三条把手拖动时边线 1:1 跟手，框架保持居中', async ({ page }) => {
+  await page.goto(DEBUG_URL)
+  await page.getByRole('button', { name: '375', exact: true }).click()
+
+  // 右把手：宽度翻倍换来边线走满位移，左右对称张开（宽度 +200，两条边各走 100）。
+  // 倍率在这个测试里才看得见 —— 直接 width += dx 的话右边线只会走 50。
+  // 宽度按 2 倍长，拖拽量就得卡在「舞台还剩的一半余量」以内。再留一倍安全边际，
+  // 顶出舞台那段是 1 倍率，归单测管，这里只测居中那段。
+  const inner = await stageInnerWidth(page)
+  const room = (used: number): number => Math.floor((inner - used) / 4)
+
+  const before = await edgesOf(page)
+  const d1 = room(375)
+  await drag(page, '.handle.horizontal', d1, 0)
+  const afterRight = await edgesOf(page)
+  expect(afterRight.right).toBe(before.right + d1)
+  expect(afterRight.left).toBe(before.left - d1)
+
+  // 下把手：上边界钉住，只有下边界动
+  await drag(page, '.handle.vertical', 0, 100)
+  const afterBottom = await edgesOf(page)
+  expect(afterBottom.top).toBe(afterRight.top)
+  expect(afterBottom.bottom).toBe(afterRight.bottom + 100)
+
+  // 右下角把手：一个动作同时改宽高，两条边都得跟手
+  const d2 = room(375 + 2 * d1)
+  await drag(page, '.handle.corner', d2, 100)
+  const afterCorner = await edgesOf(page)
+  expect(afterCorner.left).toBe(afterBottom.left - d2)
+  expect(afterCorner.top).toBe(afterBottom.top)
+  expect(afterCorner.right).toBe(afterBottom.right + d2)
+  expect(afterCorner.bottom).toBe(afterBottom.bottom + 100)
+})
+
+test('调试页：拖拽途中就居中，不靠松手或刷新补', async ({ page }) => {
+  await page.goto(DEBUG_URL)
+  await page.getByRole('button', { name: '375', exact: true }).click()
+
+  // 左右留白之差。0 表示居中 —— 曾经是「拖完就停住、要刷新才回中」，这条守着别退回去。
+  const gapNow = () =>
+    page.evaluate(() => {
+      const area = document.querySelector('.stage-area')!.getBoundingClientRect()
+      const frame = document.querySelector('.stage-frame')!.getBoundingClientRect()
+      return Math.round(frame.left - area.left - (area.right - frame.right))
+    })
+
+  const box = (await page.locator('.handle.horizontal').boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + 100, y, { steps: 10 })
+  // 还没松手就查：指针停住，poll 到布局稳定为止。
+  // 只拖到 675 —— 再宽下去框架就顶出舞台（1440 视口剩 892），safe center 按设计退成左对齐，
+  // 那条路走的是 1 倍率，归单测管（tests/devtools/stage-resize.test.ts）。
+  await expect.poll(gapNow).toBe(0)
+  await page.mouse.move(x + 150, y, { steps: 10 })
+  await expect.poll(gapNow).toBe(0)
+  await page.mouse.up()
+
+  // 松手也不该再动
+  await expect.poll(gapNow).toBe(0)
+})
+

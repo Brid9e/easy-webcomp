@@ -2,29 +2,30 @@
 import { ref } from 'vue'
 
 const props = defineProps<{
-  direction: 'horizontal' | 'vertical'
-  applyDelta: (delta: number) => void
+  direction: 'horizontal' | 'vertical' | 'corner'
+  applyDelta: (dx: number, dy: number) => void
 }>()
 
 const dragging = ref(false)
-let start = 0
-
-function axis(event: PointerEvent): number {
-  return props.direction === 'horizontal' ? event.clientX : event.clientY
-}
+let startX = 0
+let startY = 0
 
 function onPointerDown(event: PointerEvent): void {
   dragging.value = true
-  start = axis(event)
+  startX = event.clientX
+  startY = event.clientY
   // 捕获指针：拖出把手甚至拖出窗口，pointermove 仍然回到这里
   ;(event.target as HTMLElement).setPointerCapture(event.pointerId)
 }
 
 function onPointerMove(event: PointerEvent): void {
   if (!dragging.value) return
-  const current = axis(event)
-  props.applyDelta(current - start)
-  start = current
+  // 每条把手只报自己管的那几个轴，免得拖右把手顺手把高度也改了
+  const dx = props.direction === 'vertical' ? 0 : event.clientX - startX
+  const dy = props.direction === 'horizontal' ? 0 : event.clientY - startY
+  props.applyDelta(dx, dy)
+  startX = event.clientX
+  startY = event.clientY
 }
 
 function onPointerUp(): void {
@@ -68,5 +69,13 @@ function onPointerUp(): void {
   width: 100%;
   height: 8px;
   cursor: ns-resize;
+}
+/* 压在两条边交角上，DOM 里排在它们后面所以拿得到点击 */
+.corner {
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
 }
 </style>
