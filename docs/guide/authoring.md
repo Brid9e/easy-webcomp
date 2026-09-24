@@ -34,10 +34,28 @@ packages/workspaces/<空间名>/components/<组件名>/
 ├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
 ├── define.ts         # 副作用入口，CDN 产物用
+├── api.ts            # 可选：选了请求层时的接口封装
 └── mock.ts           # 可选：文档站预览用的假数据
 ```
 
 `Component.vue` 与 `Component.tsx` **必须且只能有一个**。两个都有或都没有，构建脚本与文档站扫描都会直接抛错。
+
+### `api.ts`（选了请求层时）：请求打在哪儿由宿主决定
+
+`pnpm run new:component` 勾上「请求层」会生成一个 `api.ts`，它自己不建实例：
+
+```ts
+// components/<组件名>/api.ts
+import { http } from '@ew/http'
+
+export { http }
+```
+
+`@ew/http` 那个实例已经装好请求拦截器，`baseURL` / `timeout` / `headers` / `auth` 四项读宿主的[运行时配置](/guide/config)（不配则落回 `/` 与 15 秒、不带鉴权头），所以组件里只管写接口：**打到哪个网关前缀是宿主的事，不是组件的事**。响应侧的统一处理（toast、401 跳登录）往这份文件的 response 拦截器上加。
+
+早先生成的是 `axios.create({ baseURL: '/api' })`，两处都不对：网关前缀纯属猜测，猜错就是整站 404；而拦截器里的三处细节（库默认头要按值比对、`timeout: 0` 是假值、token 每次重新解析）抄在每个组件的 `api.ts` 里必然各自漂移。**所以它收在包里，而不是摊在模板里** —— 模板是会被人照着长的。
+
+装了 `@ew/http` 就带上了 `@ew/auth`（鉴权头由它解析），crypto-js 因此进这份产物；不用请求层的组件一点都不带。axios 与 crypto-js 都不进 `@ew/runtime`，理由见[运行时配置](/guide/config#鉴权)。
 
 ### `mock.ts`（可选）：文档站预览的假数据
 

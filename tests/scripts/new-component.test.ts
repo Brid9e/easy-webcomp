@@ -10,7 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createComponent, type ComponentSpec } from '../../scripts/new-component'
+import { createComponent, installSpec, type ComponentSpec } from '../../scripts/new-component'
 
 let root: string
 
@@ -183,13 +183,15 @@ describe('createComponent · 配套设施', () => {
     expect(result.dependencies).toEqual(['pinia'])
   })
 
-  it('axios：生成 api.ts，返回 axios 依赖', () => {
+  it('axios：api.ts 直接引 @ew/http 的实例，不再自己 create', () => {
     const result = createComponent(root, spec({ addons: ['axios'] }))
     const api = read('my-card', 'api.ts')
-    expect(api).toContain("from 'axios'")
-    expect(api).toContain('http.interceptors.request.use')
+    expect(api).toContain("import { http } from '@ew/http'")
+    // 实例由包里那份 create() 提供，模板里不该再出现第二处建实例的写法
+    expect(api).not.toContain('axios.create')
+    expect(api).not.toContain("baseURL: '/api'")
     expect(api).toContain('http.interceptors.response.use')
-    expect(result.dependencies).toEqual(['axios'])
+    expect(result.dependencies).toEqual(['@ew/http'])
   })
 
   it('Element Plus：关掉 shadow，内联 index.css，模板用 ElButton', () => {
@@ -282,6 +284,18 @@ describe('createComponent · 配套设施', () => {
 
   it('依赖去重且顺序稳定', () => {
     const result = createComponent(root, spec({ addons: ['element-plus', 'axios', 'pinia'] }))
-    expect(result.dependencies).toEqual(['axios', 'element-plus', 'pinia'])
+    expect(result.dependencies).toEqual(['@ew/http', 'element-plus', 'pinia'])
+  })
+})
+
+describe('installSpec', () => {
+  it('空间内部的包带 workspace: 协议 —— 不带就会去 registry 找它，404', () => {
+    expect(installSpec('@ew/http')).toBe('@ew/http@workspace:*')
+    expect(installSpec('@ew/runtime')).toBe('@ew/runtime@workspace:*')
+  })
+
+  it('第三方包原样传下去，不改成 workspace: 协议', () => {
+    expect(installSpec('element-plus')).toBe('element-plus')
+    expect(installSpec('echarts')).toBe('echarts')
   })
 })

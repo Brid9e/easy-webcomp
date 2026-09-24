@@ -71,9 +71,9 @@ export const ADDONS: Record<AddonKey, AddonDef> = {
     files: (spec) => ({ 'store.ts': storeTemplate(spec) }),
   },
   axios: {
-    label: 'axios 请求层（含拦截器）',
+    label: '请求层（axios，含拦截器）',
     frameworks: ['vue', 'react'],
-    dependencies: ['axios'],
+    dependencies: ['@ew/http'],
     devDependencies: [],
     files: () => ({ 'api.ts': apiTemplate() }),
   },
@@ -471,22 +471,17 @@ export const use${id}Store = defineStore('${spec.name}', {
 `
 }
 
-function apiTemplate(): string {
-  return `import axios, { type AxiosInstance } from 'axios'
-
 /**
- * 组件内共用的 axios 实例。拦截器是这层存在的理由：鉴权头、traceId、统一错误提示
- * 都往这里加，组件里只管发请求。
+ * 请求层不在这里手搓，直接引 `@ew/http`：那个实例已经装好请求拦截器，baseURL / timeout /
+ * headers / auth 四项由宿主的运行时配置决定（不配则落回 `/` 与 15 秒），组件里只管发请求。
+ *
+ * 早先这里生成的是 `axios.create({ baseURL: '/api' })` —— 网关前缀纯属猜测，猜错就是整站
+ * 404；而鉴权、库默认头那几处细节抄在每个组件里必然各自漂移。
  */
-export const http: AxiosInstance = axios.create({
-  baseURL: '/api',
-  timeout: 15_000,
-})
+function apiTemplate(): string {
+  return `import { http } from '@ew/http'
 
-http.interceptors.request.use((config) => {
-  // 例：config.headers.set('Authorization', \`Bearer \${token}\`)
-  return config
-})
+export { http }
 
 http.interceptors.response.use(
   (response) => response,
@@ -516,10 +511,24 @@ export function addonOptions(framework: Framework): Array<Option<AddonKey>> {
     })
 }
 
+/**
+ * `pnpm add` 的说明符。**空间内部的包要带 `workspace:`** —— 不带就是「去 registry 装一个
+ * 叫 `@ew/http` 的公开包」，那边没有这个包，pnpm 直接 404。本仓库没开
+ * `link-workspace-packages`，各空间的清单里也都是手写的 `workspace:*`，这里跟着来。
+ */
+export function installSpec(dependency: string): string {
+  return dependency.startsWith('@ew/') ? `${dependency}@workspace:*` : dependency
+}
+
 function run(command: string, args: string[]): void {
   const status = spawnSync(command, args, { cwd: root, stdio: 'inherit' }).status
   if (status !== 0) {
-    throw new Error(`[new:component] ${command} ${args.join(' ')} 失败，请手动安装`)
+    // 组件文件在装依赖之前就写好了，这一步失败不会回滚 —— 所以要说清怎么收场：
+    // 补装那条命令，或者删掉目录重跑（重跑会被全局唯一那条检查拦住）。
+    throw new Error(
+      `[new:component] ${command} ${args.join(' ')} 失败。组件文件已经写出来了，` +
+        '依赖可以照上面那条命令手动补；想重跑就先删掉组件目录',
+    )
   }
 }
 
@@ -592,9 +601,11 @@ async function main(): Promise<void> {
   // --filter 指向包名，pnpm 自己找到目录。
   const filter = ['--filter', `@ew/${spec.workspace}`]
   // -D 与普通依赖必须分两次跑：一个 pnpm add 写不了两个 section
-  if (result.dependencies.length > 0) run('pnpm', [...filter, 'add', ...result.dependencies])
+  if (result.dependencies.length > 0) {
+    run('pnpm', [...filter, 'add', ...result.dependencies.map(installSpec)])
+  }
   if (result.devDependencies.length > 0) {
-    run('pnpm', [...filter, 'add', '-D', ...result.devDependencies])
+    run('pnpm', [...filter, 'add', '-D', ...result.devDependencies.map(installSpec)])
   }
 
   if (spec.addons.includes('pinia')) {

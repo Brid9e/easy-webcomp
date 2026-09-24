@@ -35,12 +35,14 @@ configure({ baseURL: 'https://api.example.com', timeout: 30_000 })
 
 | 键 | 类型 | 兜底 | 说明 |
 |---|---|---|---|
-| `baseURL` | `string` | `/api` | 请求的基地址 |
+| `baseURL` | `string` | `/` | 请求的基地址 |
 | `timeout` | `number` | `15_000` | 毫秒 |
 | `headers` | `Record<string, string>` | 无 | 每个请求都带上的头 |
 | `auth` | `{ method, secret? }` | 无 | 鉴权 token 的解析方式 |
 
 兜底值写在组件里，因此**宿主不调 `configure` 时，行为与不加这层配置完全一样**。
+
+`baseURL` 的兜底是 `/` 而不是某个网关前缀：组件源码里的路径已经是完整的业务路径（`/selfmonitor/pollute/archive/...`），网关前缀只存在于宿主的部署里，猜错一个字母就是整站 404。不配即同源同前缀，配了则整条替换。
 
 ### 鉴权
 
@@ -58,6 +60,8 @@ configure({
 **解不出来不阻断请求。** 没命中 key、密钥不对、方式名打错，都只表现为这一次不带鉴权头，后端的 401 原样返回 —— 与「压根没配鉴权」表现一致，不新增一种只在网络层出现的失败。
 
 `@ew/runtime` 只存这个值，**不依赖 `@ew/auth`**。运行时是所有产物的公共依赖，依赖它会把 crypto-js 打进每一个组件产物，包括不做鉴权的那些；`method` 因此在类型上只是 `string`，认不认得交给真正使用它的一侧判断。
+
+真正把它拼成请求头的是 `@ew/http` —— 组件按需引用的请求层，见[新增组件](authoring.md#api-ts选了请求层时请求打在哪儿由宿主决定)。它依赖 `@ew/auth`，所以 crypto-js 只出现在用了它的那些组件产物里。
 
 ## 三层优先级
 
@@ -93,5 +97,5 @@ http.get('/self-monitor/list', { baseURL: 'https://other.example.com' })  // 只
 
 ## 尚未支持
 
-- **token 的静默刷新与 401 跳登录。** 鉴权目前只做到「解析出 token 拼成 `Bearer`」，那两件事要改各空间自己的 axios 实例，不属这一层。
-- **`my-list` 之外的组件。** 只有它的列表与详情走那个 axios 实例，所以 `baseURL` 配错会直接表现为查询失败（原因显示在表格的空状态里）。别的工作空间尚未接真实请求，要鉴权也得各自在 `api.ts` 里接一次。
+- **token 的静默刷新与 401 跳登录。** 鉴权目前只做到「解析出 token 拼成 `Bearer`」，那两件事要往用了 `@ew/http` 的那个 `api.ts` 上加，不属这一层。
+- **这一层只对用了 `@ew/http` 的组件生效。** 手写 `axios.create()` 的组件读不到它，`baseURL` 配错会表现为查询失败（如 `my-list` 的表格空状态里那句原因）。新组件由脚手架生成 `api.ts`，默认就是接上的。

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@ew/auth": "workspace:*",
+    "@ew/http": "workspace:*",
     "@ew/runtime": "workspace:*",
     "@ew/utils": "workspace:*",
     "axios": "^1.20.0",

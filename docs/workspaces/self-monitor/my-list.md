@@ -50,7 +50,7 @@ import '@ew/self-monitor/my-list/define'
 - **风险等级与监测类型是 code**（`10/20/30`、`'1'/'2'/'3'`），行里的中文名一律用后端返回的字段（`riskLevelName` / `monitorTypeName`），前端不按 code 再拼一遍。投产情况 / 生产情况 / 联网情况三组不同：**值与标签逐字相同**，接口收的就是「已投产」「正常生产」这几个中文词，因此没有「值 → 标签」的翻译，也就没有翻译错位的余地。
 - **空值与 0 分开。** 没有画像的排口 `riskScore` 与 `validTransRate90` 是 `null`，显示成 `--` 而不补 0 —— 0 分是一个真实存在的分值。
 - **演示用的假数据在 `mock.ts`。** 12 行假清单加一份假适配器，`<ComponentDemo>` 注册元素时装上它，本页与卡片回退的真实元素因此都不打后端；形态与写法见[新增组件](/guide/authoring)。组件源码没有为它让路：`api.ts` / `store.ts` 里一律走真实接口，假数据只接管出口。因此演示里点「查看档案」也是假的，改的是假数据不是档案。
-- **请求打到哪里、带什么身份，由宿主在运行时说了算。** `baseURL` / `timeout` / `headers` / `auth` 四项不在组件源码里写死，宿主 `configure()` 一次即可（不配就是 `/api` 与 15 秒、不带鉴权头），见[运行时配置](/guide/config)。调试页（`pnpm dev`）里配的是真后端，但 **token 读的是当前页面自己那一个 origin 的 localStorage**，调试页这个 `localhost` 底下通常没有那条 `*-core-access`，所以解不出 token、后端回「账号未登录」—— 属预期。
+- **请求打到哪里、带什么身份，由宿主在运行时说了算。** `baseURL` / `timeout` / `headers` / `auth` 四项不在组件源码里写死，宿主 `configure()` 一次即可（不配就是 `/` 与 15 秒、不带鉴权头），见[运行时配置](/guide/config)。这四项连同那套拦截器都在 `@ew/http` 里，`api.ts` 只把它引过来、再补上本组件的两个接口。调试页（`pnpm dev`）里配的是真后端，但 **token 读的是当前页面自己那一个 origin 的 localStorage**，调试页这个 `localhost` 底下通常没有那条 `*-core-access`，所以解不出 token、后端回「账号未登录」—— 属预期。
 
 ## 尚未支持
 
