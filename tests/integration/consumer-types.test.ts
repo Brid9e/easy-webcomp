@@ -24,6 +24,7 @@ import '@ew/self-monitor/my-list/define'
 import { HelloReact, type HelloReactProps } from '@ew/demo/react'
 import { HelloVue, type HelloVueProps } from '@ew/demo/vue'
 import { HelloVueElement } from '@ew/demo/hello-vue'
+import { configure, getConfig, type EwConfig } from '@ew/self-monitor/config'
 
 // 命名空间桶：meta 是对象不是 any，register 是函数
 const tag: string = MyList.meta.tag
@@ -42,6 +43,15 @@ const reactProps: HelloReactProps = {
 }
 const listProps: MyListProps = { label: '我的列表' }
 
+// 配置入口：类型与函数都要拿得到，退化成 any 这条就红
+const config: EwConfig = {
+  baseURL: 'https://api.example.com',
+  timeout: 3_000,
+  headers: { 'x-tenant': 'a' },
+}
+configure(config)
+const readBack: EwConfig = getConfig()
+
 export const used = [
   MyListVue,
   HelloVue,
@@ -51,6 +61,7 @@ export const used = [
   vueProps,
   reactProps,
   listProps,
+  readBack,
 ]
 `
 
