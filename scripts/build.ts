@@ -21,6 +21,7 @@ import type { ComponentMeta } from '@ew/runtime'
 import { toIdentifier } from '@ew/utils'
 import {
   barrelDeclarationSource,
+  configDeclarationSource,
   frameworkDeclarationSource,
   wcDeclarationSource,
 } from './declarations.ts'
@@ -215,6 +216,19 @@ function writeGeneratedEntries(
       )
     }
   }
+
+  // 配置入口。**不分空间** —— 内容逐字相同，按空间生成几个副本纯属多余，
+  // 也与「配置是页面级一份」的结论自相矛盾。
+  writeFileSync(
+    join(generatedDir, 'config.ts'),
+    "export { configure, getConfig } from '@ew/runtime/config'\n",
+  )
+  // CDN 那份只出一个 default：IIFE 的 name 会变成全局名，入口多一个具名导出，
+  // Rollup 就改成把整个 exports 对象挂上去，window.ewConfig 便不再是函数。
+  writeFileSync(
+    join(generatedDir, 'cdn-config.ts'),
+    "export { configure as default } from '@ew/runtime/config'\n",
+  )
 }
 
 // tailwind 对不含 @import "tailwindcss" 的 CSS 是直通，没用它的组件不受影响
@@ -244,6 +258,8 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
     const mine = components.filter((c) => c.workspace === workspace)
     const entry: Record<string, string> = {
       index: join(generatedDir, `all-${workspace}.ts`),
+      // 每个空间各出一份，只为让 `@ew/<空间>/config` 落在各自的包里（见 spec「三种产物的入口」）
+      config: join(generatedDir, 'config.ts'),
     }
     for (const c of mine) {
       entry[c.name] = join(c.dir, 'index.ts')
@@ -279,6 +295,7 @@ async function buildEsm(components: ComponentInfo[]): Promise<void> {
     for (const c of mine) {
       writeFileSync(join(outDir, `${c.name}.d.ts`), wcDeclarationSource(c.name))
     }
+    writeFileSync(join(outDir, 'config.d.ts'), configDeclarationSource())
   }
 }
 
@@ -349,6 +366,36 @@ async function buildCdn(components: ComponentInfo[]): Promise<void> {
       },
     })
   }
+
+  // 根级配置入口。与空间无关，所以落在 dist/cdn/ 根上 —— checkCdn 的残留守卫为它开了一个口子。
+  //
+  // 必须排在函数开头那次 rmSync(dist/cdn) 之后：那句清的是整棵 CDN 树，放前面会被自己清掉。
+  //
+  // emptyOutDir 必须是 false：outDir 是 dist/cdn，而空间目录就在它下面，交给 Vite 清空
+  // 会把刚构建好的产物一起抹掉。
+  //
+  // name 取 ewConfig + 入口只出一个 default：Rollup 于是 emit `var ewConfig = (…)()`，
+  // 顶层 var 在 <script> 里就是 window.ewConfig。
+  await build({
+    root,
+    configFile: false,
+    define: cdnDefine,
+    resolve: { alias: vueAlias },
+    css: cssConfig,
+    plugins: sharedPlugins(),
+    build: {
+      target: 'es2020',
+      outDir: 'dist/cdn',
+      emptyOutDir: false,
+      minify: 'esbuild',
+      lib: {
+        entry: join(generatedDir, 'cdn-config.ts'),
+        formats: ['iife'],
+        name: 'ewConfig',
+        fileName: () => 'config.js',
+      },
+    },
+  })
 }
 
 /**
