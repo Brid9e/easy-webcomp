@@ -15,8 +15,13 @@ export const AUTH_METHODS = {
 
 export type AuthMethodKey = keyof typeof AUTH_METHODS
 
-/** 全 KEY 列表，顺序即清单顺序 —— 下拉与守卫都从这里取。 */
-export const AUTH_METHOD_KEYS = Object.keys(AUTH_METHODS) as AuthMethodKey[]
+/**
+ * 全 KEY 列表，顺序即清单顺序 —— 下拉与守卫都从这里取。
+ * readonly 不是装饰：谁就地 sort 一下顺序就变了，而清单顺序就是下拉显示的顺序。
+ */
+export const AUTH_METHOD_KEYS: readonly AuthMethodKey[] = Object.keys(
+  AUTH_METHODS,
+) as AuthMethodKey[]
 
 export function probeAuthMethod(key: AuthMethodKey, options?: { secret?: string }): AuthProbe {
   return AUTH_METHODS[key].resolve(options)
