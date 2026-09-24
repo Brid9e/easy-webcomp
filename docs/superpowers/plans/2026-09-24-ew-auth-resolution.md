@@ -531,6 +531,11 @@ export { AUTH_METHODS, AUTH_METHOD_KEYS, probeAuthMethod, resolveAuthToken } fro
 export type { AuthMethodKey } from './registry'
 ```
 
+**同时删掉 Task 3 留下的那段临时 shim**（`probeAuthMethod` 转发给 `resolveSelfMonitorToken`，带
+`// 临时：Task 4 会用 registry.ts 里的真货替掉这段` 标记），连同它上面那行
+`import { resolveSelfMonitorToken, type AuthProbe } from './resolvers'` —— `AuthProbe` 已由
+`registry.ts` 再导出。不删就是重复导出的 `probeAuthMethod`，typecheck 当场红。
+
 - [ ] **Step 4: 跑测试确认通过**
 
 ```bash
