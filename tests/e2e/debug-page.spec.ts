@@ -174,3 +174,36 @@ test('调试页：左右侧栏各自可收，收起状态记得住', async ({ pa
   await expect(page.locator('aside.side')).toHaveCount(1)
   await expect.poll(stageWidth).toBe(bothOpen)
 })
+
+test('调试页：右栏鉴权面板默认选「自行监测系统 token 解析」，失败给原因', async ({ page }) => {
+  await page.goto(DEBUG_URL)
+
+  const panel = page.locator('aside.side .panel', { hasText: '鉴权' })
+  await expect(panel.locator('select')).toHaveValue('SELF_MONITOR_TOKEN')
+  await expect(panel.locator('option')).toHaveText(['自行监测系统 token 解析'])
+
+  // 调试页读的是自己 origin 的 localStorage，宿主那套数据默认不在 ——
+  // 这条把「失败也要说清是哪种失败」钉住，别退化成只显示一个空结果
+  await expect(panel.locator('.result')).toContainText(
+    '没找到以 -core-access 结尾的 localStorage key',
+  )
+})
+
+test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) => {
+  // 'constructor' 能骗过 `in` 守卫（原型链），却让 probeAuthMethod 取到 undefined 而抛错；
+  // 面板的 computed 在渲染期读它，一抛整页白屏且自己恢复不了。这条钉住守卫必须按 KEY 清单判定。
+  // addInitScript 在页面自己的脚本之前跑，所以面板 setup 时读到的就是这个坏值。
+  // 必须 JSON.stringify：usePersisted 用 JSON.parse 读，直接写裸 'constructor' 会解析失败被
+  // catch 掉、静默回落默认值，守卫根本见不到这个坏值 —— 那样这条测试就永远是绿的。
+  await page.addInitScript(() =>
+    localStorage.setItem('ew-debug:authMethod', JSON.stringify('constructor')),
+  )
+  await page.goto(DEBUG_URL)
+
+  const panel = page.locator('aside.side .panel', { hasText: '鉴权' })
+  await expect(panel.locator('select')).toHaveValue('SELF_MONITOR_TOKEN')
+  await expect(panel.locator('option')).toHaveText(['自行监测系统 token 解析'])
+
+  // 面板之外的东西也得在 —— 面板抛错会连累整个应用挂载，白屏时连舞台都没有
+  await expect(page.locator('.stage-area')).toBeVisible()
+})
