@@ -11,7 +11,7 @@ export default defineComponentMeta({
   shadow: true,
   props: {
     // 面板标题，也是验证「attribute → property」这条通道的实例属性
-    label: { type: 'string', default: '我的列表' },
+    label: { type: 'string', default: '排放口清单' },
   },
   events: ['select'],
 })

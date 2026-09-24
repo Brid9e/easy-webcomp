@@ -58,19 +58,38 @@
 }
 
 .ew-my-list__keyword {
-  width: 200px;
+  width: 220px;
 }
-.ew-my-list__status {
+// 四个单选（监测类型 / 投产情况 / 生产情况 / 联网情况）共用一个宽度：
+// placeholder 最长「全部监测类型」，按它给，收起标签时也够。
+.ew-my-list__type {
+  width: 150px;
+}
+// 单选、文案最长「中风险」，够用。
+.ew-my-list__level {
   width: 130px;
 }
-.ew-my-list__range {
-  width: 300px;
+// 只输一个百分数，但要放下整个 placeholder（「近90个生产日，小于」），按它给。
+.ew-my-list__rate {
+  width: 190px;
 }
 
 .ew-my-list__keyword,
-.ew-my-list__status,
-.ew-my-list__range {
+.ew-my-list__type,
+.ew-my-list__level,
+.ew-my-list__rate {
   max-width: 100%;
+}
+
+// 评分与等级标签同格：分数和标签贴着看才读得成「63.4 中风险」。
+.ew-my-list__level-tag {
+  margin-left: 4px;
+}
+
+// 详情那块要能给 v-loading 撑出高度，否则加载中是个 0 高的盒子，
+// 转圈图标压在弹框标题上。
+.ew-my-list__detail {
+  min-height: 120px;
 }
 
 // 表格占据表头与分页之外的全部高度；min-height: 0 是关键：flex 子项的默认

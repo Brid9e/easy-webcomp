@@ -138,6 +138,9 @@ importers:
 
   packages/workspaces/self-monitor:
     dependencies:
+      '@ew/auth':
+        specifier: workspace:*
+        version: link:../../auth
       '@ew/runtime':
         specifier: workspace:*
         version: link:../../runtime
