@@ -260,6 +260,9 @@ function checkDeclarations(components: DiscoveredComponent[], failures: string[]
 
     const expected = [
       'esm/index.d.ts',
+      // 空间包没有 config 的 exports 键（靠 `./*` 覆盖），而 `./*` 那条 types 含 `*`、
+      // 会被下面那个 exports 循环跳过 —— 这份清单是 config.d.ts 唯一的守卫。
+      'esm/config.d.ts',
       ...mine.map((c) => `esm/${c.name}.d.ts`),
       ...(['vue', 'react'] as const)
         .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
@@ -345,6 +348,7 @@ function checkExports(components: DiscoveredComponent[], failures: string[]): vo
     [
       `${PKG}/tokens.css`,
       `${PKG}/element-plus.css`,
+      `${PKG}/cdn/config`,
       ...components.map((c) => `${PKG}/cdn/${c.workspace}/${c.name}`),
       ...[...new Set(components.map((c) => c.workspace))].map((w) => `${PKG}/cdn/${w}/index`),
     ],
@@ -360,6 +364,7 @@ function checkExports(components: DiscoveredComponent[], failures: string[]): vo
   for (const [workspace, mine] of byWorkspace) {
     const specs = [
       `@ew/${workspace}`,
+      `@ew/${workspace}/config`,
       ...mine.flatMap((c) => [`@ew/${workspace}/${c.name}`, `@ew/${workspace}/${c.name}/define`]),
       ...(['vue', 'react'] as const)
         .filter((framework) => mine.some((c) => c.inFramework && c.framework === framework))
@@ -393,11 +398,17 @@ function verifySpecs(specs: string[], cwd: string, failures: string[]): void {
  *   demo 两个框架都有、self-monitor 只有 vue，对后者硬要 react 标记会假红
  */
 function checkCdn(components: DiscoveredComponent[], failures: string[]): void {
-  // 残留守卫：跨空间的 ew-all 与被平铺到 dist/cdn 根下的文件都不该存在了
+  // 残留守卫：跨空间的 ew-all 与被平铺到 dist/cdn 根下的文件都不该存在了。
+  // 例外只有一个：根级配置入口 —— 它与空间无关，本来就该落在这里。
   for (const entry of readdirSync(cdnDir)) {
+    if (entry === 'config.js') continue
     if (!statSync(join(cdnDir, entry)).isDirectory()) {
       failures.push(`dist/cdn/${entry} 不该存在 —— CDN 产物一律落在 dist/cdn/<空间>/ 下`)
     }
+  }
+  // 放行的那一个得真在：只有上面那条的话，漏构建会被静默放过
+  if (!existsSync(join(cdnDir, 'config.js'))) {
+    failures.push('缺少 CDN 配置入口 dist/cdn/config.js')
   }
 
   const byWorkspace = new Map<string, DiscoveredComponent[]>()
