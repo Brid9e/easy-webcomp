@@ -746,7 +746,11 @@ test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) 
   // 'constructor' 能骗过 `in` 守卫（原型链），却让 probeAuthMethod 取到 undefined 而抛错；
   // 面板的 computed 在渲染期读它，一抛整页白屏且自己恢复不了。这条钉住守卫必须按 KEY 清单判定。
   // addInitScript 在页面自己的脚本之前跑，所以面板 setup 时读到的就是这个坏值。
-  await page.addInitScript(() => localStorage.setItem('ew-debug:authMethod', 'constructor'))
+  // 必须 JSON.stringify：usePersisted 用 JSON.parse 读，直接写裸 'constructor' 会被它的
+  // catch 吞掉、静默回落默认值，守卫根本见不到坏值 —— 那样这条测试写成什么样都是绿的。
+  await page.addInitScript(() =>
+    localStorage.setItem('ew-debug:authMethod', JSON.stringify('constructor')),
+  )
   await page.goto(DEBUG_URL)
 
   const panel = page.locator('aside.side .panel', { hasText: '鉴权' })
