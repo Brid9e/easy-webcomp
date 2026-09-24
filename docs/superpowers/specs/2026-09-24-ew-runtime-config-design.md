@@ -181,10 +181,12 @@ IIFE 把它落成 `var ewConfig = (…)()` —— 顶层 `var` 在 `<script>` �
 - `tests/workspaces/self-monitor-api.test.ts`（新目录）：给 `http` 塞一个假 adapter，
   断言最终真正发出的那份 config —— 有全局配置时用全局；请求级传了就用请求级；没有全局
   配置时落回 `/api` 与 15 秒；全局 headers 补上、请求级同名 header 不被覆盖。
-- `tests/e2e/`：`tests/e2e/fixture/index.html` 引 `/dist/cdn/config.js`，然后**在同一页里**
+- `tests/e2e/`：**新开一页** `tests/e2e/fixture/config.html` 引 `/dist/cdn/config.js`，然后**在同一页里**
   动态 `import('/dist/demo/esm/config.js')`，用 CDN 那份写、用 ESM 那份读，断言读到同一个值。
   这条直接钉住本设计的核心论断（多副本共享一份状态），而且能跑在 4173 那台静态服务器上 ——
   `esm/config.js` 是自包含的，没有裸说明符。
+  不往既有的 `fixture/index.html` 上挂：那一页是 CDN 冒烟的组件注册页，塞一个与组件无关的全局
+  配置会把两件事绑在一起；单独一页也能干净地断言 `window.ewConfig` 是个函数。
 
 ## 破坏性变更
 
