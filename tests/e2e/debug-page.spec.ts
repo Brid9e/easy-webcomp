@@ -206,4 +206,11 @@ test('调试页：坏掉的鉴权方式不会把整页打空', async ({ page }) 
 
   // 面板之外的东西也得在 —— 面板抛错会连累整个应用挂载，白屏时连舞台都没有
   await expect(page.locator('.stage-area')).toBeVisible()
+
+  // 这条才是「守卫真见到了坏值并把它顶掉」的证据：坏值读进来 → 被守卫拒绝 → 经
+  // usePersisted 的 watch 写回，存储里才会变成默认值。读失败直接回落的那条路不会写。
+  // 少了它，将来谁把上面那句 JSON.stringify 删掉，这条用例就永远是绿的。
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('ew-debug:authMethod')))
+    .toBe(JSON.stringify('SELF_MONITOR_TOKEN'))
 })
