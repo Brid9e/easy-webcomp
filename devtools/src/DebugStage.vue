@@ -129,12 +129,27 @@ function applyFill(): void {
     <header class="stage-head">
       <button
         type="button"
+        class="icon-btn"
         :class="{ active: pickerOpen }"
+        aria-label="组件列表"
         :aria-expanded="pickerOpen"
         :title="pickerOpen ? '收起组件列表' : '展开组件列表'"
         @click="pickerOpen = !pickerOpen"
       >
-        组件列表
+        <!-- 面板图标：外框 + 靠左的竖分隔线。右栏那个是镜像（竖线挪到 10） -->
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+          <rect
+            x="2"
+            y="3"
+            width="12"
+            height="10"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+          />
+          <path d="M6 3v10" fill="none" stroke="currentColor" stroke-width="1.4" />
+        </svg>
       </button>
 
       <div class="switch">
@@ -158,12 +173,26 @@ function applyFill(): void {
 
       <button
         type="button"
+        class="icon-btn"
         :class="{ active: panelOpen }"
+        aria-label="属性"
         :aria-expanded="panelOpen"
         :title="panelOpen ? '收起属性 / 事件栏' : '展开属性 / 事件栏'"
         @click="panelOpen = !panelOpen"
       >
-        属性
+        <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+          <rect
+            x="2"
+            y="3"
+            width="12"
+            height="10"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+          />
+          <path d="M10 3v10" fill="none" stroke="currentColor" stroke-width="1.4" />
+        </svg>
       </button>
     </header>
 
@@ -278,5 +307,16 @@ function applyFill(): void {
 .stage-head > button.active {
   border-color: var(--ew-color-primary);
   color: var(--ew-color-primary);
+}
+/* 开关按钮里只剩一个 16px 的 svg：改成 flex 居中，否则 svg 按基线对齐会把图标压低几像素 */
+.stage-head > button.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+}
+.icon {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 </style>
