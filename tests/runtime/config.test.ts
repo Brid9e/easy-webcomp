@@ -54,3 +54,11 @@ describe('全局槽', () => {
     expect(getConfig()).toEqual({})
   })
 })
+
+describe('@ew/runtime/config 子路径', () => {
+  it('与桶是同一份实现，写的是同一个槽', async () => {
+    const subpath = await import('@ew/runtime/config')
+    subpath.configure({ baseURL: '/via-subpath' })
+    expect(getConfig().baseURL).toBe('/via-subpath')
+  })
+})
