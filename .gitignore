@@ -3,6 +3,7 @@ dist/
 dist-ssr/
 coverage/
 *.local
+devtools/config.local.ts
 
 .DS_Store
 *.log

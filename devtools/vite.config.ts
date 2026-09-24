@@ -4,10 +4,16 @@ import tailwind from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
+import { ensureLocalConfig, LOCAL_CONFIG_PATH } from './shared/local-config'
 import { wcModePlugin } from './shared/wc-mode'
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..')
 const workspacesDir = resolve(root, 'packages/workspaces')
+
+// 每人一份的调试页配置，不存在就落一份空模板（见 shared/local-config.ts）。
+// 写在配置顶层而不是插件里：`pnpm dev` 与 e2e 那台 5274 都是 `vite devtools`，都会先加载
+// 这份配置，一处就覆盖了两边；等到插件起来，main.ts 那条 glob 已经按「文件在不在」定过型了。
+ensureLocalConfig(resolve(root, LOCAL_CONFIG_PATH))
 
 export default defineConfig({
   // devtools/ 里没有 package.json，Vite 会一路往上找缓存目录，最后落在**仓库根**的

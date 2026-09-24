@@ -1,19 +1,16 @@
-import { configure } from '@ew/runtime/config'
+import { configure, type EwConfig } from '@ew/runtime/config'
 import { createApp } from 'vue'
 import '@src/tokens/tokens.css'
 import App from './App.vue'
 import './shell.css'
 
-// 调试页直连真后端。devtools 只是开发用的壳，不进产物，所以地址写死在这儿没关系 ——
-// 组件里的兜底 `/api` 是给宿主用的，调试页不满足那个前提。
-// 组件走的是同一个 axios 实例 ⇒ 这一行同时管住了列表与详情。
+// 直连真后端，连哪个由本机说了算：地址写在 devtools/config.local.ts，那份文件不进 git，
+// 首次 `pnpm dev` 生成（见 devtools/shared/local-config.ts）。组件走的是同一个 axios 实例
+// ⇒ 这一层同时管住了列表与详情。
 //
-// secret 不给：走 DEFAULT_SECRET。它得与宿主那份 VITE_APP_STORE_SECURE_KEY 一致才能解开，
-// 而调试页读的是自己的 localStorage（localhost:5273 这个 origin），
-// 所以还得把真系统里那条 `*-core-access` 的值手工 setItem 过来，解析才命中得了。
-configure({
-  baseURL: 'https://jkzx.envsc.cn/zxjcjg-api/admin-api',
-  auth: { method: 'SELF_MONITOR_TOKEN' },
-})
+// 用 glob 而不是静态 import：那份文件可能还不存在，静态 import 会让 tsc 报「找不到模块」，
+// 而 CI 上 typecheck 跑在任何一次 `pnpm dev` 之前。取不到就什么都不配，落回 `/` 与 15 秒。
+const local = import.meta.glob<{ default: Partial<EwConfig> }>('../config.local.ts', { eager: true })
+configure(local['../config.local.ts']?.default ?? {})
 
 createApp(App).mount('#app')
