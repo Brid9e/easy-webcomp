@@ -22,6 +22,12 @@ describe('configure / getConfig', () => {
     expect(getConfig().headers).toEqual({ b: '9' })
   })
 
+  it('auth 与 headers 同一条规矩：整体替换，不是逐键合并', () => {
+    configure({ auth: { method: 'A', secret: 's' } })
+    configure({ auth: { method: 'B' } })
+    expect(getConfig().auth).toEqual({ method: 'B' })
+  })
+
   it('undefined 的键不参与合并', () => {
     configure({ baseURL: '/a' })
     // 类型上就传不进来（exactOptionalPropertyTypes 下可选键只能是缺席），
@@ -47,6 +53,16 @@ describe('两个方向都不共享对象', () => {
     configure({ headers: mine })
     mine.a = 'changed'
     expect(getConfig().headers).toEqual({ a: '1' })
+  })
+
+  it('auth 一样：传进去的改、读出来的改，都不动存储', () => {
+    const mine = { method: 'A' }
+    configure({ auth: mine })
+    mine.method = 'changed'
+    expect(getConfig().auth).toEqual({ method: 'A' })
+
+    getConfig().auth!.method = 'changed-again'
+    expect(getConfig().auth).toEqual({ method: 'A' })
   })
 })
 

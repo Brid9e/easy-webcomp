@@ -9,10 +9,24 @@
  * 槽名用字符串而不是 Symbol：devtools 里要看得见，排查时能直接敲出来。
  */
 
+/**
+ * 鉴权。**@ew/runtime 不认识 @ew/auth**，所以 `method` 收的是 `string` 而不是
+ * `AuthMethodKey`，这里也不校验认不认识它：运行时是所有产物的公共依赖，它引一下
+ * @ew/auth，crypto-js 就会被带进每一个组件产物 —— 包括压根不做鉴权的那些。
+ * 认不认得交给真正要用它的那一侧（见 my-list 的 api.ts）。
+ */
+export interface EwAuthConfig {
+  /** 解析方式，取 @ew/auth 注册表里的 KEY，如 SELF_MONITOR_TOKEN */
+  method: string
+  /** 解 SecureLS 那层用的密钥；不给就落回 @ew/auth 的 DEFAULT_SECRET */
+  secret?: string
+}
+
 export interface EwConfig {
   baseURL?: string
   timeout?: number
   headers?: Record<string, string>
+  auth?: EwAuthConfig
 }
 
 /** 与 globalThis 取交集：直接断言成一个光秃秃的形状，TS 会嫌两边不重叠 */
@@ -36,21 +50,23 @@ export function configure(patch: EwConfig): EwConfig {
   const next = store()
   if (patch.baseURL !== undefined) next.baseURL = patch.baseURL
   if (patch.timeout !== undefined) next.timeout = patch.timeout
-  // headers 拷一层再存：存引用的话，宿主 `configure({ headers: obj })` 之后复用那个 obj，
-  // 全局槽会跟着变 —— 与 getConfig 的读时拷贝对称，两个方向都不共享对象。
+  // headers / auth 都拷一层再存：存引用的话，宿主 `configure({ headers: obj })` 之后复用
+  // 那个 obj，全局槽会跟着变 —— 与 getConfig 的读时拷贝对称，两个方向都不共享对象。
   if (patch.headers !== undefined) next.headers = { ...patch.headers }
+  if (patch.auth !== undefined) next.auth = { ...patch.auth }
   return getConfig()
 }
 
 /**
- * 返回副本，改它不影响存储。headers 是这里唯一的容器，所以要单独再拷一层 ——
- * 少了它，`getConfig().headers['x'] = 'y'` 会直接写进存储。
+ * 返回副本，改它不影响存储。两个容器（headers / auth）都要再拷一层 —— 少了它，
+ * `getConfig().headers['x'] = 'y'` 会直接写进存储。
  */
 export function getConfig(): EwConfig {
   const next = store()
-  return next.headers === undefined
-    ? { ...next }
-    : { ...next, headers: { ...next.headers } }
+  const copy: EwConfig = { ...next }
+  if (next.headers !== undefined) copy.headers = { ...next.headers }
+  if (next.auth !== undefined) copy.auth = { ...next.auth }
+  return copy
 }
 
 /** 仅供测试使用，清空全局配置，照 resetRegistry / resetStyleCache 的先例 */

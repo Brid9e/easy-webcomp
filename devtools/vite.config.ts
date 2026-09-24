@@ -46,5 +46,10 @@ export default defineConfig({
   ],
   // strictPort：5173 被占时 `vitepress dev` 会静默顺延到 5174/5175，探默认端口就打到别人的旧服务上。
   // 调试页要的是「启动即报错」，不是「悄悄换个端口」。
+  //
+  // 这里**不放 proxy**：调试页直连真后端，地址在 src/main.ts 里用 configure() 给。
+  // 走后端网关（/zxjcjg-api/admin-api 那种前缀）就必然跨源，后端也确实回了
+  // `Access-Control-Allow-Origin: *`，直连是通的；绕一层 proxy 反而让请求看着像打到 5273，
+  // 排查时分不清是代理没生效还是后端没通。
   server: { port: 5273, strictPort: true },
 })

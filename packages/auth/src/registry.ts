@@ -27,6 +27,17 @@ export function probeAuthMethod(key: AuthMethodKey, options?: { secret?: string 
   return AUTH_METHODS[key].resolve(options)
 }
 
+/**
+ * 运行时守卫。KEY 到了运行时就是一段宿主给的字符串（配置里的 `auth.method`），
+ * 打错字原本会一路走到 `AUTH_METHODS[key].resolve` 那个 TypeError 上。挡在这里，
+ * 未知方式就退化成「这次不带鉴权头」，与压根没配鉴权的表现一致。
+ *
+ * 用 Object.hasOwn 而不是 `in`：`'toString' in AUTH_METHODS` 是 true，而它取不到 resolve。
+ */
+export function isAuthMethodKey(value: string): value is AuthMethodKey {
+  return Object.hasOwn(AUTH_METHODS, value)
+}
+
 /** 只要结果的那条路。与 probeAuthMethod 共用一个真相，失败即 null。 */
 export function resolveAuthToken(key: AuthMethodKey, options?: { secret?: string }): string | null {
   return probeAuthMethod(key, options).token
