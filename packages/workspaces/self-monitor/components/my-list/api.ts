@@ -1,16 +1,28 @@
 import axios, { type AxiosInstance } from 'axios'
+import { getConfig } from '@ew/runtime/config'
 
 /**
  * 组件内共用的 axios 实例。拦截器是这层存在的理由：鉴权头、traceId、统一错误提示
  * 都往这里加，组件里只管发请求。
+ *
+ * **三项都不写在这份 create() 里。** 请求级、全局配置、组件兜底是三层，只有把兜底挪进
+ * 拦截器才分得清「调用方设了」与「实例默认」—— 写在这儿的话，拦截器读到的 baseURL 永远
+ * 非空，全局配置永远轮不到。
  */
-export const http: AxiosInstance = axios.create({
-  baseURL: '/api',
-  timeout: 15_000,
-})
+export const http: AxiosInstance = axios.create()
 
+// 请求时读而不是创建时读，所以晚调 configure() 也生效，
+// 也不要求宿主赶在组件加载之前配置。
 http.interceptors.request.use((config) => {
-  // 例：config.headers.set('Authorization', `Bearer ${token}`)
+  const ew = getConfig()
+
+  config.baseURL ??= ew.baseURL ?? '/api'
+  // 用假值判定而不是 undefined：axios 里 timeout: 0 意味着「不限时」，当作「没设」才对
+  if (!config.timeout) config.timeout = ew.timeout ?? 15_000
+  for (const [key, value] of Object.entries(ew.headers ?? {})) {
+    if (!config.headers.has(key)) config.headers.set(key, value)
+  }
+
   return config
 })
 
