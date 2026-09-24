@@ -23,6 +23,9 @@ export type {
   PropType,
 } from './types.ts'
 
+export { configure, getConfig, resetConfig } from './config.ts'
+export type { EwConfig } from './config.ts'
+
 export { vueAdapter, useVueActive, useVueEmit, EW_ACTIVE_KEY, EW_EMIT_KEY } from './vue.ts'
 export type { VueAdapterOptions } from './vue.ts'
 
