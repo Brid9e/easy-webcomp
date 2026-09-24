@@ -31,13 +31,22 @@ describe('configure / getConfig', () => {
   })
 })
 
-describe('getConfig 返的是副本', () => {
+describe('两个方向都不共享对象', () => {
   it('改返回值不动存储，headers 也是', () => {
     configure({ baseURL: '/a', headers: { a: '1' } })
     const got = getConfig()
     got.baseURL = '/changed'
     got.headers!.a = 'changed'
     expect(getConfig()).toEqual({ baseURL: '/a', headers: { a: '1' } })
+  })
+
+  it('传进去的 headers 之后被改，也不动存储', () => {
+    // 两个方向都要挡：读时拷、写时不拷的话，宿主 `configure({ headers: obj })` 之后
+    // 再复用那个 obj，全局槽会跟着变 —— 而这是所有副本共读的位置。
+    const mine = { a: '1' }
+    configure({ headers: mine })
+    mine.a = 'changed'
+    expect(getConfig().headers).toEqual({ a: '1' })
   })
 })
 

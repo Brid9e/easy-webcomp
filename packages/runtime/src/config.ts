@@ -36,7 +36,9 @@ export function configure(patch: EwConfig): EwConfig {
   const next = store()
   if (patch.baseURL !== undefined) next.baseURL = patch.baseURL
   if (patch.timeout !== undefined) next.timeout = patch.timeout
-  if (patch.headers !== undefined) next.headers = patch.headers
+  // headers 拷一层再存：存引用的话，宿主 `configure({ headers: obj })` 之后复用那个 obj，
+  // 全局槽会跟着变 —— 与 getConfig 的读时拷贝对称，两个方向都不共享对象。
+  if (patch.headers !== undefined) next.headers = { ...patch.headers }
   return getConfig()
 }
 
