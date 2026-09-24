@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { componentByName, components } from '@devtools/component-index'
 import { useEventLog, usePropControls } from '@devtools/preview-state'
+import AuthPanel from './AuthPanel.vue'
 import ComponentPicker from './ComponentPicker.vue'
 import DebugStage from './DebugStage.vue'
 import EventLog from './EventLog.vue'
@@ -35,6 +36,7 @@ const { wcHandlers } = useEventLog(computed(() => meta.value?.events))
       :wc-handlers="wcHandlers"
     />
     <aside v-if="panelOpen" class="side">
+      <AuthPanel />
       <PropPanel :prop-defs="propDefs" :values="values" :boolean-values="booleanValues" />
       <EventLog />
     </aside>
