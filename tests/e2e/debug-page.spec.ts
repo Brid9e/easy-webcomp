@@ -142,3 +142,35 @@ test('调试页：拖拽途中就居中，不靠松手或刷新补', async ({ pa
   await expect.poll(gapNow).toBe(0)
 })
 
+test('调试页：左右侧栏各自可收，收起状态记得住', async ({ page }) => {
+  await page.goto(DEBUG_URL)
+
+  const stageWidth = () =>
+    page.evaluate(() =>
+      Math.round(document.querySelector('.stage-area')!.getBoundingClientRect().width),
+    )
+  const bothOpen = await stageWidth()
+
+  // 左边收起：组件列表整个卸载，舞台当场吃下那 220px
+  await page.getByRole('button', { name: '组件列表' }).click()
+  await expect(page.locator('nav.picker')).toHaveCount(0)
+  await expect.poll(stageWidth).toBeGreaterThan(bothOpen)
+  const onlyLeftGone = await stageWidth()
+
+  // 右边收起：属性 / 事件栏卸载，再宽 280
+  await page.getByRole('button', { name: '属性' }).click()
+  await expect(page.locator('aside.side')).toHaveCount(0)
+  await expect.poll(stageWidth).toBeGreaterThan(onlyLeftGone)
+
+  // 显隐存在 ew-debug:* 里，刷新不该把它们弹回来
+  await page.reload()
+  await expect(page.locator('nav.picker')).toHaveCount(0)
+  await expect(page.locator('aside.side')).toHaveCount(0)
+
+  // 点回来两边都还原
+  await page.getByRole('button', { name: '组件列表' }).click()
+  await page.getByRole('button', { name: '属性' }).click()
+  await expect(page.locator('nav.picker')).toHaveCount(1)
+  await expect(page.locator('aside.side')).toHaveCount(1)
+  await expect.poll(stageWidth).toBe(bothOpen)
+})

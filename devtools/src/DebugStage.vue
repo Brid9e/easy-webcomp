@@ -12,6 +12,11 @@ const props = defineProps<{
   wcHandlers: Record<string, (e: Event) => void>
 }>()
 
+// 两侧栏的显隐归 App 管（既要存 localStorage，又要决定 v-if）。这里只是开关的落点 ——
+// 那排小按钮的间距、字号、边框样式都在本组件的头部里，开关放别处就得再造一套。
+const pickerOpen = defineModel<boolean>('pickerOpen', { required: true })
+const panelOpen = defineModel<boolean>('panelOpen', { required: true })
+
 const width = usePersisted('width', 375)
 const height = usePersisted('height', 480)
 const fill = usePersisted('fill', false)
@@ -122,6 +127,16 @@ function applyFill(): void {
 <template>
   <section class="stage">
     <header class="stage-head">
+      <button
+        type="button"
+        :class="{ active: pickerOpen }"
+        :aria-expanded="pickerOpen"
+        :title="pickerOpen ? '收起组件列表' : '展开组件列表'"
+        @click="pickerOpen = !pickerOpen"
+      >
+        组件列表
+      </button>
+
       <div class="switch">
         <button
           v-for="preset in PRESETS"
@@ -140,6 +155,16 @@ function applyFill(): void {
       </button>
 
       <p class="readout">{{ measured.width }} × {{ measured.height }}</p>
+
+      <button
+        type="button"
+        :class="{ active: panelOpen }"
+        :aria-expanded="panelOpen"
+        :title="panelOpen ? '收起属性 / 事件栏' : '展开属性 / 事件栏'"
+        @click="panelOpen = !panelOpen"
+      >
+        属性
+      </button>
     </header>
 
     <div ref="areaEl" class="stage-area">

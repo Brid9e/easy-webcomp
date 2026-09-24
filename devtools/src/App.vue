@@ -8,6 +8,9 @@ import EventLog from './EventLog.vue'
 import PropPanel from './PropPanel.vue'
 import { usePersisted } from './use-persisted'
 
+const pickerOpen = usePersisted('pickerOpen', true)
+const panelOpen = usePersisted('panelOpen', true)
+
 const selected = usePersisted('component', components[0]?.name ?? '')
 // 存下来的组件名可能已经被删掉，落回第一个 —— 否则打开就是一片空白
 if (!componentByName(selected.value)) selected.value = components[0]?.name ?? ''
@@ -22,9 +25,16 @@ const { wcHandlers } = useEventLog(computed(() => meta.value?.events))
 
 <template>
   <div class="app">
-    <ComponentPicker v-model="selected" />
-    <DebugStage :entry="entry" :model="model" :wc-handlers="wcHandlers" />
-    <aside class="side">
+    <!-- 收起就是卸载：侧栏不留占位，舞台当场吃满。开关在舞台头部（见 DebugStage） -->
+    <ComponentPicker v-if="pickerOpen" v-model="selected" />
+    <DebugStage
+      v-model:picker-open="pickerOpen"
+      v-model:panel-open="panelOpen"
+      :entry="entry"
+      :model="model"
+      :wc-handlers="wcHandlers"
+    />
+    <aside v-if="panelOpen" class="side">
       <PropPanel :prop-defs="propDefs" :values="values" :boolean-values="booleanValues" />
       <EventLog />
     </aside>
