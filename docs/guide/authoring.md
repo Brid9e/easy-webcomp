@@ -33,10 +33,34 @@ packages/workspaces/<空间名>/components/<组件名>/
 ├── meta.ts           # 组件契约：tag、props、events
 ├── style.scss        # 组件自己的样式（选了 Tailwind 是 style.css）
 ├── index.ts          # 入口：导出构造器与 register()
-└── define.ts         # 副作用入口，CDN 产物用
+├── define.ts         # 副作用入口，CDN 产物用
+└── mock.ts           # 可选：文档站预览用的假数据
 ```
 
 `Component.vue` 与 `Component.tsx` **必须且只能有一个**。两个都有或都没有，构建脚本与文档站扫描都会直接抛错。
+
+### `mock.ts`（可选）：文档站预览的假数据
+
+组件要打后端接口时，文档站的演示不该跟着后端的脸色走 —— 写一份 `mock.ts`，预览就渲染假数据。它对外的全部约定是导出**一个** `installMock()`：
+
+```ts
+// components/<组件名>/mock.ts
+import { http } from './api'
+
+export function installMock(): void {
+  http.defaults.adapter = async (config) => ({ data: body, status: 200, statusText: 'OK', headers: {}, config })
+}
+```
+
+**文档站会装上它，调试页不会。** 两个预览都从 `registerWcElement(name, tag, options)` 注册元素，文档站那两处（`<ComponentDemo>`、截图缺失时回退的真实元素）传 `mock: true`，调试页不传 —— 它存在的意义就是拿真接口验鉴权，装上假数据等于把它废掉。组件目录下没有 `mock.ts` 时这一项无事发生。
+
+三条约束：
+
+- **进不了产物。** 构建从 `index.ts` 出发，`mock.ts` 不在那条链上。认得它的只有预览那侧的虚拟模块 `virtual:ew-wc/<名字>`，生成时按文件在不在决定要不要加一条 export 边。
+- **装在 `define` 之前。** 元素一进 DOM 就发第一次请求，`registerWcElement` 里的顺序是排过的：装、再 define。
+- **截在适配器那一层，不改组件源码。** 组件保持「一律走真实接口」，假数据只接管出口；真实接口换了，要跟着改的只有假数据里的 URL 分支。
+
+`my-list` 是一份完整的例子，见[排放口清单](/workspaces/self-monitor/my-list)。
 
 ## 样式：SCSS 与空间共享
 

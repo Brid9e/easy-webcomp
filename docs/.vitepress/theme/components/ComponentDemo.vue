@@ -15,9 +15,12 @@ const { wcHandlers } = useEventLog(computed(() => meta.value?.events))
 
 // 文档站的读者是组件消费者，他们实际拿到的是 WC —— 预览也就只走这一条路，
 // 复用组件自己的 index.ts（UI 库样式内联、Pinia 按实例装都在里面）。
+//
+// mock: true —— 演示要的是「一眼看懂这个组件长什么样」，本该与后端有没有数据、要不要鉴权无关。
+// 组件目录下没有 mock.ts 的话这一项自然无事发生。调试页（pnpm dev）不走这里，那边照旧打真后端。
 async function enableWc(): Promise<void> {
   if (!tag.value) return
-  await registerWcElement(props.name, tag.value)
+  await registerWcElement(props.name, tag.value, { mock: true })
 }
 
 // 必须挂在 onMounted，不能用 watch 的 immediate —— <ClientOnly> 挡的是它 slot 里的内容，

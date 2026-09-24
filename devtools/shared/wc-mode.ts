@@ -75,7 +75,16 @@ export function wcModePlugin(workspacesDir: string): Plugin {
         const isVue = located.framework === 'vue'
         const componentPath = join(dir, isVue ? 'Component.vue' : 'Component.tsx')
         const indexPath = join(dir, 'index.ts')
+        const mockPath = join(dir, 'mock.ts')
         const elementExport = `${toIdentifier(name)}Element`
+
+        // 可选的第 6 个文件 mock.ts：假数据与假适配器。给它一条 export 边，文档站预览才能按需
+        // 装上（`registerWcElement(name, tag, { mock: true })`）；没有它的组件这一行也不生成。
+        // 写静态 re-export 而不是动态 import：生成本模块的都是预览（文档站、调试页），
+        // 组件产物从 index.ts 出发，mock.ts 不在那条链上，漏不进去。
+        const mockExport = existsSync(mockPath)
+          ? `export { installMock } from ${JSON.stringify(mockPath)}\n`
+          : ''
 
         // 直接复用组件自己的 index.ts，**不要**在这里再 createElementClass 一遍。
         // 预览必须等于消费者拿到的东西：选 Element Plus / antd 的组件要在 light DOM 里内联库样式，
@@ -86,6 +95,7 @@ import { meta, ${elementExport} as Element } from ${JSON.stringify(indexPath)}
 import * as ComponentModule from ${JSON.stringify(componentPath)}
 
 export { meta, Element }
+${mockExport}
 
 if (import.meta.hot) {
   import.meta.hot.accept(${JSON.stringify(componentPath)}, () => {

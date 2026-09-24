@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
+import { registerWcElement } from '@devtools/wc-registry'
 import { componentTag } from './component-tag'
 
 const props = defineProps<{
@@ -22,21 +23,13 @@ const useLive = computed(() => Boolean(props.live) || shotFailed.value || !props
 const defined = ref(false)
 
 // 与详情页同一条路径：注册的是 createElementClass 产出的元素，与消费方拿到的一致，
-// 样式落在 shadow root 里，不会漏进文档站。
+// 样式落在 shadow root 里，不会漏进文档站。mock: true 的理由同 ComponentDemo。
 async function register(): Promise<void> {
   if (!tag.value || defined.value) return
-  if (customElements.get(tag.value)) {
-    defined.value = true
-    return
-  }
-  const modules = (await import('virtual:ew-wc-index')) as {
-    default: Record<string, { Element: CustomElementConstructor }>
-  }
-  const mod = modules.default[props.name]
-  if (!mod) return
+  await registerWcElement(props.name, tag.value, { mock: true })
+  // 组件名对不上（虚拟模块里没这一项）时什么都不该渲染，所以按实际注册结果定 defined。
   // 跨 bundle 场景下这里仍可能被别人抢先定义过，define 同 tag 会直接抛错。
-  if (!customElements.get(tag.value)) customElements.define(tag.value, mod.Element)
-  defined.value = true
+  if (customElements.get(tag.value)) defined.value = true
 }
 
 // 组件运行时只在真要挂元素时才拉。卡片默认走截图，那句动态 import 根本不会发生 ——
