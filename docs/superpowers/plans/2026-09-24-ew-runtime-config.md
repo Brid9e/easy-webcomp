@@ -866,6 +866,20 @@ git status --short
 
 ## 自查记录
 
-- **spec 覆盖**：契约 → Task 1；三种产物的入口 → Task 2/4；api.ts 优先级 → Task 6；接线与守卫 → Task 3/4/5；测试 → Task 1/3/6/7/8；破坏性变更（无）→ 不需要任务。
+- **spec 覆盖**：契约 → Task 1；三种产物的入口 → Task 2/4；api.ts 优先级 → Task 6；接线与守卫 → Task 3/4/5；测试 → Task 1/3/6/7/8。
 - **与本 spec 的偏离**：e2e 改用独立的 `fixture/config.html`（理由见「文件结构」）。
 - **命名一致性**：`configure` / `getConfig` / `resetConfig` / `EwConfig` / `__ew_config__` / `ewConfig` / `configDeclarationSource` 在全文与 spec 里同名同形。
+
+### 执行中的偏离（事后补记）
+
+- **各步的「N 条全过」个别写错了一。** Task 1 写「8 条」实为 7 条，Task 2 写「9 条」实为 8 条。
+  测试文件本身是对的，错的是这几行预计数 —— 按步骤跑的人对不上数会去找并不存在的用例。
+- **Task 3 的断言在评审后换成全等。** 原稿六条 `toContain` 加一条 `not.toContain('@ew/runtime')`，
+  实测：模板少一个闭括号、或末尾多出 `export declare function resetConfig(): void`，**都仍然通过**。
+  于是改为一条 `toBe(<完整字面量>)`（模板零动态输入，全等即覆盖缩进、空行、尾换行、括号配对
+  与 `resetConfig` 不得出现），保留 `@ew/runtime` 那条并改掉过誉的用例名。
+- **Task 6 的 headers 判据从 `has()` 改成按值判。** 计划原稿是「只补请求上没有的那些键」，
+  落到代码是 `if (!config.headers.has(key))`。实测 axios 在拦截器**之前**就把库默认头并了进来
+  （`Accept`），`has()` 因此恒真，宿主配的全局 `Accept` 静默失效。改为「键不在，或值等于库默认值」，
+  并在 spec 的「两处比字面更细的地方」里写清代价。
+- **请求级 `timeout: 0` 的含义变化**记进了 spec 的「破坏性变更」—— 原稿写的是「无」。

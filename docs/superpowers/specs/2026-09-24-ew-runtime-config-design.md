@@ -127,12 +127,30 @@ IIFE 把它落成 `var ewConfig = (…)()` —— 顶层 `var` 在 `<script>` �
 
 - `baseURL`：`config.baseURL ??= 全局 ?? '/api'`
 - `timeout`：`if (!config.timeout) config.timeout = 全局 ?? 15_000`
-- `headers`：只补请求上没有的那些键
+- `headers`：只补**调用方没设**的那些键
 
-兜底仍是 `/api` 与 15 秒，所以**宿主没调 `configure()` 时行为与今天完全一样**。
+兜底仍是 `/api` 与 15 秒，所以**宿主没调 `configure()` 时行为与今天完全一样** ——
+唯一的例外是请求级 `timeout: 0`，见下面「两处比字面更细的地方」。
 
 `timeout` 那行用「假值」判定而不是 `undefined`：axios 的请求配置里 `timeout: 0` 意味着
 「不限时」，把它当作「没设」才对。其余两处用 `undefined` 判定就够了。
+
+### 两处比字面更细的地方
+
+写下「请求级 > 全局 > 兜底」之后才看清的两件事，都不是字面上能读出来的：
+
+- **`headers` 的「没设」得按值判，不能按 `has()` 判。** axios 在拦截器**之前**就把库默认头
+  并进了 `config.headers`（实测 `axios.defaults.headers.common` 是
+  `{ Accept: 'application/json, text/plain, */*', 'Content-Type': undefined }`），
+  于是 `config.headers.has('Accept')` 恒为真，宿主配的全局 `Accept` 会被静默丢掉。
+  照三层模型，axios 这个自带值属于**兜底**那一层，全局配置本就该盖过它 —— 所以判据写成
+  「键不在，**或**值正好等于库默认值」。代价是调用方显式把某个头设成与库默认逐字相同的
+  那个串时会被全局盖掉；这个值没人会故意写，换掉一个静默失效划算。
+- **请求级 `timeout: 0` 的含义变了。** 改之前 `http.get(url, { timeout: 0 })` 是「本次不限时」；
+  改之后它落回组件兜底（15 秒），因为拦截器里分不出「调用方写了 0」与「axios 自己默认 0」
+  （axios 的 `defaults.timeout` 就是 0，且 `mergeConfig` 在拦截器前就把它并了进来）。
+  这是「`timeout: 0` 当作没设」这条规则付的代价，换个方向看：`configure({ timeout: 0 })`
+  仍然是「不限时」，两侧不对称。
 
 `fetchMyList` 仍是 mock，见「不做的事」。
 
@@ -190,8 +208,9 @@ IIFE 把它落成 `var ewConfig = (…)()` —— 顶层 `var` 在 `<script>` �
 
 ## 破坏性变更
 
-无。未调用 `configure()` 时组件行为与今天逐字一致；只是新增了一个子路径、一个 CDN 文件、
-一个 `globalThis` 槽位。
+只有一处，且只有传了那个值的人才会碰到：**请求级 `timeout: 0` 从「本次不限时」变成
+「落回兜底」**（理由见「两处比字面更细的地方」）。除此之外，未调用 `configure()` 时组件
+行为与今天逐字一致；只是新增了一个子路径、一个 CDN 文件、一个 `globalThis` 槽位。
 
 ## 已知代价
 
